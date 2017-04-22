@@ -57,8 +57,8 @@ def Downlaod(CardName, CardID):
 
 
 if __name__ == '__main__':
-    SetShortName = input('You plan download setname(ShortName):')
-    SetLongName = input('You plan download setname(LongName):')
+    SetShortName = input('You plan download setshortname:')
+    SetLongName = input('You plan download setlongname:')
     if os.path.exists('./' + SetShortName) == False:
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
