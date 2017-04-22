@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
 
+import sys
 import os
 #import re
 from multiprocessing import Pool
@@ -20,7 +21,7 @@ def GetSetInfo( SetShortName ):
     soup = BeautifulSoup( html , 'html.parser' )
     try:
         table = soup.find( 'table' , { 'cellpadding' : 3 } )
-        for row in table.findAll( 'tr' ):
+        for row in table.find_all( 'tr' , class_=( 'odd' , 'even' ) ):
             NameObj = row.find( 'a' )
             NumberObj = row.find( 'td' , { 'align' : 'right' } )
             name = NameObj.get_text()
@@ -30,7 +31,7 @@ def GetSetInfo( SetShortName ):
             CardInfo.append( ( number , name ) )
         return CardInfo
     except ( AttributeError , TypeError ):
-        print( "Set %s info not find" %SetShortName )
+        print( "\n]rSet %s info not find]n" %SetShortName , file=sys.stderr )
         exit( False )
 
 def DownloadImage( SetShortName , CardID , CardName ):
@@ -38,13 +39,13 @@ def DownloadImage( SetShortName , CardID , CardName ):
     try:
         imageobject = requests.get( ImageDownloadUrl , timeout = 13 )
     except ( requests.exceptions.ReadTimeout , requests.exceptions.ConnectTimeout ):
-        print( "\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!" %CardName )
+        print( "\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %CardName , file=sys.stderr )
         exit( False )
     if imageobject.headers[ 'Content-Type' ] == 'image/jpeg':
         open( CardName + '.full.jpg' , 'wb' ).write( imageobject.content )
         print( "Download card:%s success,the number is:%s" %( CardName , CardID ) )
     else:
-        print( "\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%s" %( CardName , CardID ) )
+        print( "\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%s\n" %( CardName , CardID ) , file=sys.stderr )
 
 if __name__ == '__main__':
     SetShortName = input( 'You plan download setshortname:' )
@@ -54,9 +55,9 @@ if __name__ == '__main__':
     os.chdir( './' + SetShortName )
     p = Pool( processes = 4 )
     print( "Download start,Card total %d" %len( CardInfo ) )
-    for i in CardInfo:
-        p.apply_async( DownloadImage , args=( SetShortName , i[0] , i[1] ) )
-        #DownloadImage( SetShortName , i[0] , i[1] )
+    for CardObj in CardInfo:
+        p.apply_async( DownloadImage , args=( SetShortName , CardObj[0] , CardObj[1] , ) )
+        #DownloadImage( SetShortName , CardObj[0] , CardObj[1] )
     p.close()
     p.join()
     print( 'All download success' )
