@@ -35,7 +35,7 @@ def GetSetInfo(SetLongName):
             CardInfo.append((CardName, CardID))
         return CardInfo
     except (AttributeError, TypeError):
-        print("Set %s info not find\n" % SetLongName, file=sys.sys.stderr)
+        print("Set %s info not find\n" % SetLongName, file=sys.stderr)
         exit(False)
 
 
@@ -45,7 +45,7 @@ def Downlaod(CardName, CardID):
         imageobject = requests.get(CardUrl, timeout=13)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
-              CardName, file=sys.sys.stderr)
+              CardName, file=sys.stderr)
         exit(False)
     if imageobject.status_code == 200:
         open(CardName + '.full.jpg', 'wb').write(imageobject.content)
@@ -53,7 +53,7 @@ def Downlaod(CardName, CardID):
               (CardName, CardID))
     else:
         print("\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%d\n" %
-              (CardName, CardID), file=sys.sys.stderr)
+              (CardName, CardID), file=sys.stderr)
 
 
 if __name__ == '__main__':
