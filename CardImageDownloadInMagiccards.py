@@ -18,8 +18,8 @@ def GetSetInfo( SetShortName ):
         exit( False )
     html = resp.text
     soup = BeautifulSoup( html , 'html.parser' )
-    table = soup.find( 'table' , { 'cellpadding' : 3 } )
     try:
+        table = soup.find( 'table' , { 'cellpadding' : 3 } )
         for row in table.findAll( 'tr' ):
             NameObj = row.find( 'a' )
             NumberObj = row.find( 'td' , { 'align' : 'right' } )
@@ -28,10 +28,10 @@ def GetSetInfo( SetShortName ):
             number = NumberObj.get_text()
             #number = re.sub( r'</?\w+[^>]*>' , '' , str( row.find( 'td' , { 'align' : 'right' } ) ) )
             CardInfo.append( ( number , name ) )
+        return CardInfo
     except ( AttributeError , TypeError ):
         print( "Set %s info not find" %SetShortName )
         exit( False )
-    return CardInfo
 
 def DownloadImage( SetShortName , CardID , CardName ):
     ImageDownloadUrl = 'http://magiccards.info/scans/cn/' + SetShortName + '/' + CardID  +'.jpg'
