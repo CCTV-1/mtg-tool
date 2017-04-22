@@ -22,8 +22,8 @@ def GetSetInfo( SetLongName ):
     html = resp.text
     soup = BeautifulSoup( html , 'html.parser' )
     try:
-        table = soup.find( 'table' , { 'class' : 'checklist' } )
-        CardObjList = table.findAll( 'a' , { 'class' : 'nameLink' })
+        table = soup.find( 'table' , class_='checklist' )
+        CardObjList = table.find_all( 'a' , class_='nameLink' )
         for CardObj in CardObjList:
             CardID = int(CardObj['href'].partition('=')[2])
             CardName = CardObj.get_text()
@@ -34,18 +34,18 @@ def GetSetInfo( SetLongName ):
         print( "Set %s info not find" %SetLongName )
         exit( False )
 
-def Downlaod( CardObj ):
-    CardUrl = 'http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=%d&type=card' %CardObj[1]
+def Downlaod( CardName , CardID ):
+    CardUrl = 'http://gatherer.wizards.com/Handlers/Image.ashx?multiverseid=%d&type=card' %CardID
     try:
         imageobject = requests.get( CardUrl , timeout = 13 )
     except ( requests.exceptions.ReadTimeout , requests.exceptions.ConnectTimeout ):
-        print( "\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!" %CardObj[0] )
+        print( "\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!" %CardName )
         exit( False )
     if imageobject.status_code == 200:
-        open( CardObj[0] + '.full.jpg' , 'wb' ).write( imageobject.content )
-        print( "Download card:%s success,the card id is %d" %( CardObj[0] , CardObj[1] ) )
+        open( CardName + '.full.jpg' , 'wb' ).write( imageobject.content )
+        print( "Download card:%s success,the card id is %d" %( CardName , CardID ) )
     else:
-        print( "\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%d" %( CardObj[0] , CardObj[1] ) )
+        print( "\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%d" %( CardName , CardID ) )
 
 if __name__ == '__main__':
     SetShortName = input( 'You plan download setname(ShortName):' )
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     p = Pool( processes = 4 )
     print( "Download start,Card total %d" %len( CardInfo ) )
     for CardObj in CardInfo:
-        p.apply_async( Downlaod , args=( CardObj , ) )
+        p.apply_async( Downlaod , args=( CardObj[0] , CardObj[1] , ) )
         #Downlaod( CardObj )
     p.close()
     p.join()
