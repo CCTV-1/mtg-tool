@@ -15,7 +15,7 @@ def GetSetInfo(SetLongName):
     CardInfoUrl = 'http://gatherer.wizards.com/Pages/Search/Default.aspx?sort=cn+&set=[%%22%s%%22]' % SetLongName
     try:
         resp = requests.Session().get(CardInfoUrl, timeout=13, cookies={
-            'CardDatabaseSettings': '0=1&1=zh-CN&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13='})
+            'CardDatabaseSettings': '0=1&1=zh-CN8&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13='})
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tGet set %s info time out" % SetLongName)
         exit(False)
@@ -64,7 +64,7 @@ if __name__ == '__main__':
     os.chdir('./' + SetShortName)
     CardInfo = GetSetInfo(SetLongName)
     p = Pool(processes=4)
-    print("Download start,Card total %d" % len(CardInfo))
+    print("Download start,Card total %d" %len(CardInfo)+1)
     for CardObj in CardInfo:
         p.apply_async(Downlaod, args=(CardObj[0], CardObj[1], ))
         #Downlaod( CardObj )

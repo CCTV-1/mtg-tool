@@ -60,7 +60,7 @@ if __name__ == '__main__':
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
     p = Pool(processes=4)
-    print("Download start,Card total %d" % len(CardInfo))
+    print("Download start,Card total %d" % len(CardInfo)+1)
     for CardObj in CardInfo:
         p.apply_async(DownloadImage, args=(
             SetShortName, CardObj[0], CardObj[1], ))
