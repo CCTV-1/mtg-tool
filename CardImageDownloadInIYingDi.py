@@ -60,7 +60,8 @@ def DownloadImage(SetShortName, CardObj):
         imageobject = requests.get(ImageDownloadUrl, timeout=13)
         if imageobject.headers['Content-Type'] == 'image/jpeg':
             open(CardName + '.full.jpg', 'wb').write(imageobject.content)
-            print("Download card:%s success,the number is:%s" % (CardName, CardID))
+            print("Download card:%s success,the number is:%s" %
+                  (CardName, CardID))
         else:
             print("\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%s\n" %
                   (CardName, CardID), file=sys.stderr)
@@ -71,6 +72,11 @@ def DownloadImage(SetShortName, CardObj):
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
               CardName, file=sys.stderr)
+    except FileNotFoundError:
+        CookiesCardName = CardName.replace(' // ', '')
+        open(CookiesCardName + '.full.jpg', 'wb').write(imageobject.content)
+        print("Download cookiescard:%s success,the number is:%s" %
+              (CardName, CardID))
 
 
 if __name__ == '__main__':
@@ -85,12 +91,12 @@ if __name__ == '__main__':
     if os.path.exists('./' + SetShortName) == False:
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
-    p = Pool(processes=4)
+    #p = Pool(processes=4)
     print("Download start,Card total %d" % SetSize)
     for CardObj in CardsInfo:
         p.apply_async(DownloadImage, args=(
             SetShortName, CardObj, ))
-        #DownloadImage( SetShortName , CardObj )
+        #DownloadImage(SetShortName, CardObj)
     p.close()
     p.join()
     print('All download success')
