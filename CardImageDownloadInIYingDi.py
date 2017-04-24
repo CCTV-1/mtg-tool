@@ -28,7 +28,7 @@ def GetCardsInfo(SetObj):
     try:
         SetSize = SetObj['size']
         SetID = SetObj['id']
-        SetInfo = []
+        CardsInfo = []
         for page in range(math.ceil(SetSize / 20)):
             RequestData = {
                 'order': '-seriesPubtime,+sindex',
@@ -43,8 +43,8 @@ def GetCardsInfo(SetObj):
                 'http://www.iyingdi.com/magic/card/search/vertical', data=RequestData, timeout=13)
             CardsObj = resp.json()['data']['cards']
             for CardObj in CardsObj:
-                SetInfo.append(CardObj)
-        return SetInfo
+                CardsInfo.append(CardObj)
+        return CardsInfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
         print("\nTimeOutError:\n\tGet set %s info time out" % SetShortName)
         exit(False)
@@ -84,14 +84,15 @@ if __name__ == '__main__':
     SetShortName = input('You plan download setshortname:')  # 'akh'
     for SetObj in SetList:
         if SetShortName == SetObj['abbr']:
-            SetSize = SetObj['size']
             CardsInfo = GetCardsInfo(SetObj)
+            SetSize = len(CardsInfo)
+            break
         else:
             pass
     if os.path.exists('./' + SetShortName) == False:
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
-    #p = Pool(processes=4)
+    p = Pool(processes=4)
     print("Download start,Card total %d" % SetSize)
     for CardObj in CardsInfo:
         p.apply_async(DownloadImage, args=(
