@@ -15,7 +15,7 @@ def GetCardsInfo(SetLongName):
         CardInfo = []
         CardInfoUrl = 'http://gatherer.wizards.com/Pages/Search/Default.aspx?sort=cn+&set=[%%22%s%%22]' % SetLongName
         resp = requests.Session().get(CardInfoUrl, timeout=13, cookies={
-            'CardDatabaseSettings': '0=1&1=zh-CN8&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13='})
+            'CardDatabaseSettings': '0=1&1=zh-CN&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13='})
         # cn cookies { 'CardDatabaseSettings': '0=1&1=zh-CN&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13= ' }
         # en cookies { 'CardDatabaseSettings':
         # '0=1&1=28&2=0&14=1&3=13&4=0&5=1&6=15&7=0&8=1&9=1&10=18&11=7&12=8&15=1&16=0&13=
