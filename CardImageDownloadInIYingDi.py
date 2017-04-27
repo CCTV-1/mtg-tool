@@ -83,7 +83,7 @@ if __name__ == '__main__':
     SetList = GetSetList()
     SetShortName = input('You plan download setshortname:')  # 'akh'
     for SetObj in SetList:
-        if SetShortName == SetObj['abbr']:
+        if SetShortName in SetObj['abbr']:
             CardsInfo = GetCardsInfo(SetObj)
             SetSize = len(CardsInfo)
             break
