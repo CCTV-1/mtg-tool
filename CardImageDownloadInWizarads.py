@@ -65,10 +65,10 @@ if __name__ == '__main__':
     os.chdir('./' + SetShortName)
     CardsInfo = GetCardsInfo(SetLongName)
     p = Pool(processes=4)
-    print("Download start,Card total %d" % len(CardsInfo))
+    print("Download set:%s start,Card total %d" (% SetshortName , len(CardsInfo) ) )
     for CardObj in CardsInfo:
         p.apply_async(Downlaod, args=(CardObj[0], CardObj[1], ))
         #Downlaod( CardObj )
     p.close()
     p.join()
-    print('All download success')
+    print('Set %s all card image download end' %SetShortName)

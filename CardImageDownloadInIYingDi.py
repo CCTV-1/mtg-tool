@@ -148,7 +148,7 @@ if __name__ == '__main__':
                 SetList = GetSetList()
                 SetShortName = value  # 'akh
                 for SetObj in SetList:
-                    if SetShortName in SetObj['abbr']:
+                    if SetShortName == SetObj['abbr']:
                         CardsInfo = GetCardsInfo(SetObj)
                         SetSize = len(CardsInfo)
                         break
@@ -158,14 +158,16 @@ if __name__ == '__main__':
                     os.mkdir('./' + SetShortName)
                 os.chdir('./' + SetShortName)
                 p = Pool(processes=4)
-                print("Download start,Card total %d" % SetSize)
+                print("Download set:%s start,Card total %d" %
+                      (SetShortName, SetSize))
                 for CardObj in CardsInfo:
                     p.apply_async(DownloadImage, args=(
                         CardObj, ))
                     # DownloadImage(CardObj)
                 p.close()
                 p.join()
-                print('All download success')
+                print('Set %s all card image download end' %SetShortName)
+                os.chdir('../')
                 continue
 
             if name in '--downloadcard':
