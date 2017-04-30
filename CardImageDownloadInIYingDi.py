@@ -100,7 +100,6 @@ def DownloadImage(CardObj):
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
               CardName, file=sys.stderr)
-        exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
               CardName, file=sys.stderr)

@@ -52,7 +52,6 @@ def Downlaod(CardName, CardID):
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
               CardName, file=sys.stderr)
-        exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
               CardName, file=sys.stderr)
@@ -65,7 +64,7 @@ if __name__ == '__main__':
     os.chdir('./' + SetShortName)
     CardsInfo = GetCardsInfo(SetLongName)
     p = Pool(processes=4)
-    print("Download set:%s start,Card total %d" (% SetshortName , len(CardsInfo) ) )
+    print("Download set:%s start,Card total %d" %( SetShortName , len(CardsInfo) ) )
     for CardObj in CardsInfo:
         p.apply_async(Downlaod, args=(CardObj[0], CardObj[1], ))
         #Downlaod( CardObj )

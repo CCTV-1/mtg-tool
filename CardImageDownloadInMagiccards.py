@@ -3,7 +3,7 @@
 
 import os
 import sys
-#import re
+import re
 from multiprocessing import Pool
 
 import requests
@@ -50,10 +50,19 @@ def DownloadImage(SetShortName, CardID, CardName):
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
               CardName, file=sys.stderr)
-        exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
               CardName, file=sys.stderr)
+    except FileNotFoundError:
+        p = re.compile(r'((\w*)/(\w*))')
+        m = p.search(CardName)
+        try:
+            CookiesCardName = m.group(2) + m.group(3)
+        except AttributeError:
+            print( '\nUnknown format Card Name\n' , file=sys.stderr )
+        open(CookiesCardName + '.full.jpg', 'wb').write(imageobject.content)
+        print("Download cookiescard:%s success,the number is:%s" %
+              (CardName, CardID))
 
 
 if __name__ == '__main__':
@@ -63,7 +72,7 @@ if __name__ == '__main__':
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
     p = Pool(processes=4)
-    print("Download set:%s start,Card total %d" (% SetshortName , len(CardsInfo) ) )
+    print("Download set:%s start,Card total %d" %( SetShortName , len(CardsInfo) ) )
     for CardObj in CardsInfo:
         p.apply_async(DownloadImage, args=(
             SetShortName, CardObj[0], CardObj[1], ))
