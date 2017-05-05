@@ -56,18 +56,20 @@ def Downlaod(CardName, CardID):
         print("\nThe card:%s information obtained is wrong\n" %
               CardName, file=sys.stderr)
 
+
 if __name__ == '__main__':
     SetShortName = input('You plan download setshortname:')
     SetLongName = input('You plan download setlongname:')
-    if os.path.exists('./' + SetShortName) == False:
+    if os.path.exists('./' + SetShortName) is False:
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
     CardsInfo = GetCardsInfo(SetLongName)
     p = Pool(processes=4)
-    print("Download set:%s start,Card total %d" %( SetShortName , len(CardsInfo) ) )
+    print("Download set:%s start,Card total %d" %
+          (SetShortName, len(CardsInfo)))
     for CardObj in CardsInfo:
         p.apply_async(Downlaod, args=(CardObj[0], CardObj[1], ))
         #Downlaod( CardObj )
     p.close()
     p.join()
-    print('Set %s all card image download end' %SetShortName)
+    print('Set %s all card image download end' % SetShortName)

@@ -153,7 +153,7 @@ if __name__ == '__main__':
                         break
                     else:
                         pass
-                if os.path.exists('./' + SetShortName) == False:
+                if os.path.exists('./' + SetShortName) is False:
                     os.mkdir('./' + SetShortName)
                 os.chdir('./' + SetShortName)
                 p = Pool(processes=4)
@@ -165,12 +165,12 @@ if __name__ == '__main__':
                     # DownloadImage(CardObj)
                 p.close()
                 p.join()
-                print('Set %s all card image download end' %SetShortName)
+                print('Set %s all card image download end' % SetShortName)
                 os.chdir('../')
                 continue
 
             if name in '--downloadcard':
-                CardObj = GetCardInfo()
+                CardObj = GetCardInfo(value)
                 DownloadImage(CardObj)
                 continue
 

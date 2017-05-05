@@ -39,7 +39,7 @@ def DownloadImage(SetShortName, CardID, CardName):
     try:
         ImageDownloadUrl = 'http://magiccards.info/scans/cn/' + \
             SetShortName + '/' + CardID + '.jpg'
-        imageobject = requests.get(ImageDownloadUrl, timeout=13)
+        imageobject = requests.get(ImageDownloadUrl, timeout=13 )
         if imageobject.headers['Content-Type'] == 'image/jpeg':
             open(CardName + '.full.jpg', 'wb').write(imageobject.content)
             print("Download card:%s success,the number is:%s" %
@@ -68,7 +68,7 @@ def DownloadImage(SetShortName, CardID, CardName):
 if __name__ == '__main__':
     SetShortName = input('You plan download setshortname:')
     CardsInfo = GetCardsInfo(SetShortName)
-    if os.path.exists('./' + SetShortName) == False:
+    if os.path.exists('./' + SetShortName) is False:
         os.mkdir('./' + SetShortName)
     os.chdir('./' + SetShortName)
     p = Pool(processes=4)
