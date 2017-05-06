@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # coding=utf-8
 
+"""Get card image in http://magiccards.info/"""
+
 import os
 import sys
 import re
@@ -10,73 +12,79 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def GetCardsInfo(SetShortName):
+def getcardsinfo(setshortname):
+    """Get Series of information by represented setshortname"""
     try:
-        CardInfo = []
+        cardinfo = []
         resp = requests.get('http://magiccards.info/' +
-                            SetShortName + '/en.html', timeout=13)
+                            setshortname + '/en.html', timeout=13)
         html = resp.text
         soup = BeautifulSoup(html, 'html.parser')
         table = soup.find('table', {'cellpadding': 3})
         for row in table.find_all('tr', class_=('odd', 'even')):
-            NameObj = row.find('a')
-            NumberObj = row.find('td', {'align': 'right'})
-            name = NameObj.get_text()
+            nameobj = row.find('a')
+            numberobj = row.find('td', {'align': 'right'})
+            name = nameobj.get_text()
             #name = re.sub( r'</?\w+[^>]*>' , '' , str( row.find( 'a' ) ) )
-            number = NumberObj.get_text()
-            #number = re.sub( r'</?\w+[^>]*>' , '' , str( row.find( 'td' , { 'align' : 'right' } ) ) )
-            CardInfo.append((number, name))
-        return CardInfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
-        print("\nTimeOutError:\n\tGet set:%s info time out" % SetShortName)
+            number = numberobj.get_text()
+            # number = re.sub( r'</?\w+[^>]*>' , '' , \
+            # str( row.find( 'td' , { 'align' : 'right' } ) ) )
+            cardinfo.append((number, name))
+        return cardinfo
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+        print("\nTimeOutError:\n\tGet set:%s info time out" % setshortname)
         exit(False)
     except (AttributeError, TypeError):
-        print("\nSet %s info not find\n" % SetShortName, file=sys.stderr)
+        print("\nSet %s info not find\n" % setshortname, file=sys.stderr)
         exit(False)
 
 
-def DownloadImage(SetShortName, CardID, CardName):
+def downloadimage(setshortname, cardid, cardname):
+    """Download the card image represented by cardname
+    cardid and setshortname is used to determine the picture link
+    """
     try:
-        ImageDownloadUrl = 'http://magiccards.info/scans/cn/' + \
-            SetShortName + '/' + CardID + '.jpg'
-        imageobject = requests.get(ImageDownloadUrl, timeout=13 )
+        imagedownloadurl = 'http://magiccards.info/scans/cn/' + \
+            setshortname + '/' + cardid + '.jpg'
+        imageobject = requests.get(imagedownloadurl, timeout=13)
         if imageobject.headers['Content-Type'] == 'image/jpeg':
-            open(CardName + '.full.jpg', 'wb').write(imageobject.content)
+            open(cardname + '.full.jpg', 'wb').write(imageobject.content)
             print("Download card:%s success,the number is:%s" %
-                  (CardName, CardID))
+                  (cardname, cardid))
         else:
-            print("\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%s\n" %
-                  (CardName, CardID), file=sys.stderr)
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+            print("\nContent-Type Error:\n\trequest not is jpeg image file\
+            ,the card is %s number is:%s\n" % (cardname, cardid), file=sys.stderr)
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
-              CardName, file=sys.stderr)
+              cardname, file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
-              CardName, file=sys.stderr)
+              cardname, file=sys.stderr)
     except FileNotFoundError:
-        p = re.compile(r'((\w*)/(\w*))')
-        m = p.search(CardName)
+        patternobject = re.compile(r'((\w*)/(\w*))')
+        matchobject = patternobject.search(cardname)
         try:
-            CookiesCardName = m.group(2) + m.group(3)
+            cookiesscardname = matchobject.group(2) + matchobject.group(3)
         except AttributeError:
-            print( '\nUnknown format Card Name\n' , file=sys.stderr )
-        open(CookiesCardName + '.full.jpg', 'wb').write(imageobject.content)
+            print('\nUnknown format Card Name\n', file=sys.stderr)
+        open(cookiesscardname + '.full.jpg', 'wb').write(imageobject.content)
         print("Download cookiescard:%s success,the number is:%s" %
-              (CardName, CardID))
+              (cardname, cardid))
 
 
 if __name__ == '__main__':
-    SetShortName = input('You plan download setshortname:')
-    CardsInfo = GetCardsInfo(SetShortName)
-    if os.path.exists('./' + SetShortName) is False:
-        os.mkdir('./' + SetShortName)
-    os.chdir('./' + SetShortName)
-    p = Pool(processes=4)
-    print("Download set:%s start,Card total %d" %( SetShortName , len(CardsInfo) ) )
-    for CardObj in CardsInfo:
-        p.apply_async(DownloadImage, args=(
-            SetShortName, CardObj[0], CardObj[1], ))
-        #DownloadImage( SetShortName , CardObj[0] , CardObj[1] )
-    p.close()
-    p.join()
-    print('Set %s all card image download end' %SetShortName)
+    SETSHORTNAME = input('You plan download setshortname:')
+    CARDINFO = getcardsinfo(SETSHORTNAME)
+    if os.path.exists('./' + SETSHORTNAME) is False:
+        os.mkdir('./' + SETSHORTNAME)
+    os.chdir('./' + SETSHORTNAME)
+    P = Pool(processes=4)
+    print("Download set:%s start,Card total %d" %
+          (SETSHORTNAME, len(CARDINFO)))
+    for cardobj in CARDINFO:
+        P.apply_async(downloadimage, args=(
+            SETSHORTNAME, cardobj[0], cardobj[1], ))
+        #downloadimage( SETSHORTNAME , cardobj[0] , cardobj[1] )
+    P.close()
+    P.join()
+    print('Set %s all card image download end' % SETSHORTNAME)

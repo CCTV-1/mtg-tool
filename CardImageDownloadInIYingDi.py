@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 # coding=utf-8
 
+"""Get card image in http://www.iyingdi.com/web/tools/mtg/cards"""
+
 import getopt
 import math
 import os
@@ -8,26 +10,28 @@ import sys
 from multiprocessing import Pool
 
 import requests
-from bs4 import BeautifulSoup
 
 
 def helps():
+    """get help information"""
     print(
         '--getsetlist get iyingdi supported setlist and each set shortname\n'
         '--getcardslist=[set shortname] get set cards list\n'
         '--downloadset=[set shortname] download set all card image\n'
         '--getcardinfo=[cardname] get card info(usage english name is best)\n'
-        '--downloadcard=[cardname] download card image,but not support download reprint card history image'
+        '--downloadcard=[cardname] download card image\
+        ,but not support download reprint card history image'
     )
 
 
-def GetSetList():
+def getsetlist():
+    """get iyingdi supported Series list and each set shortname"""
     try:
         resp = requests.get(
             'http://www.iyingdi.com/magic/series/list?size=-1', timeout=13)
-        SetList = resp.json()['list']
-        return SetList
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+        serieslist = resp.json()['list']
+        return serieslist
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tGet setlist time out", file=sys.stderr)
         exit(False)
     except (AttributeError, KeyError):
@@ -35,143 +39,147 @@ def GetSetList():
         exit(False)
 
 
-def GetCardsInfo(SetObj):
+def getcardsinfo(seriesobj):
+    """Get Series of information by represented setobj"""
     try:
-        SetSize = SetObj['size']
-        SetID = SetObj['id']
-        CardsInfo = []
-        for page in range(math.ceil(SetSize / 20)):
-            RequestData = {
+        seriessize = seriesobj['size']
+        seriesid = seriesobj['id']
+        cardsinfo_tmp = []
+        for page in range(math.ceil(seriessize / 20)):
+            requestdata = {
                 'order': '-seriesPubtime,+sindex',
-                'series': str(SetID),
+                'series': str(seriesid),
                 'size': '20',
                 'page': str(page),
                 #'statistic': 'total'
             }
             if page == 0:
-                RequestData['statistic'] = 'total'
+                requestdata['statistic'] = 'total'
             resp = requests.post(
-                'http://www.iyingdi.com/magic/card/search/vertical', data=RequestData, timeout=13)
-            CardsObj = resp.json()['data']['cards']
-            for CardObj in CardsObj:
-                CardsInfo.append(CardObj)
-        return CardsInfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+                'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
+            cardsinfoobj = resp.json()['data']['cards']
+            for cardinfoobj in cardsinfoobj:
+                cardsinfo_tmp.append(cardinfoobj)
+        return cardsinfo_tmp
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tGet set:%s card list time out" %
-              SetObj['ename'])
+              setobj['ename'])
         exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe set information obtained is wrong\n", file=sys.stderr)
 
 
-def GetCardInfo(CardName):
+def getcardinfo(cardname):
+    """get card for information by represented cardname"""
     try:
-        RequestData = {
+        requestdata = {
             'order': '-seriesPubtime,+sindex',
-            'name': CardName,
+            'name': cardname,
             'size': '20',
             'page': '0',
             'statistic': 'total'
         }
         resp = requests.post(
-            'http://www.iyingdi.com/magic/card/search/vertical', data=RequestData, timeout=13)
-        CardInfo = resp.json()['data']['cards'][0]
-        return CardInfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
-        print("\nTimeOutError:\n\tGet Card: %s info time out" % CardName)
+            'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
+        cardinfo = resp.json()['data']['cards'][0]
+        return cardinfo
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+        print("\nTimeOutError:\n\tGet Card: %s info time out" % cardname)
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        print("\nGet Card:%s Info Failure\n" % CardName, file=sys.stderr)
+        print("\nGet Card:%s Info Failure\n" % cardname, file=sys.stderr)
 
 
-def DownloadImage(CardObj):
+def downloadimage(cardobj_parameters):
+    """Download the card image represented by cardobj_parameters"""
     try:
-        ImageDownloadUrl = CardObj['img']
-        CardName = CardObj['ename']
-        CardID = ImageDownloadUrl.split('/')[-1][0:-4]
-        imageobject = requests.get(ImageDownloadUrl, timeout=13)
+        imagedownloadurl = cardobj_parameters['img']
+        cardname = cardobj_parameters['ename']
+        cardid = imagedownloadurl.split('/')[-1][0:-4]
+        # url:******/$(cardid).jpg
+        imageobject = requests.get(imagedownloadurl, timeout=13)
         if imageobject.headers['Content-Type'] == 'image/jpeg':
-            open(CardName + '.full.jpg', 'wb').write(imageobject.content)
+            open(cardname + '.full.jpg', 'wb').write(imageobject.content)
             print("Download card:%s success,the number is:%s" %
-                  (CardName, CardID))
+                  (cardname, cardid))
         else:
-            print("\nContent-Type Error:\n\trequest not is jpeg image file,the card is %s number is:%s\n" %
-                  (CardName, CardID), file=sys.stderr)
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout, requests.exceptions.ConnectionError):
+            print("\nContent-Type Error:\n\trequest not is jpeg image file,\
+            the card is %s number is:%s\n" % (cardname, cardid), file=sys.stderr)
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
-              CardName, file=sys.stderr)
+              cardname, file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:%s information obtained is wrong\n" %
-              CardName, file=sys.stderr)
+              cardname, file=sys.stderr)
     except FileNotFoundError:
-        CookiesCardName = CardName.replace(' // ', '')
-        open(CookiesCardName + '.full.jpg', 'wb').write(imageobject.content)
+        cookiescardname = cardname.replace(' // ', '')
+        open(cookiescardname + '.full.jpg', 'wb').write(imageobject.content)
         print("Download cookiescard:%s success,the number is:%s" %
-              (CardName, CardID))
+              (cardname, cardid))
 
 
 if __name__ == '__main__':
     try:
-        options, args = getopt.getopt(sys.argv[1:], '',  longopts=[
-                                      'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
-        for name, value in options:
+        OPTIONS, ARGS = getopt.getopt(sys.argv[1:], '', longopts=\
+        ['help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
+        for name, value in OPTIONS:
             if name in '--help':
                 helps()
                 continue
 
             if name in '--getsetlist':
-                SetList = GetSetList()
+                setlist = getsetlist()
                 print('support set is:\n')
-                for SetObj in SetList:
-                    print("%s(%s)" % (SetObj['ename'], SetObj['abbr']))
+                for setobj in setlist:
+                    print("%s(%s)" % (setobj['ename'], setobj['abbr']))
                 continue
 
             if name in '--getcardslist':
-                SetList = GetSetList()
-                SetShortName = value  # 'akh
-                for SetObj in SetList:
-                    if SetShortName in SetObj['abbr']:
-                        CardsInfo = GetCardsInfo(SetObj)
+                setlist = getsetlist()
+                sethhortname = value  # 'akh
+                for setobj in setlist:
+                    if sethhortname in setobj['abbr']:
+                        cardsinfo = getcardsinfo(setobj)
                         continue
-                for CardObj in CardsInfo:
-                    print('%s\t%s' % (CardObj['ename'], CardObj['mana']))
+                for cardobj in cardsinfo:
+                    print('%s\t%s' % (cardobj['ename'], cardobj['mana']))
                 continue
 
             if name in '--getcardinfo':
-                CardInfo = GetCardInfo(value)
+                CardInfo = getcardinfo(value)
                 for InfoKey in CardInfo:
                     print("%s:%s" % (InfoKey, CardInfo[InfoKey]))
                 continue
 
             if name in '--downloadset':
-                SetList = GetSetList()
-                SetShortName = value  # 'akh
-                for SetObj in SetList:
-                    if SetShortName == SetObj['abbr']:
-                        CardsInfo = GetCardsInfo(SetObj)
-                        SetSize = len(CardsInfo)
+                setlist = getsetlist()
+                sethhortname = value
+                for setobj in setlist:
+                    if sethhortname == setobj['abbr']:
+                        CardsInfo = getcardsinfo(setobj)
+                        setsize = len(CardsInfo)
                         break
                     else:
                         pass
-                if os.path.exists('./' + SetShortName) is False:
-                    os.mkdir('./' + SetShortName)
-                os.chdir('./' + SetShortName)
+                if os.path.exists('./' + sethhortname) is False:
+                    os.mkdir('./' + sethhortname)
+                os.chdir('./' + sethhortname)
                 p = Pool(processes=4)
                 print("Download set:%s start,Card total %d" %
-                      (SetShortName, SetSize))
-                for CardObj in CardsInfo:
-                    p.apply_async(DownloadImage, args=(
-                        CardObj, ))
-                    # DownloadImage(CardObj)
+                      (sethhortname, setsize))
+                for cardobj in CardsInfo:
+                    p.apply_async(downloadimage, args=(
+                        cardobj, ))
+                    # downloadimage(cardobj)
                 p.close()
                 p.join()
-                print('Set %s all card image download end' % SetShortName)
+                print('Set %s all card image download end' % sethhortname)
                 os.chdir('../')
                 continue
 
             if name in '--downloadcard':
-                CardObj = GetCardInfo(value)
-                DownloadImage(CardObj)
+                cardobj = getcardinfo(value)
+                downloadimage(cardobj)
                 continue
 
     except getopt.GetoptError:
