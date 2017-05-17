@@ -47,7 +47,7 @@ def downloadimage(setshortname, cardid, cardname):
         imagedownloadurl = 'http://magiccards.info/scans/cn/' + \
             setshortname + '/' + cardid + '.jpg'
         imageobject = requests.get(imagedownloadurl, timeout=13)
-        if imageobject.headers['Content-Type'] == 'image/jpeg':
+        if 'image' in imageobject.headers['Content-Type']:
             open(cardname + '.full.jpg', 'wb').write(imageobject.content)
             print("Download card:%s success,the number is:%s" %
                   (cardname, cardid))

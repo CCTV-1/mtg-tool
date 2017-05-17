@@ -50,7 +50,7 @@ def downloadimage(cardname, cardid):
         cardurl = 'http://gatherer.wizards.com/Handlers/\
         Image.ashx?multiverseid=%d&type=card' % cardid
         imageobject = requests.get(cardurl, timeout=13)
-        if imageobject.status_code == 200:
+        if 'image' in imageobject.headers['Content-Type']:
             open(cardname + '.full.jpg', 'wb').write(imageobject.content)
             print("Download card:%s success,the card id is %d" %
                   (cardname, cardid))
