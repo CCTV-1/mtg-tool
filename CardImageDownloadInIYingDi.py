@@ -62,7 +62,7 @@ def getcardsinfo(seriesobj):
                 cardsinfo_tmp.append(cardinfoobj)
         return cardsinfo_tmp
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tGet set:%s card list time out" %
+        print("\nTimeOutError:\n\tGet set:{0} card list time out".format(
               setobj['ename'])
         exit(False)
     except (AttributeError, TypeError, KeyError):
@@ -72,100 +72,111 @@ def getcardsinfo(seriesobj):
 def getcardinfo(cardname):
     """get card for information by represented cardname"""
     try:
-        requestdata = {
+        requestdata={
             'order': '-seriesPubtime,+sindex',
             'name': cardname,
             'size': '20',
             'page': '0',
             'statistic': 'total'
         }
-        resp = requests.post(
+        resp=requests.post(
             'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
-        cardinfo = resp.json()['data']['cards'][0]
+        cardinfo=resp.json()['data']['cards'][0]
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tGet Card: %s info time out" % cardname)
+        print(
+            "\nTimeOutError:\n\tGet Card: {0} info time out".format(cardname))
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        print("\nGet Card:%s Info Failure\n" % cardname, file=sys.stderr)
+        print("\nGet Card:{0} Info Failure\n".format(
+            cardname), file=sys.stderr)
 
 
 def downloadimage(cardobj_parameters):
     """Download the card image represented by cardobj_parameters"""
+    renamecount=0
+    basecardname=cardname
+    # a set base land number max value
+    flag=8
     try:
-        imagedownloadurl = cardobj_parameters['img']
-        cardname = cardobj_parameters['ename']
-        cardid = imagedownloadurl.split('/')[-1][0:-4]
-        # url:******/$(cardid).jpg
-        imageobject = requests.get(imagedownloadurl, timeout=13)
+        imagedownloadurl=cardobj_parameters['img']
+        cardname=cardobj_parameters['ename']
+        imageobject=requests.get(imagedownloadurl, timeout=13)
         if 'image' in imageobject.headers['Content-Type']:
-            open(cardname + '.full.jpg', 'wb').write(imageobject.content)
-            print("Download card:%s success,the number is:%s" %
-                  (cardname, cardid))
+            while flag:
+                flag -= 1
+                try:
+                    # x mode in python3.3+
+                    open(cardname + '.full.jpg', 'xb').write(imageobject.content)
+                    print("Download card:{0} success".format(cardname))
+                    break
+                except FileNotFoundError:
+                    cardname=cardname.replace(' // ', '')
+                    print("cookiescard:{0} rename to:{1} ".format(
+                        basecardname, cardname))
+                except FileExistsError:
+                    # rename base land
+                    renamecount += 1
+                    cardname=basecardname + str(renamecount)
         else:
             print("\nContent-Type Error:\n\trequest not is jpeg image file,\
-            the card is %s number is:%s\n" % (cardname, cardid), file=sys.stderr)
+            the card is {0}\n".format(cardname), file=sys.stderr)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tDownload Card %s request timeout stop downloading!\n" %
-              cardname, file=sys.stderr)
+        print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
+              cardname), file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
-        print("\nThe card:%s information obtained is wrong\n" %
-              cardname, file=sys.stderr)
-    except FileNotFoundError:
-        cookiescardname = cardname.replace(' // ', '')
-        open(cookiescardname + '.full.jpg', 'wb').write(imageobject.content)
-        print("Download cookiescard:%s success,the number is:%s" %
-              (cardname, cardid))
+        print("\nThe card:{0} information obtained is wrong\n".format(
+              cardname), file=sys.stderr)
 
 
-if __name__ == '__main__':
+def main():
     try:
-        OPTIONS, ARGS = getopt.getopt(sys.argv[1:], '', longopts=\
-        ['help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
-        for name, value in OPTIONS:
+        options, args=getopt.getopt(sys.argv[1:], '', longopts=[
+                                    'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
+        for name, value in options:
             if name in '--help':
                 helps()
                 continue
 
             if name in '--getsetlist':
-                setlist = getsetlist()
+                setlist=getsetlist()
                 print('support set is:\n')
                 for setobj in setlist:
-                    print("%s(%s)" % (setobj['ename'], setobj['abbr']))
+                    print("{0}({1})".format(setobj['ename'], setobj['abbr']))
                 continue
 
             if name in '--getcardslist':
-                setlist = getsetlist()
-                sethhortname = value  # 'akh
+                setlist=getsetlist()
+                sethhortname=value  # 'akh
                 for setobj in setlist:
                     if sethhortname in setobj['abbr']:
-                        cardsinfo = getcardsinfo(setobj)
+                        cardsinfo=getcardsinfo(setobj)
                         continue
                 for cardobj in cardsinfo:
-                    print('%s\t%s' % (cardobj['ename'], cardobj['mana']))
+                    print("{0}\t{1}".format(cardobj['ename'], cardobj['mana']))
                 continue
 
             if name in '--getcardinfo':
-                CardInfo = getcardinfo(value)
+                CardInfo=getcardinfo(value)
                 for InfoKey in CardInfo:
-                    print("%s:%s" % (InfoKey, CardInfo[InfoKey]))
+                    print("{0}:{1}".format(InfoKey, CardInfo[InfoKey]))
                 continue
 
             if name in '--downloadset':
-                setlist = getsetlist()
-                sethhortname = value
+                setlist=getsetlist()
+                sethhortname=value
                 for setobj in setlist:
                     if sethhortname == setobj['abbr']:
-                        CardsInfo = getcardsinfo(setobj)
-                        setsize = len(CardsInfo)
+                        CardsInfo=getcardsinfo(setobj)
+                        setsize=len(CardsInfo)
                         break
                     else:
                         pass
                 if os.path.exists('./' + sethhortname) is False:
                     os.mkdir('./' + sethhortname)
                 os.chdir('./' + sethhortname)
-                p = Pool(processes=4)
-                print("Download set:%s start,Card total %d" %
+                p=Pool(processes=4)
+                print("Download set:{1} start,Card total {1}".format
                       (sethhortname, setsize))
                 for cardobj in CardsInfo:
                     p.apply_async(downloadimage, args=(
@@ -173,14 +184,19 @@ if __name__ == '__main__':
                     # downloadimage(cardobj)
                 p.close()
                 p.join()
-                print('Set %s all card image download end' % sethhortname)
+                print('Set {0} all card image download end'.format(
+                    sethhortname))
                 os.chdir('../')
                 continue
 
             if name in '--downloadcard':
-                cardobj = getcardinfo(value)
+                cardobj=getcardinfo(value)
                 downloadimage(cardobj)
                 continue
 
     except getopt.GetoptError:
         helps()
+
+
+if __name__ == '__main__':
+    main()
