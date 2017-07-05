@@ -10,31 +10,35 @@ from multiprocessing import Pool
 import requests
 from bs4 import BeautifulSoup
 
-BASEURL = 'http://magic.wizards.com/{language}/articles/archive/card-image-gallery/{setlongname}'
+BASEURL = 'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
 
 
-def getcardsinfo(setlongname, language='zh-hans'):
-    """Get series of information"""
+def getcardsinfo(setlongname, localcode='cs'):
+    """localcode:en -> english,cs -> simplified chinese,ct -> traditional chinese,jp -> Japanese"""
     try:
         cardinfo = []
         # if card sequence is inconsistent function return error cardinfo
-        addreurl = BASEURL.format(language=language, setlongname=setlongname)
-        nameurl = BASEURL.format(language='en', setlongname=setlongname)
-        resp_addre = requests.get(addreurl, timeout=13)
-        html_addre = resp_addre.text
-        soup_addre = BeautifulSoup(html_addre, 'html.parser')
-        divs_addre = soup_addre.find_all('div', class_='resizing-cig')
-        resp_name = requests.get(nameurl, timeout=13)
-        html_name = resp_name.text
-        soup_name = BeautifulSoup(html_name, 'html.parser')
-        divs_name = soup_name.find_all('div', class_='resizing-cig')
-        for div_name, divs_addre in zip(divs_name, divs_addre):
-            img_name = div_name.find('img', alt=True)
-            img_addre = divs_addre.find('img', alt=True)
-            cardname = img_name['alt']
-            cardurl = img_addre['src']
-            cardname = cardname.replace('’', '\'')
-            cardinfo.append((cardname, cardurl))
+        url = BASEURL.format(setlongname=setlongname)
+        resp = requests.get(url, timeout=13)
+        html = resp.text
+        soup = BeautifulSoup(html, 'html.parser')
+        divs = soup.find_all('div', class_='resizing-cig')
+        for div in divs:
+            imgs = div.find_all('img', alt=True)
+            # for meld card and double-face card,two card image in div
+            for img in imgs:
+                cardname = img['alt']
+                cardurl = img['src']
+                webname = cardurl.split('/')[-1]
+                # http://***/en_***.png to http://***/localcode_***.png
+                cardurl = cardurl.replace(
+                    webname, webname.replace(webname[0:2], localcode))
+                # fullwidth to halfwidth
+                cardname = cardname.replace('’', '\'')
+                # meld card back alt attribute value deal with
+                cardname = cardname.replace(' (Bottom)', '')
+                cardname = cardname.replace(' (Top)', '')
+                cardinfo.append((cardname, cardurl))
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print('\nTimeOutError:\n\tget set info time out')
@@ -74,7 +78,7 @@ def downloadimage(cardname, cardurl):
                     renamecount += 1
                     cardname = '{0}{1}'.format(basecardname, renamecount)
         else:
-            print("\nContent-Type Error:\n\trequest not is jpeg image file",
+            print("\nContent-Type Error:\n\t{0} request not is jpeg image file".format(cardname),
                   file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\ncard:{0} info not error\n".format(cardname), file=sys.stderr)
