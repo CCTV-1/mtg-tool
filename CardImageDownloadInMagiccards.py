@@ -57,7 +57,8 @@ def downloadimage(setshortname, cardid, cardname):
             while flag:
                 flag -= 1
                 try:
-                    open(cardname + '.full.jpg', 'wb').write(imageobject.content)
+                    # x mode in python3.3+
+                    open(cardname + '.full.jpg', 'xb').write(imageobject.content)
                     print("Download card:{0} success,the number is:{1}".format
                           (cardname, cardid))
                     break
