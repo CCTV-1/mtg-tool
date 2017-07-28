@@ -50,7 +50,7 @@ def downloadimage(setshortname, cardid, cardname):
     # a set base land number max value
     flag = 8
     try:
-        imagedownloadurl = 'http://magiccards.info/scans/cn/' + \
+        imagedownloadurl = 'http://magiccards.info/scans/en/' + \
             setshortname + '/' + cardid + '.jpg'
         imageobject = requests.get(imagedownloadurl, timeout=13)
         if 'image' in imageobject.headers['Content-Type']:

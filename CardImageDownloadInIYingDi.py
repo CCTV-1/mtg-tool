@@ -63,7 +63,7 @@ def getcardsinfo(seriesobj):
         return cardsinfo_tmp
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tGet set:{0} card list time out".format(
-              setobj['ename'])
+              setobj['ename']))
         exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe set information obtained is wrong\n", file=sys.stderr)
@@ -95,10 +95,10 @@ def getcardinfo(cardname):
 def downloadimage(cardobj_parameters):
     """Download the card image represented by cardobj_parameters"""
     renamecount=0
-    basecardname=cardname
     # a set base land number max value
     flag=8
     try:
+        basecardname=cardobj_parameters['ename']
         imagedownloadurl=cardobj_parameters['img']
         cardname=cardobj_parameters['ename']
         imageobject=requests.get(imagedownloadurl, timeout=13)
@@ -147,9 +147,9 @@ def main():
 
             if name in '--getcardslist':
                 setlist=getsetlist()
-                sethhortname=value  # 'akh
+                setshortname=value  # 'akh
                 for setobj in setlist:
-                    if sethhortname in setobj['abbr']:
+                    if setshortname in setobj['abbr']:
                         cardsinfo=getcardsinfo(setobj)
                         continue
                 for cardobj in cardsinfo:
@@ -164,28 +164,28 @@ def main():
 
             if name in '--downloadset':
                 setlist=getsetlist()
-                sethhortname=value
+                setshortname=value
                 for setobj in setlist:
-                    if sethhortname == setobj['abbr']:
+                    if setshortname == setobj['abbr']:
                         CardsInfo=getcardsinfo(setobj)
                         setsize=len(CardsInfo)
                         break
                     else:
                         pass
-                if os.path.exists('./' + sethhortname) is False:
-                    os.mkdir('./' + sethhortname)
-                os.chdir('./' + sethhortname)
+                if os.path.exists('./' + setshortname) is False:
+                    os.mkdir('./' + setshortname)
+                os.chdir('./' + setshortname)
                 p=Pool(processes=4)
                 print("Download set:{1} start,Card total {1}".format
-                      (sethhortname, setsize))
+                      (setshortname, setsize))
                 for cardobj in CardsInfo:
                     p.apply_async(downloadimage, args=(
                         cardobj, ))
-                    # downloadimage(cardobj)
+                    #downloadimage(cardobj)
                 p.close()
                 p.join()
                 print('Set {0} all card image download end'.format(
-                    sethhortname))
+                    setshortname))
                 os.chdir('../')
                 continue
 
