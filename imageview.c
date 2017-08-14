@@ -46,12 +46,13 @@ int main ( int argc , char * argv[] )
             }
             else
             {
-                GtkWidget * image = gtk_image_new_from_file( entry->d_name );
-                if ( image == NULL )
+                GdkPixbuf * pixbuf = gdk_pixbuf_new_from_file( entry->d_name , NULL );
+                if ( pixbuf == NULL )
                 {
                     g_print( "%s not is image file\n" , entry->d_name );
                     continue;
                 }
+                GtkWidget * image = gtk_image_new_from_pixbuf( pixbuf );
                 gtk_grid_attach( GTK_GRID( grid ) , image , count%5 , count/5 ,  1 , 1);
                 count++;
             }
