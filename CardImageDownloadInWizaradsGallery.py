@@ -78,7 +78,7 @@ def downloadimage(cardname, cardurl):
                     renamecount += 1
                     cardname = '{0}{1}'.format(basecardname, renamecount)
         else:
-            print("\nContent-Type Error:\n\t{0} request not is jpeg image file".format(cardname),
+            print("\nContent-Type Error:\n\trequest type not is image,the card is:{0}".format(cardname),
                   file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\ncard:{0} info not error\n".format(cardname), file=sys.stderr)

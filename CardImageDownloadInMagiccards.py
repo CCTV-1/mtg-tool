@@ -76,8 +76,8 @@ def downloadimage(setshortname, cardid, cardname):
                     renamecount += 1
                     cardname = '{0}{1}'.format(basecardname, renamecount)
         else:
-            print("\nContent-Type Error:\n\trequest not is jpeg image file\
-            ,the card is {0} number is:{1}\n".format(cardname, cardid), file=sys.stderr)
+            print("\nContent-Type Error:\n\trequest type not is image\
+            ,the card is:{0},number is:{1}\n".format(cardname, cardid), file=sys.stderr)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
               cardname), file=sys.stderr)
