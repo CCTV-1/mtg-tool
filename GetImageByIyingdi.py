@@ -63,7 +63,7 @@ def getcardsinfo(seriesobj):
         return cardsinfo_tmp
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tGet set:{0} card list time out".format(
-              setobj['ename']))
+            seriesobj['ename']))
         exit(False)
     except (AttributeError, TypeError, KeyError):
         print("\nThe set information obtained is wrong\n", file=sys.stderr)
@@ -72,16 +72,16 @@ def getcardsinfo(seriesobj):
 def getcardinfo(cardname):
     """get card for information by represented cardname"""
     try:
-        requestdata={
+        requestdata = {
             'order': '-seriesPubtime,+sindex',
             'name': cardname,
             'size': '20',
             'page': '0',
             'statistic': 'total'
         }
-        resp=requests.post(
+        resp = requests.post(
             'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
-        cardinfo=resp.json()['data']['cards'][0]
+        cardinfo = resp.json()['data']['cards'][0]
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print(
@@ -94,14 +94,14 @@ def getcardinfo(cardname):
 
 def downloadimage(cardobj_parameters):
     """Download the card image represented by cardobj_parameters"""
-    renamecount=0
+    renamecount = 0
     # a set base land number max value
-    flag=8
+    flag = 8
     try:
-        basecardname=cardobj_parameters['ename']
-        imagedownloadurl=cardobj_parameters['img']
-        cardname=cardobj_parameters['ename']
-        imageobject=requests.get(imagedownloadurl, timeout=13)
+        basecardname = cardobj_parameters['ename']
+        imagedownloadurl = cardobj_parameters['img']
+        cardname = cardobj_parameters['ename']
+        imageobject = requests.get(imagedownloadurl, timeout=13)
         if 'image' in imageobject.headers['Content-Type']:
             while flag:
                 flag -= 1
@@ -111,72 +111,72 @@ def downloadimage(cardobj_parameters):
                     print("Download card:{0} success".format(cardname))
                     break
                 except FileNotFoundError:
-                    cardname=cardname.replace(' // ', '')
+                    cardname = cardname.replace(' // ', '')
                     print("cookiescard:{0} rename to:{1} ".format(
                         basecardname, cardname))
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
-                    cardname=basecardname + str(renamecount)
+                    cardname = basecardname + str(renamecount)
         else:
             print("\nContent-Type Error:\n\trequest type not is image,\
             the card is:{0}\n".format(cardname), file=sys.stderr)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
-              cardname), file=sys.stderr)
+            cardname), file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:{0} information obtained is wrong\n".format(
-              cardname), file=sys.stderr)
+            cardname), file=sys.stderr)
 
 
 def main():
     try:
-        options, args=getopt.getopt(sys.argv[1:], '', longopts=[
-                                    'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
+        options, args = getopt.getopt(sys.argv[1:], '', longopts=[
+            'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
         for name, value in options:
             if name in '--help':
                 helps()
                 continue
 
             if name in '--getsetlist':
-                setlist=getsetlist()
+                setlist = getsetlist()
                 print('support set is:\n')
                 for setobj in setlist:
                     print("{0}({1})".format(setobj['ename'], setobj['abbr']))
                 continue
 
             if name in '--getcardslist':
-                setlist=getsetlist()
-                setshortname=value  # 'akh
+                setlist = getsetlist()
+                setshortname = value  # 'akh
                 for setobj in setlist:
                     if setshortname in setobj['abbr']:
-                        cardsinfo=getcardsinfo(setobj)
+                        cardsinfo = getcardsinfo(setobj)
                         continue
                 for cardobj in cardsinfo:
                     print("{0}\t{1}".format(cardobj['ename'], cardobj['mana']))
                 continue
 
             if name in '--getcardinfo':
-                CardInfo=getcardinfo(value)
+                CardInfo = getcardinfo(value)
                 for InfoKey in CardInfo:
                     print("{0}:{1}".format(InfoKey, CardInfo[InfoKey]))
                 continue
 
             if name in '--downloadset':
-                setlist=getsetlist()
-                setshortname=value
+                setlist = getsetlist()
+                setshortname = value
                 for setobj in setlist:
                     if setshortname == setobj['abbr']:
-                        CardsInfo=getcardsinfo(setobj)
-                        setsize=len(CardsInfo)
+                        CardsInfo = getcardsinfo(setobj)
+                        setsize = len(CardsInfo)
                         break
                     else:
                         pass
                 if os.path.exists('./' + setshortname) is False:
                     os.mkdir('./' + setshortname)
                 os.chdir('./' + setshortname)
-                p=Pool(processes=4)
-                print("Download set:{1} start,Card total {1}".format
+                p = Pool(processes = 4)
+                print("Download set:{0} start,Card total {1}".format
                       (setshortname, setsize))
                 for cardobj in CardsInfo:
                     p.apply_async(downloadimage, args=(
@@ -190,7 +190,7 @@ def main():
                 continue
 
             if name in '--downloadcard':
-                cardobj=getcardinfo(value)
+                cardobj = getcardinfo(value)
                 downloadimage(cardobj)
                 continue
 
