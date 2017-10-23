@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
 
-"""Get card image in http://magiccards.info/"""
+"""Get series card image in https://magiccards.info/"""
 
 import os
 import sys
@@ -16,8 +16,8 @@ def getcardsinfo(setshortname):
     """Get Series of information by represented setshortname"""
     try:
         cardinfo = []
-        resp = requests.get('http://magiccards.info/' +
-                            setshortname + '/en.html', timeout=13)
+        resp = requests.get('https://magiccards.info/{0}/en.html'
+                            .format(setshortname), timeout=13)
         html = resp.text
         soup = BeautifulSoup(html, 'html.parser')
         table = soup.find('table', {'cellpadding': 3})
@@ -50,7 +50,7 @@ def downloadimage(setshortname, cardid, cardname):
     # a set base land number max value
     flag = 8
     try:
-        imagedownloadurl = 'http://magiccards.info/scans/en/' + \
+        imagedownloadurl = 'https://magiccards.info/scans/en/' + \
             setshortname + '/' + cardid + '.jpg'
         imageobject = requests.get(imagedownloadurl, timeout=13)
         if 'image' in imageobject.headers['Content-Type']:
@@ -80,13 +80,14 @@ def downloadimage(setshortname, cardid, cardname):
             ,the card is:{0},number is:{1}\n".format(cardname, cardid), file=sys.stderr)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
-              cardname), file=sys.stderr)
+            cardname), file=sys.stderr)
     except (AttributeError, TypeError, KeyError):
         print("\nThe card:{0} information obtained is wrong\n".format(
-              cardname), file=sys.stderr)
+            cardname), file=sys.stderr)
 
 
 def main():
+    """main function"""
     setshortname = input('You plan download setshortname:')
     cardinfo = getcardsinfo(setshortname)
     if os.path.exists('./' + setshortname) is False:
@@ -102,7 +103,7 @@ def main():
     P.close()
     P.join()
     print('Set {0} all card image download end'.format(setshortname))
-
+    os.chdir('./..')
 
 if __name__ == '__main__':
     main()
