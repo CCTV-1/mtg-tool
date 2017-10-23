@@ -103,6 +103,7 @@ def main():
     processpool.close()
     processpool.join()
     print('Set {0} all card image download end'.format(setshortname))
+    os.chdir('./..')
 
 
 if __name__ == '__main__':
