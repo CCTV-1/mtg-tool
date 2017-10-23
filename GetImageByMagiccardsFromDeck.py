@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-"""Get deck card image in https://magiccards.info/query?q=!{cardname}&v=card&s=cname"""
+"""Get deck card image in https://magiccards.info/
+image info in https://magiccards.info/query?q=!{cardname}&v=card&s=cname"""
 
 import os
 import sys
@@ -11,24 +12,41 @@ from multiprocessing import Pool
 import requests
 from bs4 import BeautifulSoup
 
-def get_image_url(cardnamelist):
-    """Get list card image url"""
-    
-    return ()
+def get_image_url(cardname):
+    """Get card image url"""
+    cardurl = None
+    try:
+        resp = requests.get('https://magiccards.info/query?q=!{0}&v=card&s=cname'
+                            .format(cardname), timeout=13)
+        html = resp.text
+        soup = BeautifulSoup(html, 'html.parser')
+        image = soup.find('img', {'style': 'border: 1px solid black;'})
+        cardurl = "https://magiccards.info{0}".format(image['src'])
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+        print("\nTimeOutError:\n\tGet card:{0} url time out".format(
+            cardname))
+    except (AttributeError, TypeError):
+        print("\tcard {0} url not find\n".format(
+            cardname), file=sys.stderr)
+    return cardurl
 
 def get_cardinfo(filename):
     """Read deck file,get card info"""
+    cardinfo = []
     cardnamelist = []
     with open(filename, 'r') as deckfile:
         for line in deckfile:
             try:
                 match = re.search(r'([0-9]+)\ ([^|]+)\|(.*)', line)
                 cardname = match.group(2)
-                cardurl = get_image_url(cardname)
-                cardnamelist.append((cardname, cardurl))
-            except IndexError:
+                cardnamelist.append(cardname)
+            except (IndexError, AttributeError):
                 continue
-    return cardnamelist
+    processes = Pool(processes=4)
+    cardurllist = processes.map(get_image_url, cardnamelist)
+    for cardname, cardurl in zip(cardnamelist, cardurllist):
+        cardinfo.append((cardname, cardurl))
+    return cardinfo
 
 def downloadimage(cardname, cardurl):
     """Download card image"""
