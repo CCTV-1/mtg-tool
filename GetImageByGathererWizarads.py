@@ -3,8 +3,8 @@
 
 """Get card image in http://gatherer.wizards.com/Pages/Default.aspx"""
 
+import logging
 import os
-import sys
 #import re
 from multiprocessing import Pool
 
@@ -36,11 +36,10 @@ def getcardsinfo(setlongname):
             cardinfo.append((cardname, cardid))
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tGet set {0} info time out".format(
-            setlongname))
+        logging.info("Get set %s info time out", setlongname)
         exit(False)
     except (AttributeError, TypeError):
-        print("\nSet:{0} info not find\n".format(setlongname), file=sys.stderr)
+        logging.info("Set:%s info not find\n", setlongname)
         exit(False)
 
 
@@ -56,8 +55,7 @@ def downloadimage(cardname, cardid):
         'Image.ashx?multiverseid={0}&type=card'.format(cardid)
         imageobject = requests.get(cardurl, timeout=13)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
-              cardname), file=sys.stderr)
+        logging.info("Download Card %s request timeout stop downloading!\n", cardname)
     try:
         if 'image' in imageobject.headers['Content-Type']:
             while flag:
@@ -65,22 +63,22 @@ def downloadimage(cardname, cardid):
                 try:
                     # x mode in python3.3+
                     open(cardname + '.full.jpg', 'xb').write(imageobject.content)
-                    print("Download card:{0} success,the card id is {1}".format
-                          (cardname, cardid))
+                    logging.info("Download card:%s success,the card id is %s\n", cardname, cardid)
                     break
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
                     cardname = basecardname + str(renamecount)
         else:
-            print("\nContent-Type Error:\n\trequest type not is image"\
-            ",the card is:{0},number is:{1}\n".format(cardname, cardid), file=sys.stderr)
+            logging.info("Request type not is image"\
+            ",the card is:%s,number is:%s\n", cardname, cardid)
     except (AttributeError, TypeError, KeyError):
-        print("\nThe card:{0} information obtained is wrong\n".format(
-              cardname), file=sys.stderr)
+        logging.info("The card:%s information obtained is wrong\n", cardname)
 
 
 def main():
+    """main function"""
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
     setshortname = input('You plan download setshortname:')
     setlongname = input('You plan download setlongname:')
     if os.path.exists('./' + setshortname) is False:
@@ -88,13 +86,13 @@ def main():
     os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
     P = Pool(processes=4)
-    print("Download set:{0} start,Card total {1}".format(setshortname, len(cardsinfo)))
+    logging.info("Download set:%s start,Card total %d", setshortname, len(cardsinfo))
     for cardobj in cardsinfo:
         P.apply_async(downloadimage, args=(cardobj[0], cardobj[1], ))
         #downloadimage( cardobj )
     P.close()
     P.join()
-    print('Set {0} all card image download end'.format(setshortname))
+    logging.info('Set %s all card image download end', setshortname)
     os.chdir('./..')
 
 if __name__ == '__main__':
