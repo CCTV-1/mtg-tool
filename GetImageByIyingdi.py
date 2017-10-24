@@ -4,6 +4,7 @@
 """Get card image in http://www.iyingdi.com/web/tools/mtg/cards"""
 
 import getopt
+import logging
 import math
 import os
 import sys
@@ -32,10 +33,10 @@ def getsetlist():
         serieslist = resp.json()['list']
         return serieslist
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tGet setlist time out", file=sys.stderr)
+        logging.info('Get setlist time out\n')
         exit(False)
     except (AttributeError, KeyError):
-        print("\nNot get setlist!", file=sys.stderr)
+        logging.info('Not get setlist\n')
         exit(False)
 
 
@@ -62,11 +63,10 @@ def getcardsinfo(seriesobj):
                 cardsinfo_tmp.append(cardinfoobj)
         return cardsinfo_tmp
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tGet set:{0} card list time out".format(
-            seriesobj['ename']))
+        logging.info("Get set:%s card list time out", seriesobj['ename'])
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        print("\nThe set information obtained is wrong\n", file=sys.stderr)
+        logging.info('Set:%s information obtained is wrong\n', seriesobj['ename'])
 
 
 def getcardinfo(cardname):
@@ -84,12 +84,10 @@ def getcardinfo(cardname):
         cardinfo = resp.json()['data']['cards'][0]
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print(
-            "\nTimeOutError:\n\tGet Card: {0} info time out".format(cardname))
+        logging.info("Get Card: %s info time out", cardname)
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        print("\nGet Card:{0} Info Failure\n".format(
-            cardname), file=sys.stderr)
+        logging.info("Get Card:%s Info Failure\n", cardname)
 
 
 def downloadimage(cardobj_parameters):
@@ -108,31 +106,31 @@ def downloadimage(cardobj_parameters):
                 try:
                     # x mode in python3.3+
                     open(cardname + '.full.jpg', 'xb').write(imageobject.content)
-                    print("Download card:{0} success".format(cardname))
+                    logging.info("Download card:%s success", cardname)
                     break
                 except FileNotFoundError:
                     cardname = cardname.replace(' // ', '')
-                    print("cookiescard:{0} rename to:{1} ".format(
-                        basecardname, cardname))
+                    logging.info("Cookiescard:%s rename to:%s\n", basecardname, cardname)
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
                     cardname = basecardname + str(renamecount)
         else:
-            print("\nContent-Type Error:\n\trequest type not is image,\
-            the card is:{0}\n".format(cardname), file=sys.stderr)
+            logging.info("Request type not is image,\
+            the card is:%s\n", cardname)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
-            cardname), file=sys.stderr)
+        logging.info("Download Card %s request timeout stop downloading!\n", cardname)
     except (AttributeError, TypeError, KeyError):
-        print("\nThe card:{0} information obtained is wrong\n".format(
-            cardname), file=sys.stderr)
+        logging.info("The card:%s information obtained is wrong\n", cardname)
 
 
 def main():
+    """main function"""
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
             'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
+        args = args #wipe off unused warning
         for name, value in options:
             if name in '--help':
                 helps()
@@ -157,9 +155,9 @@ def main():
                 continue
 
             if name in '--getcardinfo':
-                CardInfo = getcardinfo(value)
-                for InfoKey in CardInfo:
-                    print("{0}:{1}".format(InfoKey, CardInfo[InfoKey]))
+                cardinfo = getcardinfo(value)
+                for infokey in cardinfo:
+                    print("{0}:{1}".format(infokey, cardinfo[infokey]))
                 continue
 
             if name in '--downloadset':
@@ -167,25 +165,23 @@ def main():
                 setshortname = value
                 for setobj in setlist:
                     if setshortname == setobj['abbr']:
-                        CardsInfo = getcardsinfo(setobj)
-                        setsize = len(CardsInfo)
+                        cardsinfo = getcardsinfo(setobj)
+                        setsize = len(cardsinfo)
                         break
                     else:
                         pass
                 if os.path.exists('./' + setshortname) is False:
                     os.mkdir('./' + setshortname)
                 os.chdir('./' + setshortname)
-                p = Pool(processes = 4)
-                print("Download set:{0} start,Card total {1}".format
-                      (setshortname, setsize))
-                for cardobj in CardsInfo:
-                    p.apply_async(downloadimage, args=(
+                P = Pool(processes=4)
+                logging.info("Download set:%s start,Card total %s", setshortname, setsize)
+                for cardobj in cardsinfo:
+                    P.apply_async(downloadimage, args=(
                         cardobj, ))
                     #downloadimage(cardobj)
-                p.close()
-                p.join()
-                print('Set {0} all card image download end'.format(
-                    setshortname))
+                P.close()
+                P.join()
+                logging.info('Set %s all card image download end', setshortname)
                 os.chdir('../')
                 continue
 
