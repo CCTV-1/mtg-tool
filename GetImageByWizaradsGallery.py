@@ -3,8 +3,8 @@
 
 """Get card image in http://magic.wizards.com/$(language)/articles/archive/card-image-gallery/"""
 
+import logging
 import os
-import sys
 from multiprocessing import Pool
 
 import requests
@@ -41,10 +41,10 @@ def getcardsinfo(setlongname, localcode='cs'):
                 cardinfo.append((cardname, cardurl))
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print('\nTimeOutError:\n\tget set info time out')
+        logging.info('get set info time out')
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        print("\nSet info not find\n", file=sys.stderr)
+        logging.info('Set info not find\n')
         exit(False)
 
 
@@ -58,8 +58,7 @@ def downloadimage(cardname, cardurl):
     try:
         imageobject = requests.get(cardurl, timeout=13)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        print("\nTimeOutError:\n\tDownload Card {0} request timeout stop downloading!\n".format(
-            cardname), file=sys.stderr)
+        logging.info("Download Card %s request timeout stop downloading!\n", cardname)
     try:
         if 'image' in imageobject.headers['Content-Type']:
             while flag:
@@ -67,25 +66,24 @@ def downloadimage(cardname, cardurl):
                 try:
                     # x mode in python3.3+
                     open(cardname + '.full.jpg', 'xb').write(imageobject.content)
-                    print("Download card:{0} success".format(cardname))
+                    logging.info("Download card:%s success", cardname)
                     break
                 except FileNotFoundError:
                     cardname = cardname.replace(' // ', '')
-                    print("cookiescard:{0} rename to:{1} ".format(
-                        basecardname, cardname))
+                    logging.info("cookiescard:%s rename to:%s\n", basecardname, cardname)
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
                     cardname = '{0}{1}'.format(basecardname, renamecount)
         else:
-            print("\nContent-Type Error:\n\trequest type not is image,the card is:{0}".format(cardname),
-                  file=sys.stderr)
+            logging.info("Request type not is image,the card is:%s", cardname)
     except (AttributeError, TypeError, KeyError):
-        print("\ncard:{0} info not error\n".format(cardname), file=sys.stderr)
+        logging.info("Card:%s info not error\n", cardname)
 
 
 def main():
     """main function"""
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
     setshortname = input('You plan download setshortname:')
     setlongname = input('You plan download setlongname:')
     # Aether Revolt to Aether-Revolt
@@ -95,14 +93,13 @@ def main():
     os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
     processpool = Pool(processes=4)
-    print("Download set:{0} start,Card total {1}".format(
-        setshortname, len(cardsinfo)))
+    logging.info("Download set:%s start,Card total %d", setshortname, len(cardsinfo))
     for cardobj in cardsinfo:
         processpool.apply_async(
             downloadimage, args=(cardobj[0], cardobj[1], ))
     processpool.close()
     processpool.join()
-    print('Set {0} all card image download end'.format(setshortname))
+    logging.info('Set %s all card image download end', setshortname)
     os.chdir('./..')
 
 
