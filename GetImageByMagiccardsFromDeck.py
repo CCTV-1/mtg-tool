@@ -70,7 +70,7 @@ def main():
     deckfilename = input('You plan download card image deck file name:')
     print('Get deck card information start')
     cardinfo = get_cardinfo(deckfilename)
-    print('Get Deck Card end')
+    print('Get deck card information end')
     if os.path.exists('./images') is False:
         os.mkdir('./images')
     os.chdir('./images')
