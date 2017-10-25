@@ -66,21 +66,23 @@ def downloadimage(cardname, cardurl):
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
     deckfilename = input('You plan download card image deck file name:')
+    print('Get deck card information start')
     cardinfo = get_cardinfo(deckfilename)
+    print('Get Deck Card end')
     if os.path.exists('./images') is False:
         os.mkdir('./images')
     os.chdir('./images')
     processes = Pool(processes=4)
-    logging.info("Download deck image start,Card total %d", len(cardinfo))
+    print("Download deck image start,Card total {0}".format(len(cardinfo)))
     for cardobj in cardinfo:
         processes.apply_async(downloadimage, args=(
             cardobj[0], cardobj[1], ))
         #downloadimage( setshortname , cardobj[0] , cardobj[1] )
     processes.close()
     processes.join()
-    logging.info('deck all card image download end')
+    print('Deck all card image download end')
     os.chdir('./..')
 
 if __name__ == '__main__':
