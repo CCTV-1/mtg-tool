@@ -82,21 +82,21 @@ def downloadimage(setshortname, cardid, cardname):
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
     setshortname = input('You plan download setshortname:')
     cardinfo = getcardsinfo(setshortname)
     if os.path.exists('./' + setshortname) is False:
         os.mkdir('./' + setshortname)
     os.chdir('./' + setshortname)
     P = Pool(processes=4)
-    logging.info("Download set:%s start,Card total %d", setshortname, len(cardinfo))
+    print("Download set:{0} start,Card total {1}".format(setshortname, len(cardinfo)))
     for cardobj in cardinfo:
         P.apply_async(downloadimage, args=(
             setshortname, cardobj[0], cardobj[1], ))
         #downloadimage( setshortname , cardobj[0] , cardobj[1] )
     P.close()
     P.join()
-    logging.info('Set %s all card image download end', setshortname)
+    print('Set {0} all card image download end'.format(setshortname))
     os.chdir('./..')
 
 if __name__ == '__main__':

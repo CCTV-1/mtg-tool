@@ -126,7 +126,7 @@ def downloadimage(cardobj_parameters):
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
             'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
@@ -174,14 +174,14 @@ def main():
                     os.mkdir('./' + setshortname)
                 os.chdir('./' + setshortname)
                 P = Pool(processes=4)
-                logging.info("Download set:%s start,Card total %s", setshortname, setsize)
+                print("Download set:{0} start,Card total {1}".format(setshortname, setsize))
                 for cardobj in cardsinfo:
                     P.apply_async(downloadimage, args=(
                         cardobj, ))
                     #downloadimage(cardobj)
                 P.close()
                 P.join()
-                logging.info('Set %s all card image download end', setshortname)
+                print('Set {0} all card image download end'.format(setshortname))
                 os.chdir('../')
                 continue
 
