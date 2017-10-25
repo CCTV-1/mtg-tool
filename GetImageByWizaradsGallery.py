@@ -83,7 +83,7 @@ def downloadimage(cardname, cardurl):
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.DEBUG)
+    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
     setshortname = input('You plan download setshortname:')
     setlongname = input('You plan download setlongname:')
     # Aether Revolt to Aether-Revolt
@@ -93,13 +93,13 @@ def main():
     os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
     processpool = Pool(processes=4)
-    logging.info("Download set:%s start,Card total %d", setshortname, len(cardsinfo))
+    print("Download set:{0} start,Card total {1}".format(setshortname, len(cardsinfo)))
     for cardobj in cardsinfo:
         processpool.apply_async(
             downloadimage, args=(cardobj[0], cardobj[1], ))
     processpool.close()
     processpool.join()
-    logging.info('Set %s all card image download end', setshortname)
+    print('Set {0} all card image download end'.format(setshortname))
     os.chdir('./..')
 
 
