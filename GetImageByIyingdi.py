@@ -43,24 +43,36 @@ def getsetlist():
 def getcardsinfo(seriesobj):
     """Get Series of information by represented setobj"""
     try:
-        seriessize = seriesobj['size']
         seriesid = seriesobj['id']
         cardsinfo_tmp = []
-        for page in range(math.ceil(seriessize / 20)):
+        page = 0
+        requestdata = {
+            'order': '-seriesPubtime,+sindex',
+            'series': str(seriesid),
+            'size': '20',
+            'page': str(page),
+            'statistic': 'total'
+        }
+        resp = requests.post(
+            'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
+        seriessize = resp.json()['data']['total']
+        cardsinfoobj = resp.json()['data']['cards']
+        responsesize = len(cardsinfoobj)
+        for i in range(responsesize):
+                cardsinfo_tmp.append(cardsinfoobj[i])
+        for page in range(1, math.ceil(seriessize/responsesize)):
             requestdata = {
                 'order': '-seriesPubtime,+sindex',
                 'series': str(seriesid),
                 'size': '20',
                 'page': str(page),
-                #'statistic': 'total'
             }
-            if page == 0:
-                requestdata['statistic'] = 'total'
             resp = requests.post(
                 'http://www.iyingdi.com/magic/card/search/vertical', data=requestdata, timeout=13)
             cardsinfoobj = resp.json()['data']['cards']
-            for cardinfoobj in cardsinfoobj:
-                cardsinfo_tmp.append(cardinfoobj)
+            responsesize = len(cardsinfoobj)
+            for i in range(responsesize):
+                cardsinfo_tmp.append(cardsinfoobj[i])
         return cardsinfo_tmp
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info("Get set:%s card list time out", seriesobj['ename'])
@@ -100,7 +112,7 @@ def downloadimage(cardobj_parameters):
         imagedownloadurl = cardobj_parameters['img']
         cardname = cardobj_parameters['ename']
         imageobject = requests.get(imagedownloadurl, timeout=13)
-        if 'image' in imageobject.headers['Content-Type']:
+        if 'image' in imageobject.headers['Content-Type'] or 'application' in imageobject.headers['Content-Type']:
             while flag:
                 flag -= 1
                 try:
