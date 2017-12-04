@@ -1,0 +1,6 @@
+{
+    "TargetRootDirectory": "D:/MSYS2/home/CCTV-1/makedeckpreview/images/",
+    "ImageRootDirectory": "D:/forge/Cache/pics/cards/",
+    "ImageSuffix": ".jpg",
+    "DeckFileDirectory": "D:/MSYS2/home/CCTV-1/makedeckpreview/deck/"
+}
