@@ -1,6 +1,8 @@
 {
-    "TargetRootDirectory": "D:/MSYS2/home/CCTV-1/makedeckpreview/images/",
+    "TargetRootDirectory": "D:/MSYS2/home/CCTV-1/mtg-tool/makedeckpreview/images/",
     "ImageRootDirectory": "D:/forge/Cache/pics/cards/",
     "ImageSuffix": ".jpg",
-    "DeckFileDirectory": "D:/MSYS2/home/CCTV-1/makedeckpreview/deck/"
+    "DeckFileDirectory": "D:/MSYS2/home/CCTV-1/mtg-tool/makedeckpreview/deck/",
+    "WindowWidth": 1050,
+    "WindowHeight": 600
 }

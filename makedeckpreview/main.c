@@ -27,6 +27,8 @@ struct config_object
     char * ImageRootDirectory;
     char * ImageSuffix;
     char * DeckFileDirectory;
+    json_int_t WindowWidth;
+    json_int_t WindowHeight;
 };
 
 static void cp( const char * to, const char * from );
@@ -35,7 +37,9 @@ static bool remove_directory( const char * dir );
 
 static void remove_forwardslash( char * str );
 
-static int process( const char * deckfilename , struct config_object * cfg_ptf );
+static int process( const char * deckfilename , struct config_object * cfg_ptr );
+
+static json_int_t get_integer_node( json_t * root , const char * nodename );
 
 static char * get_string_node( json_t * root, const char * nodename );
 
@@ -65,7 +69,7 @@ int main ( int argc, char * argv[] )
     
     if ( stat( cfg_ptr->DeckFileDirectory , &dir_stat ) < 0 )
     {
-        perror( "stat:" );
+        perror( "get DeckFileDirectory stat:" );
         return EXIT_FAILURE;
     }
 
@@ -90,7 +94,6 @@ int main ( int argc, char * argv[] )
                     continue;
                 else
                 {
-                    fprintf( stderr , "%s\n" , dirent_ptr->d_name );
                     sprintf( cfg_ptr->TargetDirectory , "%s%s" , cfg_ptr->TargetRootDirectory , dirent_ptr->d_name );
                     size_t targetdirectory_len = strlen( cfg_ptr->TargetDirectory );
                     //****.dck --> ****/$(NUL)"
@@ -112,7 +115,6 @@ int main ( int argc, char * argv[] )
                     mkdir( cfg_ptr->TargetDirectory , 0755 );
 #endif
                     process( deckfilename , cfg_ptr );
-                    fprintf( stderr , "gtk main exit\n" );
                 }
             }
         }
@@ -138,7 +140,7 @@ static int process( const char * deckfilename , struct config_object * cfg_ptr )
 
     GtkWidget * window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
     gtk_window_set_title( GTK_WINDOW( window ), deckfilename );
-    gtk_window_set_default_size( GTK_WINDOW( window ), 15*70, 5*100 );
+    gtk_window_set_default_size( GTK_WINDOW( window ), ( gint )cfg_ptr->WindowWidth , ( gint )cfg_ptr->WindowHeight );
     g_signal_connect( G_OBJECT( window ), "delete_event", G_CALLBACK( gtk_main_quit ), NULL );
 
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL, NULL );
@@ -309,8 +311,8 @@ static struct config_object * tool_inital( void )
 
     if ( cfg_ptr == NULL )
     {
-        perror( "calloc:" );
-        return NULL;
+        perror( "allocate configuration object:" );
+        exit( EXIT_FAILURE );
     }
 
     json_t * root;
@@ -328,7 +330,7 @@ static struct config_object * tool_inital( void )
     if( !root )
     {
         fprintf( stderr, "error: on line %d: %s\n", error.line, error.text );
-        return NULL;
+        exit( EXIT_FAILURE );
     }
 
     cfg_ptr->ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
@@ -336,10 +338,33 @@ static struct config_object * tool_inital( void )
     cfg_ptr->DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
     cfg_ptr->TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
     cfg_ptr->TargetDirectory = ( char * )calloc( BUFFSIZE , sizeof( char ) );
+    cfg_ptr->WindowWidth = get_integer_node( root , "WindowWidth" );
+    cfg_ptr->WindowHeight = get_integer_node( root , "WindowHeight" );
+
+    if ( cfg_ptr->ImageRootDirectory == NULL )
+        goto initial_faliure;
+    if ( cfg_ptr->ImageSuffix == NULL )
+        goto initial_faliure;
+    if ( cfg_ptr->DeckFileDirectory == NULL )
+        goto initial_faliure;
+    if ( cfg_ptr->TargetRootDirectory == NULL )
+        goto initial_faliure;
+    if ( cfg_ptr->TargetDirectory == NULL )
+    {
+        perror( "initial TargetDirectory:" );
+        exit( EXIT_FAILURE );
+    }
+    if ( ( cfg_ptr->WindowWidth == 0 ) || ( cfg_ptr->WindowHeight == 0 ) )
+        goto initial_faliure;
 
     fclose( jsonfile );
     json_decref(root);
     return cfg_ptr;
+
+initial_faliure:
+    fprintf( stderr , "configuration options format or value error\n" );
+    tool_destroy( cfg_ptr );
+    exit( EXIT_FAILURE );
 }
 
 static void tool_destroy( struct config_object * cfg_ptr )
@@ -361,7 +386,7 @@ static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const
     size_t cardname_len = strlen( cardname );
 
     if ( !CHECKLEN( imagefilepath_len + imagesuffix_len + cardname_len + strlen( cardseries ) + 10 ) )
-        exit( false );
+        return false;
 
     strncpy( imagefilepath, cfg_ptr->ImageRootDirectory, imagefilepath_len + 1 );
     if ( cardseries != NULL )
@@ -418,7 +443,7 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
     size_t cardname_len = strlen( cardname );
     
     if ( !CHECKLEN( targetfilepath_len + imagesuffix_len + cardname_len + strlen( cardseries ) + 10 ) )
-        exit( false );
+        return false;
 
     strncpy( targetfilepath , cfg_ptr->TargetDirectory , targetfilepath_len + 1 );
     strncpy( targetfilepath + targetfilepath_len , cardname ,  cardname_len + 1 );
@@ -447,7 +472,7 @@ static char * get_string_node( json_t * root, const char * nodename )
     json_t * node = json_object_get( root, nodename );
     if( !json_is_string( node ) )
     {
-        fprintf( stderr, "error: %s is not a string\n", nodename );
+        fprintf( stderr, "error: %s is not a string node\n", nodename );
         return NULL;
     }
     const char * onlyread_string = json_string_value( node );
@@ -455,11 +480,22 @@ static char * get_string_node( json_t * root, const char * nodename )
     char * return_string = ( char * )malloc( string_len*sizeof( char ) );
     if ( return_string == NULL )
     {
-        perror( "malloc:" );
+        perror( "allocate configuration:" );
         return NULL;
     }
     strncpy( return_string, onlyread_string, string_len );
     return return_string;
+}
+
+static json_int_t get_integer_node( json_t * root , const char * nodename )
+{
+    json_t * node = json_object_get( root , nodename );
+    if ( !json_is_integer( node ) )
+    {
+        fprintf( stderr , "error: %s is not a integer node\n" , nodename );
+    }
+    //if not integer node json_integer_value return 0
+    return json_integer_value( node );
 }
 
 static void remove_forwardslash( char * str )
@@ -527,7 +563,6 @@ static bool remove_directory( const char * dir )
             remove_directory( dir_name ); 
         }
         closedir( dirp );
-
         rmdir( dir ); 
     } 
     else
@@ -537,3 +572,4 @@ static bool remove_directory( const char * dir )
     }
     return true;
 }
+
