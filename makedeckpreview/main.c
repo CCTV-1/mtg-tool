@@ -188,16 +188,16 @@ size_t parse_deck( const char * deckfilename )
     }
 
     GtkWidget * window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
-    GtkWidget * window_icon = gtk_image_new_from_file( "test.ico" );
+    GtkWidget * window_icon = gtk_image_new_from_file( "logo.ico" );
     if ( window_icon == NULL )
     {
-        g_print( "%s not is image file or not found\n", "test.ico" );
+        g_print( "%s not is image file or not found\n", "logo.ico" );
     }
     else
     {
         GdkPixbuf * icon_pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( window_icon ) );
         if ( icon_pixbuf == NULL )
-            g_print( "%s not is image file or not found\n", "test.ico" );
+            g_print( "%s not is image file or not found\n", "logo.ico" );
         else
             gtk_window_set_icon( GTK_WINDOW( window ) , icon_pixbuf );
     }
@@ -228,7 +228,7 @@ size_t parse_deck( const char * deckfilename )
             count += 15;
             continue;
         }
-        if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|]+)\\|([^|0-9]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
+        if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|]+)\\|([^|]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
         {
             regerror( ret_code, &regex, err_buff, BUFFSIZE );
             fprintf( stderr, "error:%s\n", err_buff );
