@@ -3,10 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef _WIN32
-    #include <direct.h>
-#endif
-
 #include <dirent.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -102,17 +98,18 @@ int main ( int argc, char * argv[] )
                     if ( remove_directory( cfg_ptr->TargetDirectory ) != true )
                         continue;
 #ifdef _WIN32
-                    char * temp = cfg_ptr->TargetDirectory;
-                    while( *temp++ )
-                        if ( *temp == '/' )
-                            *temp = '\\';
-                    if ( _mkdir( cfg_ptr->TargetDirectory ) != 0 && errno == ENOENT )
+                    if ( mkdir( cfg_ptr->TargetDirectory ) != 0 && errno == ENOENT )
                     {
                         fprintf( stderr , "%s parent directory not exitst\n" , cfg_ptr->TargetDirectory );
                         return EXIT_FAILURE;
                     }
 #elif defined __unix__
-                    mkdir( cfg_ptr->TargetDirectory , 0755 );
+                    //S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH == 0775
+                    if ( mkdir( cfg_ptr->TargetDirectory , S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH ) != 0 )
+                    {
+                        fprintf( stderr , "%s create faliure,errno:%d\n" , cfg_ptr->TargetDirectory , errno );
+                        return EXIT_FAILURE;
+                    }
 #endif
                     process( deckfilename , cfg_ptr );
                 }
@@ -526,8 +523,8 @@ static void cp ( const char * to , const char * from )
 #elif defined __unix__
     sprintf( command_buff , "cp \"%s\" \"%s\"" , from , to );
 #endif
-    size_t ret_code = system( command_buff );
-    ( void )ret_code;
+    FILE * exec_out = popen( command_buff , "r" );
+    ( void )exec_out;
 }
 
 static bool remove_directory( const char * dir )
