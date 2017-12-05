@@ -19,10 +19,13 @@
 struct config_object
 {
     char * TargetRootDirectory;
+    bool targetrootdirectory_nofree;
     char * TargetDirectory;
     char * ImageRootDirectory;
     char * ImageSuffix;
+    bool imagesuffix_nofree;
     char * DeckFileDirectory;
+    bool deckfiledirectory_nofree;
     json_int_t WindowWidth;
     json_int_t WindowHeight;
     json_int_t LineCardNumber;
@@ -144,8 +147,11 @@ void tool_inital( void )
 
     config_object.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
     config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
+    config_object.imagesuffix_nofree = false;
     config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
+    config_object.deckfiledirectory_nofree = false;
     config_object.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
+    config_object.targetrootdirectory_nofree = false;
     config_object.TargetDirectory = ( char * )calloc( BUFFSIZE , sizeof( char ) );
     config_object.WindowWidth = get_integer_node( root , "WindowWidth" );
     config_object.WindowHeight = get_integer_node( root , "WindowHeight" );
@@ -154,28 +160,65 @@ void tool_inital( void )
     config_object.CardHeight = get_integer_node( root , "CardHeight" );
 
     if ( config_object.ImageRootDirectory == NULL )
-        goto initial_faliure;
+    {
+        fprintf( stderr , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit\n" );
+        fclose( jsonfile );
+        json_decref( root );
+        exit( EXIT_FAILURE );
+    }
     if ( config_object.ImageSuffix == NULL )
-        goto initial_faliure;
+    {
+        fprintf( stderr , "get configuration:ImageSuffix faliure,use default configuration\n" );
+        config_object.ImageSuffix = ".jpg";
+        config_object.imagesuffix_nofree = false;
+    }
     if ( config_object.DeckFileDirectory == NULL )
-        goto initial_faliure;
+    {
+        fprintf( stderr , "get configuration:DeckFileDirectory faliure,use default configuration\n" );
+        config_object.DeckFileDirectory = "./";
+        config_object.deckfiledirectory_nofree = false;
+    }
     if ( config_object.TargetRootDirectory == NULL )
-        goto initial_faliure;
+    {
+        fprintf( stderr , "get configuration:TargetRootDirectory faliure,use default configuration\n" );
+        config_object.TargetRootDirectory = "./";
+        config_object.targetrootdirectory_nofree = false;
+    }
     if ( config_object.TargetDirectory == NULL )
-        goto initial_faliure;
-    if ( ( config_object.WindowWidth == 0 ) || ( config_object.WindowHeight == 0 ) )
-        goto initial_faliure;
+    {
+        fprintf( stderr , "make target directory path faliure,programs exit\n" );
+        fclose( jsonfile );
+        json_decref( root );
+        exit( EXIT_FAILURE );
+    }
+    if ( config_object.WindowWidth == 0 ) 
+    {
+        fprintf( stderr , "get configuration:WindowWidth faliure,use default configuration\n" );
+        config_object.WindowWidth = 1050;
+    }
+    if ( config_object.WindowHeight == 0 )
+    {
+        fprintf( stderr , "get configuration:WindowHeight faliure,use default configuration\n" );
+        config_object.WindowHeight = 600;
+    }
+    if ( config_object.LineCardNumber == 0 )
+    {
+        fprintf( stderr , "get configuration:LineCardNumber faliure,use default configuration\n" );
+        config_object.LineCardNumber = 15;
+    }
+    if ( config_object.CardWidth == 0 )
+    {
+        fprintf( stderr , "get configuration:CardWidth faliure,use default configuration\n" );
+        config_object.CardWidth = 70;
+    }
+    if ( config_object.CardHeight == 0 )
+    {
+        fprintf( stderr , "get configuration:CardHeight faliure,use default configuration\n" );
+        config_object.CardHeight = 100;
+    }
 
     fclose( jsonfile );
     json_decref( root );
-    return ;
-
-initial_faliure:
-    fprintf( stderr , "configuration options format or value error\n" );
-    fclose( jsonfile );
-    json_decref( root );
-    tool_destroy( );
-    exit( EXIT_FAILURE );
 }
 
 size_t parse_deck( const char * deckfilename )
@@ -284,9 +327,12 @@ size_t parse_deck( const char * deckfilename )
 void tool_destroy( void )
 {
     free( config_object.ImageRootDirectory );
-    free( config_object.ImageSuffix );
-    free( config_object.DeckFileDirectory );
-    free( config_object.TargetDirectory );
+    if ( config_object.imagesuffix_nofree == true )
+        free( config_object.ImageSuffix );
+    if ( config_object.deckfiledirectory_nofree == true )
+        free( config_object.DeckFileDirectory );
+    if ( config_object.targetrootdirectory_nofree == true )
+        free( config_object.TargetDirectory );
 }
 
 static char * get_string_node( json_t * root, const char * nodename )
