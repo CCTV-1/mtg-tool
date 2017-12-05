@@ -25,7 +25,10 @@ struct config_object
     char * DeckFileDirectory;
     json_int_t WindowWidth;
     json_int_t WindowHeight;
-}cfg_ptr;
+    json_int_t LineCardNumber;
+    json_int_t CardWidth;
+    json_int_t CardHeight;
+}config_object;
 
 void tool_inital( void );
 
@@ -61,18 +64,18 @@ int main ( int argc, char * argv[] )
     gtk_init( &argc, &argv );
     tool_inital();
     char deckfilename[BUFFSIZE];
-    DIR * dir_ptr = opendir( cfg_ptr.DeckFileDirectory );
+    DIR * dir_ptr = opendir( config_object.DeckFileDirectory );
     struct dirent * dirent_ptr;
     struct stat dir_stat;
     struct stat deckfile_stat;
 
-    if ( access( cfg_ptr.DeckFileDirectory , F_OK ) != 0 )
+    if ( access( config_object.DeckFileDirectory , F_OK ) != 0 )
     {
-        fprintf( stderr , "%s not exitst,errno:%d\n" , cfg_ptr.DeckFileDirectory , errno );
+        fprintf( stderr , "%s not exitst,errno:%d\n" , config_object.DeckFileDirectory , errno );
         return EXIT_FAILURE;
     }
     
-    if ( stat( cfg_ptr.DeckFileDirectory , &dir_stat ) < 0 )
+    if ( stat( config_object.DeckFileDirectory , &dir_stat ) < 0 )
     {
         perror( "get deckfiledirectory stat:" );
         return EXIT_FAILURE;
@@ -80,33 +83,33 @@ int main ( int argc, char * argv[] )
 
     if ( !S_ISDIR( dir_stat.st_mode ) )
     {
-        fprintf( stderr , "%s not is directory\n" , cfg_ptr.DeckFileDirectory );
+        fprintf( stderr , "%s not is directory\n" , config_object.DeckFileDirectory );
         return EXIT_FAILURE;
     }
     else
     {
-        dir_ptr = opendir( cfg_ptr.DeckFileDirectory );
+        dir_ptr = opendir( config_object.DeckFileDirectory );
         while( ( dirent_ptr = readdir( dir_ptr ) ) != NULL )
         {
             if ( ( strncmp( "." , dirent_ptr->d_name , 1  ) == 0 ) || ( strncmp( ".." , dirent_ptr->d_name , 2 ) == 0 ) )
                 continue;
             else
             {
-                sprintf( deckfilename , "%s%s" , cfg_ptr.DeckFileDirectory , dirent_ptr->d_name );
+                sprintf( deckfilename , "%s%s" , config_object.DeckFileDirectory , dirent_ptr->d_name );
                 if ( stat( deckfilename , &deckfile_stat ) < 0 )
                     continue;
                 if ( S_ISDIR( deckfile_stat.st_mode ) )
                     continue;
                 else
                 {
-                    sprintf( cfg_ptr.TargetDirectory , "%s%s" , cfg_ptr.TargetRootDirectory , dirent_ptr->d_name );
-                    size_t targetdirectory_len = strlen( cfg_ptr.TargetDirectory );
+                    sprintf( config_object.TargetDirectory , "%s%s" , config_object.TargetRootDirectory , dirent_ptr->d_name );
+                    size_t targetdirectory_len = strlen( config_object.TargetDirectory );
                     //****.dck --> ****/$(NUL)"
-                    cfg_ptr.TargetDirectory[targetdirectory_len-4] = '/';
-                    cfg_ptr.TargetDirectory[targetdirectory_len-3] = '\0';
-                    if ( remove_directory( cfg_ptr.TargetDirectory ) != true )
+                    config_object.TargetDirectory[targetdirectory_len-4] = '/';
+                    config_object.TargetDirectory[targetdirectory_len-3] = '\0';
+                    if ( remove_directory( config_object.TargetDirectory ) != true )
                         continue;
-                    if ( make_directory( cfg_ptr.TargetDirectory  ) == false )
+                    if ( make_directory( config_object.TargetDirectory  ) == false )
                         continue;
                     size_t copy_success_count = parse_deck( deckfilename );
                     fprintf( stdout , "deck:\"%s\" successfully copied %zd card images \n" , deckfilename , copy_success_count );
@@ -131,33 +134,36 @@ void tool_inital( void )
         exit( EXIT_FAILURE );
     }
 
-    root = json_loadf( jsonfile, 0, &error );
+    root = json_loadf( jsonfile , 0 , &error );
 
     if( !root )
     {
-        fprintf( stderr, "error: on line %d: %s\n", error.line, error.text );
+        fprintf( stderr, "error: on line %d: %s\n", error.line , error.text );
         exit( EXIT_FAILURE );
     }
 
-    cfg_ptr.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
-    cfg_ptr.ImageSuffix = get_string_node( root, "ImageSuffix" );
-    cfg_ptr.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
-    cfg_ptr.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
-    cfg_ptr.TargetDirectory = ( char * )calloc( BUFFSIZE , sizeof( char ) );
-    cfg_ptr.WindowWidth = get_integer_node( root , "WindowWidth" );
-    cfg_ptr.WindowHeight = get_integer_node( root , "WindowHeight" );
+    config_object.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
+    config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
+    config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
+    config_object.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
+    config_object.TargetDirectory = ( char * )calloc( BUFFSIZE , sizeof( char ) );
+    config_object.WindowWidth = get_integer_node( root , "WindowWidth" );
+    config_object.WindowHeight = get_integer_node( root , "WindowHeight" );
+    config_object.LineCardNumber = get_integer_node( root , "LineCardNumber" );
+    config_object.CardWidth = get_integer_node( root , "CardWidth" );
+    config_object.CardHeight = get_integer_node( root , "CardHeight" );
 
-    if ( cfg_ptr.ImageRootDirectory == NULL )
+    if ( config_object.ImageRootDirectory == NULL )
         goto initial_faliure;
-    if ( cfg_ptr.ImageSuffix == NULL )
+    if ( config_object.ImageSuffix == NULL )
         goto initial_faliure;
-    if ( cfg_ptr.DeckFileDirectory == NULL )
+    if ( config_object.DeckFileDirectory == NULL )
         goto initial_faliure;
-    if ( cfg_ptr.TargetRootDirectory == NULL )
+    if ( config_object.TargetRootDirectory == NULL )
         goto initial_faliure;
-    if ( cfg_ptr.TargetDirectory == NULL )
+    if ( config_object.TargetDirectory == NULL )
         goto initial_faliure;
-    if ( ( cfg_ptr.WindowWidth == 0 ) || ( cfg_ptr.WindowHeight == 0 ) )
+    if ( ( config_object.WindowWidth == 0 ) || ( config_object.WindowHeight == 0 ) )
         goto initial_faliure;
 
     fclose( jsonfile );
@@ -202,7 +208,7 @@ size_t parse_deck( const char * deckfilename )
             gtk_window_set_icon( GTK_WINDOW( window ) , icon_pixbuf );
     }
     gtk_window_set_title( GTK_WINDOW( window ), deckfilename );
-    gtk_window_set_default_size( GTK_WINDOW( window ), ( gint )cfg_ptr.WindowWidth , ( gint )cfg_ptr.WindowHeight );
+    gtk_window_set_default_size( GTK_WINDOW( window ), ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
     g_signal_connect( G_OBJECT( window ), "delete_event", G_CALLBACK( gtk_main_quit ), NULL );
 
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL, NULL );
@@ -215,17 +221,17 @@ size_t parse_deck( const char * deckfilename )
         if ( ( strncmp( line_buff , "[Main]" , 6 ) == 0 ) || ( strncmp( line_buff , "[main]" , 6 ) == 0 ) )
         {
             GtkWidget * mainlabel = gtk_button_new_with_label( "main" );
-            count += 15 - count%15;
-            gtk_grid_attach( GTK_GRID( grid ), mainlabel, count%15, count/15,  15 , 1 );
-            count += 15;
+            count += config_object.LineCardNumber - count%config_object.LineCardNumber;
+            gtk_grid_attach( GTK_GRID( grid ), mainlabel, count%config_object.LineCardNumber, count/config_object.LineCardNumber,  config_object.LineCardNumber , 1 );
+            count += config_object.LineCardNumber;
             continue;
         }
         else if ( ( strncmp( line_buff , "[Sideboard]" , 11 ) == 0 ) || ( strncmp( line_buff , "[sideboard]" , 11 ) == 0 ) )
         {
             GtkWidget * sideboardlabel = gtk_button_new_with_label( "Sideboard" );
-            count += 15 - count%15;
-            gtk_grid_attach( GTK_GRID( grid ), sideboardlabel, count%15, count/15,  15 , 1 );
-            count += 15;
+            count += config_object.LineCardNumber - count%config_object.LineCardNumber;
+            gtk_grid_attach( GTK_GRID( grid ), sideboardlabel, count%config_object.LineCardNumber, count/config_object.LineCardNumber,  config_object.LineCardNumber , 1 );
+            count += config_object.LineCardNumber;
             continue;
         }
         if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|]+)\\|([^|]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
@@ -277,10 +283,10 @@ size_t parse_deck( const char * deckfilename )
 
 void tool_destroy( void )
 {
-    free( cfg_ptr.ImageRootDirectory );
-    free( cfg_ptr.ImageSuffix );
-    free( cfg_ptr.DeckFileDirectory );
-    free( cfg_ptr.TargetDirectory );
+    free( config_object.ImageRootDirectory );
+    free( config_object.ImageSuffix );
+    free( config_object.DeckFileDirectory );
+    free( config_object.TargetDirectory );
 }
 
 static char * get_string_node( json_t * root, const char * nodename )
@@ -461,9 +467,9 @@ static size_t do_forge_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , cons
             g_print( "%s not is image file or not found\n", imagefilepath );
             return copy_success_count;
         }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), 70, 100, GDK_INTERP_BILINEAR );
+        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ), image, *count%15, *count/15,  1, 1);
+        gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
         *count += 1;
         char targetfilepath[BUFFSIZE];
         ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
@@ -513,9 +519,9 @@ static size_t do_goldfish_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , c
             g_print( "%s not is image file or not found\n", imagefilepath );
             return copy_success_count;
         }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), 70, 100, GDK_INTERP_BILINEAR );
+        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ), image, *count%15, *count/15,  1, 1);
+        gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
         *count += 1;
         char targetfilepath[BUFFSIZE];
         ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , NULL , cardnumber );
@@ -552,15 +558,15 @@ static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const
 {
 #define CHECKLEN(X) ( ( path_maxlen ) > ( X ) ? true : false ) 
 
-    size_t imagefilepath_len = strlen( cfg_ptr.ImageRootDirectory );
-    size_t imagesuffix_len = strlen( cfg_ptr.ImageSuffix );
+    size_t imagefilepath_len = strlen( config_object.ImageRootDirectory );
+    size_t imagesuffix_len = strlen( config_object.ImageSuffix );
     size_t cardseries_len = 0;
     size_t cardname_len = strlen( cardname );
 
     if ( !CHECKLEN( imagefilepath_len + imagesuffix_len + cardname_len + strlen( cardseries ) + 10 ) )
         return false;
 
-    strncpy( imagefilepath, cfg_ptr.ImageRootDirectory, imagefilepath_len + 1 );
+    strncpy( imagefilepath, config_object.ImageRootDirectory, imagefilepath_len + 1 );
     if ( cardseries != NULL )
     {
         cardseries_len = strlen( cardseries );
@@ -598,7 +604,7 @@ static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const
     }
     strncpy( imagefilepath + imagefilepath_len, ".full", 6 );
     imagefilepath_len += 5;
-    strncpy( imagefilepath + imagefilepath_len, cfg_ptr.ImageSuffix, imagesuffix_len + 1 );
+    strncpy( imagefilepath + imagefilepath_len, config_object.ImageSuffix, imagesuffix_len + 1 );
     imagefilepath_len += imagesuffix_len;
 
     return true;
@@ -609,8 +615,8 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
 {
 #define CHECKLEN(X) ( ( path_maxlen ) > ( X ) ? true : false )
 
-    size_t targetfilepath_len = strlen( cfg_ptr.TargetDirectory );
-    size_t imagesuffix_len = strlen( cfg_ptr.ImageSuffix );
+    size_t targetfilepath_len = strlen( config_object.TargetDirectory );
+    size_t imagesuffix_len = strlen( config_object.ImageSuffix );
     size_t cardseries_len = 0;
     size_t cardname_len = strlen( cardname );
     
@@ -623,7 +629,7 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
         if ( !CHECKLEN( targetfilepath_len + imagesuffix_len + cardname_len + strlen( cardseries ) + 10 ) )
             return false;
 
-    strncpy( targetfilepath , cfg_ptr.TargetDirectory , targetfilepath_len + 1 );
+    strncpy( targetfilepath , config_object.TargetDirectory , targetfilepath_len + 1 );
     strncpy( targetfilepath + targetfilepath_len , cardname ,  cardname_len + 1 );
     targetfilepath_len +=  cardname_len;
     if ( cardseries != NULL )
@@ -638,7 +644,7 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
     sprintf( retry_buff , "%zd" , retry_counter );
     strncpy( targetfilepath + targetfilepath_len , retry_buff , strlen( retry_buff ) + 1 );
     targetfilepath_len += strlen( retry_buff );
-    strncpy( targetfilepath + targetfilepath_len , cfg_ptr.ImageSuffix , imagesuffix_len + 1 );
+    strncpy( targetfilepath + targetfilepath_len , config_object.ImageSuffix , imagesuffix_len + 1 );
     targetfilepath_len += imagesuffix_len;
 
     return true;

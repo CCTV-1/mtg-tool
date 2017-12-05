@@ -4,5 +4,8 @@
     "ImageSuffix": ".jpg",
     "DeckFileDirectory": "D:/MSYS2/home/CCTV-1/mtg-tool/makedeckpreview/deck/",
     "WindowWidth": 1050,
-    "WindowHeight": 600
+    "WindowHeight": 600,
+    "LineCardNumber": 15,
+    "CardWidth": 70,
+    "CardHeight": 100
 }
