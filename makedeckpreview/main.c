@@ -5,10 +5,8 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <regex.h>
-#include <pthread.h>
 
 #include <gtk/gtk.h>
 #include <jansson.h>
@@ -52,9 +50,11 @@ static bool make_directory( const char * dir );
 static bool copy_file ( const char * source_path , const char * destination_path );
 
 //do parse_deck
-static size_t do_forge_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , const char * line_buff , size_t * count );
+static size_t do_forge_deck( GtkWidget * grid , const char * line_buff , size_t * count );
 
-static size_t do_goldfish_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , const char * line_buff , size_t * count );
+static size_t do_goldfish_deck( GtkWidget * grid , const char * line_buff , size_t * count );
+
+static size_t do_mtga_deck( GtkWidget * grid , const char * line_buff , size_t * count );
 
 static void remove_forwardslash( char * str );
 
@@ -225,10 +225,7 @@ size_t parse_deck( const char * deckfilename )
 {
     int ret_code;
     char line_buff[BUFFSIZE];
-    char err_buff[BUFFSIZE];
     size_t copy_success_count = 0;
-    regex_t regex;
-    regmatch_t pmatch[4];
     FILE * deckfile = fopen( deckfilename , "r" );
     if ( deckfile == NULL )
     {
@@ -277,41 +274,14 @@ size_t parse_deck( const char * deckfilename )
             count += config_object.LineCardNumber;
             continue;
         }
-        if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|]+)\\|([^|]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
-        {
-            regerror( ret_code, &regex, err_buff, BUFFSIZE );
-            fprintf( stderr, "error:%s\n", err_buff );
-            return 0;
-        }
-        if ( ( ret_code = regexec( &regex, line_buff, 4, pmatch, 0 ) ) == 0 )
-        {
-            ret_code = do_forge_deck( grid , &pmatch , line_buff , &count );
-            if ( ret_code < 0 )
-                continue;
-            else
-                copy_success_count += ret_code;
-            regfree( &regex );
-        }
+        if ( ( ret_code = do_forge_deck( grid , line_buff , &count ) ) != 0 )
+            copy_success_count += ret_code;
+        else if ( ( ret_code = do_mtga_deck( grid , line_buff , &count ) ) != 0 )
+            copy_success_count += ret_code;
+        else if ( ( ret_code = do_goldfish_deck( grid , line_buff , &count ) ) != 0 )
+            copy_success_count += ret_code;
         else
-        {
-            regfree( &regex );
-            if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|\r]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
-            {
-                regerror( ret_code, &regex, err_buff, BUFFSIZE );
-                fprintf( stderr, "error:%s\n", err_buff );
-                return false;
-            }
-            if ( ( ret_code = regexec( &regex, line_buff, 3 , pmatch, 0 ) ) == 0 )
-            {
-                ret_code = do_goldfish_deck( grid , &pmatch , line_buff , &count );
-                if ( ret_code < 0 )
-                    continue;
-                else
-                    copy_success_count += ret_code;
-                regfree( &regex );
-            }
-        }
-
+            continue;
     }
 
     gtk_container_add( GTK_CONTAINER( scrolled ), grid );
@@ -436,7 +406,7 @@ static bool make_directory( const char * dir )
     return true;
 }
 
-static bool copy_file ( const char * source_path , const char * destination_path )
+static bool copy_file( const char * source_path , const char * destination_path )
 {
     GFile * source = g_file_new_for_path( source_path );
     GFile * destination = g_file_new_for_path( destination_path );
@@ -476,112 +446,211 @@ static bool copy_file ( const char * source_path , const char * destination_path
     return true;
 }
 
-static size_t do_forge_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , const char * line_buff , size_t * count )
+static size_t do_forge_deck( GtkWidget * grid , const char * line_buff , size_t * count )
 {
-    size_t copy_success_count = 0;
+    char err_buff[BUFFSIZE];
     int ret_code;
+    size_t copy_success_count = 0;
+    regex_t regex;
+    regmatch_t pmatch[4];
 
-    size_t series_len = ( *pmatch )[3].rm_eo - ( *pmatch )[3].rm_so;
-    if ( *( line_buff + ( *pmatch )[3].rm_eo - 1 ) == '\n' )
-        series_len -= 1;
-    if ( *( line_buff + ( *pmatch )[3].rm_eo - 2 ) == '\r' )
-        series_len -= 1;
-    char cardseries[BUFFSIZE];
-    strncpy( cardseries, line_buff + ( *pmatch )[3].rm_so, series_len );
-    cardseries[series_len] = '\0';
-    size_t name_len = ( *pmatch )[2].rm_eo - ( *pmatch )[2].rm_so;
-    char cardname[BUFFSIZE];
-    strncpy( cardname, line_buff + ( *pmatch )[2].rm_so, name_len );
-    cardname[name_len] = '\0';
-    remove_forwardslash( cardname );
-    size_t cardnumber = 0;
-    for ( int i = 0 ; i <  ( *pmatch )[1].rm_eo - ( *pmatch )[1].rm_so ; i++ )
-        cardnumber = 10*cardnumber + line_buff[i] - '0';
-    char imagefilepath[BUFFSIZE];
-    ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
-    while ( cardnumber-- )
+    if ( ( ret_code = regcomp( &regex, "^([0-9]+) ([^|]+)\\|([^|]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
     {
-        GtkWidget * image = gtk_image_new_from_file( imagefilepath );
-        if ( image == NULL )
-        {
-            g_print( "%s not is image file or not found\n", imagefilepath );
-            return copy_success_count;
-        }
-        GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
-        if ( pixbuf == NULL )
-        {
-            g_print( "%s not is image file or not found\n", imagefilepath );
-            return copy_success_count;
-        }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
-        gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
-        *count += 1;
-        char targetfilepath[BUFFSIZE];
-        ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
-        size_t rename_count = 1;
-        while ( access( targetfilepath , F_OK ) == 0 )
-        {
-            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
-            rename_count++;
-        }
-        ret_code = copy_file( imagefilepath , targetfilepath );
-        if ( ret_code == true )
-            copy_success_count++;
+        regerror( ret_code, &regex, err_buff, BUFFSIZE );
+        fprintf( stderr, "error:%s\n", err_buff );
+        return 0;
     }
-    return copy_success_count;
+    if ( ( ret_code = regexec( &regex, line_buff, 4, pmatch, 0 ) ) == 0 )
+    {
+        size_t series_len = pmatch[3].rm_eo - pmatch[3].rm_so;
+        if ( *( line_buff + pmatch[3].rm_eo - 1 ) == '\n' )
+            series_len -= 1;
+        if ( *( line_buff + pmatch[3].rm_eo - 2 ) == '\r' )
+            series_len -= 1;
+        char cardseries[BUFFSIZE];
+        strncpy( cardseries, line_buff + pmatch[3].rm_so, series_len );
+        cardseries[series_len] = '\0';
+        size_t name_len = pmatch[2].rm_eo - pmatch[2].rm_so;
+        char cardname[BUFFSIZE];
+        strncpy( cardname, line_buff + pmatch[2].rm_so, name_len );
+        cardname[name_len] = '\0';
+        remove_forwardslash( cardname );
+        size_t cardnumber = 0;
+        for ( int i = 0 ; i <  pmatch[1].rm_eo - pmatch[1].rm_so ; i++ )
+            cardnumber = 10*cardnumber + line_buff[i] - '0';
+        char imagefilepath[BUFFSIZE];
+        ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
+        while ( cardnumber-- )
+        {
+            GtkWidget * image = gtk_image_new_from_file( imagefilepath );
+            if ( image == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
+            if ( pixbuf == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
+            gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
+            gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
+            *count += 1;
+            char targetfilepath[BUFFSIZE];
+            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
+            size_t rename_count = 1;
+            while ( access( targetfilepath , F_OK ) == 0 )
+            {
+                ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
+                rename_count++;
+            }
+            ret_code = copy_file( imagefilepath , targetfilepath );
+            if ( ret_code == true )
+                copy_success_count++;
+        }
+        regfree( &regex );
+        return copy_success_count;
+    }
+    return 0;
 }
 
-static size_t do_goldfish_deck( GtkWidget * grid , regmatch_t ( *pmatch )[4] , const char * line_buff , size_t * count )
+static size_t do_goldfish_deck( GtkWidget * grid , const char * line_buff , size_t * count )
 {
-    size_t copy_success_count = 0;
+    char err_buff[BUFFSIZE];
     int ret_code;
-
-    size_t name_len = ( *pmatch )[2].rm_eo - ( *pmatch )[2].rm_so;
-    if ( *( line_buff + ( *pmatch )[2].rm_eo - 1 ) == '\n' )
-        name_len -= 1;
-    if ( *( line_buff + ( *pmatch )[2].rm_eo - 2 ) == '\r' )
-        name_len -= 1;
-    char cardname[BUFFSIZE];
-    strncpy( cardname, line_buff + ( *pmatch )[2].rm_so, name_len );
-    cardname[name_len] = '\0';
-    remove_forwardslash( cardname );
-    size_t cardnumber = 0;
-    for ( int i = 0 ; i <  ( *pmatch )[1].rm_eo - ( *pmatch )[1].rm_so ; i++ )
-        cardnumber = 10*cardnumber + line_buff[i] - '0';
-    char imagefilepath[BUFFSIZE];
-    ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , NULL );
-    while ( cardnumber-- )
+    size_t copy_success_count = 0;
+    regex_t regex;
+    regmatch_t pmatch[3];
+    if ( ( ret_code = regcomp( &regex , "^([0-9]+) ([^|\r]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
     {
-        GtkWidget * image = gtk_image_new_from_file( imagefilepath );
-        if ( image == NULL )
-        {
-            g_print( "%s not is image file or not found\n", imagefilepath );
-            return copy_success_count;
-        }
-        GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
-        if ( pixbuf == NULL )
-        {
-            g_print( "%s not is image file or not found\n", imagefilepath );
-            return copy_success_count;
-        }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
-        gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
-        *count += 1;
-        char targetfilepath[BUFFSIZE];
-        ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , NULL , cardnumber );
-        size_t rename_count = 1;
-        while ( access( targetfilepath , F_OK ) == 0 )
-        {
-            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , NULL , cardnumber + rename_count*100 );
-            rename_count++;
-        }
-        ret_code = copy_file( imagefilepath , targetfilepath );
-        if ( ret_code == true )
-            copy_success_count++;
+        regerror( ret_code, &regex, err_buff, BUFFSIZE );
+        fprintf( stderr, "error:%s\n", err_buff );
+        return 0;
     }
-    return copy_success_count;
+    if ( ( ret_code = regexec( &regex, line_buff, 3 , pmatch, 0 ) ) == 0 )
+    {
+        size_t name_len = pmatch[2].rm_eo - pmatch[2].rm_so;
+        if ( *( line_buff + pmatch[2].rm_eo - 1 ) == '\n' )
+            name_len -= 1;
+        if ( *( line_buff + pmatch[2].rm_eo - 2 ) == '\r' )
+            name_len -= 1;
+        char cardname[BUFFSIZE];
+        strncpy( cardname, line_buff + pmatch[2].rm_so, name_len );
+        cardname[name_len] = '\0';
+        remove_forwardslash( cardname );
+        size_t cardnumber = 0;
+        for ( int i = 0 ; i <  pmatch[1].rm_eo - pmatch[1].rm_so ; i++ )
+            cardnumber = 10*cardnumber + line_buff[i] - '0';
+        char imagefilepath[BUFFSIZE];
+        ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , NULL );
+        while ( cardnumber-- )
+        {
+            GtkWidget * image = gtk_image_new_from_file( imagefilepath );
+            if ( image == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
+            if ( pixbuf == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ), config_object.CardWidth, config_object.CardHeight, GDK_INTERP_BILINEAR );
+            gtk_image_set_from_pixbuf( GTK_IMAGE( image ), pixbuf );
+            gtk_grid_attach( GTK_GRID( grid ), image, *count%config_object.LineCardNumber, *count/config_object.LineCardNumber,  1, 1);
+            *count += 1;
+            char targetfilepath[BUFFSIZE];
+            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , NULL , cardnumber );
+            size_t rename_count = 1;
+            while ( access( targetfilepath , F_OK ) == 0 )
+            {
+                ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , NULL , cardnumber + rename_count*100 );
+                rename_count++;
+            }
+            ret_code = copy_file( imagefilepath , targetfilepath );
+            if ( ret_code == true )
+                copy_success_count++;
+        }
+        regfree( &regex );
+        return copy_success_count;
+    }
+    return 0;
+}
+static size_t do_mtga_deck( GtkWidget * grid , const char * line_buff , size_t * count )
+{
+    char err_buff[BUFFSIZE];
+    int ret_code;
+    size_t copy_success_count = 0;
+    regex_t regex;
+    regmatch_t pmatch[5];
+
+    if ( ( ret_code = regcomp( &regex, "^(^[0-9]+) ([^\\(\\)]+) \\(([^ ]+)\\) ([0-9]+)", REG_EXTENDED | REG_NEWLINE ) ) != 0 )
+    {
+        regerror( ret_code, &regex, err_buff, BUFFSIZE );
+        fprintf( stderr, "error:%s\n", err_buff );
+        return 0;
+    }
+    if ( ( ret_code = regexec( &regex, line_buff, 5 , pmatch, 0 ) ) == 0 )
+    {
+        size_t series_len = pmatch[3].rm_eo - pmatch[3].rm_so;
+        if ( *( line_buff + pmatch[3].rm_eo - 1 ) == '\n' )
+            series_len -= 1;
+        if ( *( line_buff + pmatch[3].rm_eo - 2 ) == '\r' )
+            series_len -= 1;
+        char cardseries[BUFFSIZE];
+        strncpy( cardseries, line_buff + pmatch[3].rm_so, series_len );
+        cardseries[series_len] = '\0';
+        size_t name_len = pmatch[2].rm_eo - pmatch[2].rm_so;
+        char cardname[BUFFSIZE];
+        strncpy( cardname, line_buff + pmatch[2].rm_so, name_len );
+        cardname[name_len] = '\0';
+        remove_forwardslash( cardname );
+        size_t cardnumber = 0;
+        for ( int i = 0 ; i <  pmatch[1].rm_eo - pmatch[1].rm_so ; i++ )
+            cardnumber = 10*cardnumber + line_buff[i] - '0';
+        size_t cardid = 0;
+        for ( int i = 0 ; i <  pmatch[4].rm_eo - pmatch[4].rm_so ; i++ )
+            cardid = 10*cardid + line_buff[i] - '0';
+        char imagefilepath[BUFFSIZE];
+        ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
+        while ( cardnumber-- )
+        {
+            GtkWidget * image = gtk_image_new_from_file( imagefilepath );
+            if ( image == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
+            if ( pixbuf == NULL )
+            {
+                g_print( "%s not is image file or not found\n", imagefilepath );
+                return copy_success_count;
+            }
+            pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
+            gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
+            gtk_grid_attach( GTK_GRID( grid ) , image , *count%config_object.LineCardNumber, *count/config_object.LineCardNumber, 1 , 1 );
+            *count += 1;
+            char targetfilepath[BUFFSIZE];
+            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
+            size_t rename_count = 1;
+            while ( access( targetfilepath , F_OK ) == 0 )
+            {
+                ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
+                rename_count++;
+            }
+            ret_code = copy_file( imagefilepath , targetfilepath );
+            if ( ret_code == true )
+                copy_success_count++;
+        }
+        regfree( &regex );
+        return copy_success_count;
+    }
+    return 0;
 }
 
 static void remove_forwardslash( char * str )
