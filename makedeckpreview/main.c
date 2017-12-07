@@ -47,7 +47,7 @@ static bool remove_directory( const char * dir );
 
 static bool make_directory( const char * dir );
 
-static bool copy_file ( const char * source_path , const char * destination_path );
+static bool copy_file( const char * source_path , const char * destination_path );
 
 //do parse_deck
 static size_t do_forge_deck( GtkWidget * grid , const char * line_buff , size_t * count );
@@ -61,6 +61,8 @@ static void remove_forwardslash( char * str );
 static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const char * cardname , const char * cardseries );
 
 static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen , const char * cardname , const char * cardseries , size_t retry_counter );
+
+static void get_deckpreview( GtkWidget * window );
 
 int main ( int argc, char * argv[] )
 {
@@ -249,7 +251,7 @@ size_t parse_deck( const char * deckfilename )
     }
     gtk_window_set_title( GTK_WINDOW( window ), deckfilename );
     gtk_window_set_default_size( GTK_WINDOW( window ), ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
-    g_signal_connect( G_OBJECT( window ), "delete_event", G_CALLBACK( gtk_main_quit ), NULL );
+    g_signal_connect( G_OBJECT( window ), "delete_event", G_CALLBACK( get_deckpreview ), window );
 
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL, NULL );
     gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
@@ -291,6 +293,7 @@ size_t parse_deck( const char * deckfilename )
     gtk_widget_show_all( window );
 
     gtk_main();
+
     return copy_success_count;
 }
 
@@ -580,6 +583,7 @@ static size_t do_goldfish_deck( GtkWidget * grid , const char * line_buff , size
     }
     return 0;
 }
+
 static size_t do_mtga_deck( GtkWidget * grid , const char * line_buff , size_t * count )
 {
     char err_buff[BUFFSIZE];
@@ -764,4 +768,21 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
 
     return true;
 #undef CHECKLEN
+}
+
+void get_deckpreview( GtkWidget * window )
+{
+    GdkWindow * gdk_window = gtk_widget_get_window( GTK_WIDGET( window ) );
+    GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.WindowWidth , config_object.WindowHeight );
+    if ( deckpreview == NULL )
+    {
+        fprintf( stderr , "get deck preview buff faliure\n" );
+    }
+    else
+    {
+        char previewname[BUFFSIZE];
+        snprintf( previewname , BUFFSIZE , "%sdeckpreview.jpg" , config_object.TargetDirectory );
+        gdk_pixbuf_save ( deckpreview , previewname , "jpeg" , NULL , "quality" , "100" , NULL );
+    }
+    gtk_main_quit();
 }
