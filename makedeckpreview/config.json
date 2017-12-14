@@ -5,7 +5,12 @@
     "DeckFileDirectory": "D:/MSYS2/home/CCTV-1/mtg-tool/makedeckpreview/deck/",
     "WindowWidth": 1050,
     "WindowHeight": 600,
-    "LineCardNumber": 15,
     "CardWidth": 70,
-    "CardHeight": 100
+    "CardHeight": 100,
+    "LineCardNumber": 15,
+    "TitleFontSize": 20,
+    "CloseWindowKeyValue":32,
+    "AutomaticScaling": false,
+    "HideTitleBar": false,
+    "CopyFile": true
 }
