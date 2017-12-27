@@ -181,14 +181,7 @@ void tool_inital( void )
     json_t * root;
     json_error_t error;
 
-    FILE * jsonfile = fopen( CONFIG_FILE, "r" );
-    if ( jsonfile == NULL )
-    {
-        fprintf( stderr , "open config file faliure\n" );
-        exit( EXIT_FAILURE );
-    }
-
-    root = json_loadf( jsonfile , 0 , &error );
+    root = json_load_file( CONFIG_FILE , 0 , &error );
 
     if( !root )
     {
@@ -218,7 +211,6 @@ void tool_inital( void )
     if ( config_object.ImageRootDirectory == NULL )
     {
         fprintf( stderr , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit\n" );
-        fclose( jsonfile );
         json_decref( root );
         exit( EXIT_FAILURE );
     }
@@ -243,7 +235,6 @@ void tool_inital( void )
     if ( config_object.TargetDirectory == NULL )
     {
         fprintf( stderr , "make target directory path faliure,programs exit\n" );
-        fclose( jsonfile );
         json_decref( root );
         exit( EXIT_FAILURE );
     }
@@ -298,7 +289,6 @@ void tool_inital( void )
         config_object.CopyFile = true;
     }
 
-    fclose( jsonfile );
     json_decref( root );
 }
 
@@ -477,8 +467,6 @@ static int get_boolean_node( json_t * root , const char * nodename )
 
 static bool copy_file( const char * source_path , const char * destination_path )
 {
-    if ( config_object.CopyFile == false )
-        return false;
     GFile * source = g_file_new_for_path( source_path );
     GFile * destination = g_file_new_for_path( destination_path );
     GError * g_error;
@@ -793,29 +781,17 @@ static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const
         return false;
 
     const char * forgeimagesuffix = ".full"; 
+    const char * basiclandnamelist[] = 
+    {
+        "Plains","Island","Swamp","Mountain","Forest",
+        "Snow-Covered Plains","Snow-Covered Island",
+        "Snow-Covered Swamp","Snow-Covered Mountain",
+        "Snow-Covered Forest","Wastes"
+    };
 
-    if ( strncmp( cardname , "Plains" , 6 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Island" , 6 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Swamp" , 5 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Mountain" , 8 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Forest" , 6 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Snow-Covered Plains" , 19 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Snow-Covered Island" , 19 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Snow-Covered Swamp" , 18 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Snow-Covered Mountain" , 21 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Snow-Covered Forest" , 19 ) == 0 )
-        forgeimagesuffix = "1.full";
-    if ( strncmp( cardname , "Wastes" , 6 ) == 0 )
-        forgeimagesuffix = "1.full";
+    for ( size_t i = 0 ; i < ( sizeof( basiclandnamelist )/sizeof( basiclandnamelist[0] ) ) ; i++ )
+        if ( strncmp( cardname , basiclandnamelist[i] , BUFFSIZE ) == 0 )
+            forgeimagesuffix = "1.full";
 
     if ( cardseries != NULL )
         snprintf( imagefilepath , path_maxlen , "%s%s/%s%s%s" , 
