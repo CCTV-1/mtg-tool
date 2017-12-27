@@ -16,7 +16,7 @@
 #define CONFIG_FILE "config.json"
 #define BUFFSIZE 1024
 
-struct config_object
+struct ConfigObject
 {
     char * TargetRootDirectory;
     bool targetrootdirectory_nofree;
@@ -38,11 +38,41 @@ struct config_object
     int CopyFile;
 }config_object;
 
+enum CardLocal
+{
+    MAIN = 0,
+    SIDEBOARD = 1,
+    UNKNOWN_LOCAL = INT32_MAX,
+};
+
+struct PreviewObject
+{
+    GtkWidget * window;
+    GtkWidget * window_icon;
+    GdkPixbuf * icon_pixbuf;
+    GtkWidget * scrolled;
+    GtkWidget * grid;
+}preview_object;
+
+struct CardObject
+{
+    enum CardLocal card_local;
+    char * cardname;
+    char * cardseries;
+    int32_t cardid;
+    int32_t cardnumber;
+};
+
 void tool_inital( void );
 
-int32_t parse_deck( const char * deckfilename );
+int32_t process_deck( const char * deckfilename );
 
 void tool_destroy( void );
+
+//do main
+static bool remove_directory( const char * dir );
+
+static bool make_directory( const char * dir );
 
 //do tool_inital
 static json_int_t get_integer_node( json_t * root , const char * nodename );
@@ -51,19 +81,24 @@ static char * get_string_node( json_t * root, const char * nodename );
 
 static int get_boolean_node( json_t * root , const char * nodename );
 
-//do main
-static bool remove_directory( const char * dir );
+//do process_deck
+static void preview_init( const char * deckfilename );
 
-static bool make_directory( const char * dir );
+static void preview_add_title( enum CardLocal card_local , int32_t * postion_count );
+
+static void preview_add_card( struct CardObject * card , int32_t * postion_count );
+
+static void preview_display( void );
+
+static void preview_destroy( void );
 
 static bool copy_file( const char * source_path , const char * destination_path );
 
-//do parse_deck
-static int32_t do_forge_deck( GtkWidget * grid , const char * line_buff , size_t * count );
+static GSList * get_cardlist( const char * deckfilename , GSList * cardlist );
 
-static int32_t do_goldfish_deck( GtkWidget * grid , const char * line_buff , size_t * count );
+static struct CardObject * allocate_cardobject( void );
 
-static int32_t do_mtga_deck( GtkWidget * grid , const char * line_buff , size_t * count );
+static void free_cardobject( struct CardObject * card );
 
 static void remove_forwardslash( char * str );
 
@@ -127,7 +162,7 @@ int main ( int argc, char * argv[] )
                         continue;
                     if ( make_directory( config_object.TargetDirectory  ) == false )
                         continue;
-                    int32_t copy_success_count = parse_deck( deckfilename );
+                    int32_t copy_success_count = process_deck( deckfilename );
                     if ( config_object.CopyFile == true )
                         fprintf( stdout , "deck:\"%s\" successfully copied %"PRId32" card images \n" , deckfilename , copy_success_count );
                     else
@@ -149,7 +184,7 @@ void tool_inital( void )
     FILE * jsonfile = fopen( CONFIG_FILE, "r" );
     if ( jsonfile == NULL )
     {
-        fprintf( stderr, "open config file faliure\n" );
+        fprintf( stderr , "open config file faliure\n" );
         exit( EXIT_FAILURE );
     }
 
@@ -157,7 +192,7 @@ void tool_inital( void )
 
     if( !root )
     {
-        fprintf( stderr, "error: on line %d: %s\n", error.line , error.text );
+        fprintf( stderr , "error: on line %d: %s\n", error.line , error.text );
         exit( EXIT_FAILURE );
     }
 
@@ -267,97 +302,53 @@ void tool_inital( void )
     json_decref( root );
 }
 
-int32_t parse_deck( const char * deckfilename )
+int32_t process_deck( const char * deckfilename )
 {
-    int ret_code;
-    char line_buff[BUFFSIZE];
     int32_t copy_success_count = 0;
-    FILE * deckfile = fopen( deckfilename , "r" );
-    if ( deckfile == NULL )
+    int32_t postion_count = 0;
+    preview_init( deckfilename );
+
+    //NULL is empty GSList
+    GSList * cardlist = get_cardlist( deckfilename , NULL );
+    if ( cardlist == NULL )
     {
-        fprintf( stderr, "open deck file faliure\n" );
+        fprintf( stderr , "deck \"%s\" format unknown,parsing stop\n" , deckfilename );
         return 0;
     }
 
-    GtkWidget * window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
-    GtkWidget * window_icon = gtk_image_new_from_file( "logo.ico" );
-    if ( window_icon == NULL )
+    enum CardLocal card_local = UNKNOWN_LOCAL;
+    GSList * temp = cardlist;
+    while( temp != NULL )
     {
-        g_print( "%s not is image file or not found\n", "logo.ico" );
-    }
-    else
-    {
-        GdkPixbuf * icon_pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( window_icon ) );
-        if ( icon_pixbuf == NULL )
-            g_print( "%s not is image file or not found\n", "logo.ico" );
-        else
-            gtk_window_set_icon( GTK_WINDOW( window ) , icon_pixbuf );
-    }
-    if ( config_object.HideTitleBar )
-    {
-        g_signal_connect( G_OBJECT( window ), "key-press-event", G_CALLBACK( on_key_press ) , NULL );
-        gtk_window_set_decorated( GTK_WINDOW( window ) , FALSE );
-    }
-    else
-        gtk_window_set_title( GTK_WINDOW( window ) , deckfilename );
-    gtk_window_set_default_size( GTK_WINDOW( window ), ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
-    g_signal_connect( G_OBJECT( window ), "delete_event", G_CALLBACK( get_deckpreview ) , window );
-    GtkWidget * scrolled = gtk_scrolled_window_new( NULL, NULL );
-    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
-    GtkWidget * grid = gtk_grid_new();
-    if ( config_object.AutomaticScaling == true )
-    {
-        gtk_grid_set_row_homogeneous( GTK_GRID( grid ) , TRUE );
-        gtk_grid_set_column_homogeneous( GTK_GRID( grid ) , TRUE );
-    }
-
-    size_t count = 0;
-    char title_label_buff[BUFFSIZE];
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        if ( ( strncmp( line_buff , "[Main]" , 6 ) == 0 ) || ( strncmp( line_buff , "[main]" , 6 ) == 0 ) )
+        struct CardObject * card = ( struct CardObject * )temp->data;
+        if ( card_local != card->card_local )
         {
-            GtkWidget * title_label = gtk_label_new( NULL );
-            snprintf( title_label_buff , BUFFSIZE , "<span font='%lld'>main</span>" , config_object.TitleFontSize );
-            gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
-            GtkWidget * title_box = gtk_event_box_new();
-            gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
-            count += config_object.LineCardNumber - count%config_object.LineCardNumber;
-            gtk_grid_attach( GTK_GRID( grid ), title_box , count%config_object.LineCardNumber , 
-                count/config_object.LineCardNumber ,  config_object.LineCardNumber , 1 );
-            count += config_object.LineCardNumber;
-            continue;
+            card_local = card->card_local;
+            preview_add_title( card_local , &postion_count );
         }
-        else if ( ( strncmp( line_buff , "[Sideboard]" , 11 ) == 0 ) || ( strncmp( line_buff , "[sideboard]" , 11 ) == 0 ) )
+        preview_add_card( card , &postion_count );
+        if ( config_object.CopyFile == true )
         {
-            GtkWidget * title_label = gtk_label_new( NULL );
-            snprintf( title_label_buff , BUFFSIZE , "<span font='%lld'>sideboard</span>" , config_object.TitleFontSize );
-            gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
-            GtkWidget * title_box = gtk_event_box_new();
-            gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
-            count += config_object.LineCardNumber - count%config_object.LineCardNumber;
-            gtk_grid_attach( GTK_GRID( grid ), title_box , count%config_object.LineCardNumber ,
-            count/config_object.LineCardNumber ,  config_object.LineCardNumber , 1 );
-            count += config_object.LineCardNumber;
-            continue;
+            char imagefilepath[BUFFSIZE];
+            char targetfilepath[BUFFSIZE];
+            size_t rename_count = 1;
+            makeimagefilepath( imagefilepath , BUFFSIZE , card->cardname , card->cardseries );
+            maketargetfilepath( targetfilepath , BUFFSIZE , card->cardname , card->cardseries , card->cardnumber );
+            while ( access( targetfilepath , F_OK ) == 0 )
+            {
+                maketargetfilepath( targetfilepath , BUFFSIZE , card->cardname , card->cardseries , card->cardnumber + rename_count*100 );
+                rename_count++;
+            }
+            if ( copy_file( imagefilepath , targetfilepath ) == true )
+                copy_success_count++;
         }
-        if ( ( ret_code = do_forge_deck( grid , line_buff , &count ) ) != -1 )
-            copy_success_count += ret_code;
-        else if ( ( ret_code = do_mtga_deck( grid , line_buff , &count ) ) != -1 )
-            copy_success_count += ret_code;
-        else if ( ( ret_code = do_goldfish_deck( grid , line_buff , &count ) ) != -1 )
-            copy_success_count += ret_code;
-        else
-            continue;
+        temp = g_slist_next( temp );
     }
 
-    gtk_container_add( GTK_CONTAINER( scrolled ), grid );
-    gtk_container_add( GTK_CONTAINER( window ), scrolled );
+    preview_display();
+    preview_destroy();
+    g_slist_free_full( cardlist , ( GDestroyNotify )free_cardobject );
 
-    gtk_widget_show_all( GTK_WIDGET( window ) );
-    gtk_main();
-
-    gtk_widget_destroy( GTK_WIDGET( window ) );
     return copy_success_count;
 }
 
@@ -370,50 +361,6 @@ void tool_destroy( void )
         free( config_object.DeckFileDirectory );
     if ( config_object.targetrootdirectory_nofree != true )
         free( config_object.TargetDirectory );
-}
-
-static char * get_string_node( json_t * root, const char * nodename )
-{
-    json_t * node = json_object_get( root, nodename );
-    if( !json_is_string( node ) )
-    {
-        fprintf( stderr, "error: %s is not a string node\n", nodename );
-        return NULL;
-    }
-    const char * onlyread_string = json_string_value( node );
-    size_t string_len = strnlen( onlyread_string , BUFFSIZE ) + 1;
-    char * return_string = ( char * )malloc( string_len*sizeof( char ) );
-    if ( return_string == NULL )
-    {
-        perror( "allocate configuration:" );
-        return NULL;
-    }
-    strncpy( return_string, onlyread_string, string_len );
-    return return_string;
-}
-
-static json_int_t get_integer_node( json_t * root , const char * nodename )
-{
-    json_t * node = json_object_get( root , nodename );
-    if ( !json_is_integer( node ) )
-    {
-        fprintf( stderr , "error: %s is not a integer node\n" , nodename );
-    }
-    //if not integer node json_integer_value return 0
-    return json_integer_value( node );
-}
-
-static int get_boolean_node( json_t * root , const char * nodename )
-{
-    json_t * node = json_object_get( root , nodename );
-    if ( !json_is_boolean( node ) )
-    {
-        fprintf( stderr , "error: %s is not a boolean node\n" , nodename );
-        //identify get value error
-        return -1;
-    }
-    //consistent with the standard boolean behavior
-    return json_boolean_value( node );
 }
 
 static bool remove_directory( const char * dir )
@@ -484,6 +431,50 @@ static bool make_directory( const char * dir )
     return true;
 }
 
+static char * get_string_node( json_t * root, const char * nodename )
+{
+    json_t * node = json_object_get( root, nodename );
+    if( !json_is_string( node ) )
+    {
+        fprintf( stderr , "error: %s is not a string node\n", nodename );
+        return NULL;
+    }
+    const char * onlyread_string = json_string_value( node );
+    size_t string_len = strnlen( onlyread_string , BUFFSIZE ) + 1;
+    char * return_string = ( char * )malloc( string_len*sizeof( char ) );
+    if ( return_string == NULL )
+    {
+        perror( "allocate configuration:" );
+        return NULL;
+    }
+    strncpy( return_string, onlyread_string, string_len );
+    return return_string;
+}
+
+static json_int_t get_integer_node( json_t * root , const char * nodename )
+{
+    json_t * node = json_object_get( root , nodename );
+    if ( !json_is_integer( node ) )
+    {
+        fprintf( stderr , "error: %s is not a integer node\n" , nodename );
+    }
+    //if not integer node json_integer_value return 0
+    return json_integer_value( node );
+}
+
+static int get_boolean_node( json_t * root , const char * nodename )
+{
+    json_t * node = json_object_get( root , nodename );
+    if ( !json_is_boolean( node ) )
+    {
+        fprintf( stderr , "error: %s is not a boolean node\n" , nodename );
+        //identify get value error
+        return -1;
+    }
+    //consistent with the standard boolean behavior
+    return json_boolean_value( node );
+}
+
 static bool copy_file( const char * source_path , const char * destination_path )
 {
     if ( config_object.CopyFile == false )
@@ -526,220 +517,247 @@ static bool copy_file( const char * source_path , const char * destination_path 
     return true;
 }
 
-static int32_t do_forge_deck( GtkWidget * grid , const char * line_buff , size_t * count )
+static void preview_init( const char * deckfilename )
 {
-    int32_t ret_code;
-    int32_t copy_success_count = 0;
-    
-    GError * g_error = NULL;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
+    preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
+    preview_object.window_icon = gtk_image_new_from_file( "logo.ico" );
+    if ( preview_object.window_icon == NULL )
     {
-        if ( g_error != NULL )
-        {
-            g_printerr( "Error while matching: %s\n" , g_error->message );
-            g_error_free( g_error );
-        }
-        return -1;
+        g_print( "%s not is image file or not found\n" , "logo.ico" );
     }
-    GMatchInfo * match_info;
-    if ( g_regex_match( regex , line_buff , 0 , &match_info ) != TRUE )
-        return -1;
-    char ** words = g_regex_split( regex , line_buff , 0 );
-    char * cardnumber_str = words[1];
-    char * cardname = words[2];
-    char * cardseries = words[3];
-    int32_t cardnumber = 0;
-    remove_forwardslash( cardname );
-        
-    for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-        cardnumber = 10*cardnumber + line_buff[i] - '0';
+    else
+    {
+        preview_object.icon_pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( preview_object.window_icon ) );
+        if ( preview_object.icon_pixbuf == NULL )
+            g_print( "%s not is image file or not found\n" , "logo.ico" );
+        else
+            gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , preview_object.icon_pixbuf );
+    }
+    if ( config_object.HideTitleBar )
+    {
+        g_signal_connect( G_OBJECT( preview_object.window ) , "key-press-event" , G_CALLBACK( on_key_press ) , NULL );
+        gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
+    }
+    else
+        gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deckfilename );
+    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ), ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
+    g_signal_connect( G_OBJECT( preview_object.window ), "delete_event", G_CALLBACK( get_deckpreview ) , preview_object.window );
+    preview_object.scrolled = gtk_scrolled_window_new( NULL, NULL );
+    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( preview_object.scrolled ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
+    preview_object.grid = gtk_grid_new();
+    if ( config_object.AutomaticScaling == true )
+    {
+        gtk_grid_set_row_homogeneous( GTK_GRID( preview_object.grid ) , TRUE );
+        gtk_grid_set_column_homogeneous( GTK_GRID( preview_object.grid ) , TRUE );
+    }
+    gtk_container_add( GTK_CONTAINER( preview_object.scrolled ), preview_object.grid );
+    gtk_container_add( GTK_CONTAINER( preview_object.window ), preview_object.scrolled );
+}
+
+static void preview_add_title( enum CardLocal card_local , int32_t * postion_count )
+{
+    char title_label_buff[BUFFSIZE];
+    GtkWidget * title_label = gtk_label_new( NULL );
+    if ( card_local == MAIN )
+        snprintf( title_label_buff , BUFFSIZE , "<span font='%"PRId64"'>main</span>" , config_object.TitleFontSize );
+    else if ( card_local == SIDEBOARD )
+        snprintf( title_label_buff , BUFFSIZE , "<span font='%"PRId64"'>sideboard</span>" , config_object.TitleFontSize );
+    else if ( card_local == UNKNOWN_LOCAL )
+        return ;
+    gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
+    GtkWidget * title_box = gtk_event_box_new();
+    gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
+    *postion_count += config_object.LineCardNumber - *postion_count%config_object.LineCardNumber;
+    gtk_grid_attach( GTK_GRID( preview_object.grid ), title_box , *postion_count%config_object.LineCardNumber , 
+        *postion_count/config_object.LineCardNumber ,  config_object.LineCardNumber , 1 );
+    *postion_count += config_object.LineCardNumber;
+}
+
+static void preview_add_card( struct CardObject * card , int32_t * postion_count )
+{
     char imagefilepath[BUFFSIZE];
-    ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
+    int32_t cardnumber = card->cardnumber;
+    makeimagefilepath( imagefilepath , BUFFSIZE , card->cardname , card->cardseries );
     while ( cardnumber-- )
     {
         GtkWidget * image = gtk_image_new_from_file( imagefilepath );
         if ( image == NULL )
         {
             g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
+            return ;
         }
         GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
         if ( pixbuf == NULL )
         {
             g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
+            return ;
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ) , image , *count%config_object.LineCardNumber , *count/config_object.LineCardNumber , 1 , 1 );
-        *count += 1;
-        char targetfilepath[BUFFSIZE];
-        ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
-        size_t rename_count = 1;
-        while ( access( targetfilepath , F_OK ) == 0 )
-        {
-            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
-            rename_count++;
-        }
-        ret_code = copy_file( imagefilepath , targetfilepath );
-        if ( ret_code == true )
-            copy_success_count++;
+        gtk_grid_attach( GTK_GRID(  preview_object.grid ) , image , *postion_count%config_object.LineCardNumber , *postion_count/config_object.LineCardNumber , 1 , 1 );
+        *postion_count += 1;
     }
-
-    g_strfreev( ( char ** )words );
-    g_regex_unref( regex );
-    if ( g_error != NULL )
-    {
-        g_printerr( "Error while matching: %s\n" , g_error->message );
-        g_error_free( g_error );
-    }
-    return copy_success_count;
 }
 
-static int32_t do_goldfish_deck( GtkWidget * grid , const char * line_buff , size_t * count )
+static void preview_display( void )
 {
-    int32_t ret_code;
-    int32_t copy_success_count = 0;
-    
-    GError * g_error = NULL;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-    {
-        if ( g_error != NULL )
-        {
-            g_printerr( "Error while matching: %s\n" , g_error->message );
-            g_error_free( g_error );
-        }
-        return -1;
-    }
-    GMatchInfo * match_info;
-    if ( g_regex_match( regex , line_buff , 0 , &match_info ) != TRUE )
-        return -1;
-    char ** words = g_regex_split( regex , line_buff , 0 );
-    char * cardnumber_str = words[1];
-    char * cardname = words[2];
-    char * cardseries = NULL;
-    int32_t cardnumber = 0;
-    remove_forwardslash( cardname );
-
-    for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-        cardnumber = 10*cardnumber + line_buff[i] - '0';
-    char imagefilepath[BUFFSIZE];
-    ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
-    while ( cardnumber-- )
-    {
-        GtkWidget * image = gtk_image_new_from_file( imagefilepath );
-        if ( image == NULL )
-        {
-            g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
-        }
-        GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
-        if ( pixbuf == NULL )
-        {
-            g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
-        }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
-        gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ) , image , *count%config_object.LineCardNumber , *count/config_object.LineCardNumber , 1 , 1 );
-        *count += 1;
-        char targetfilepath[BUFFSIZE];
-        ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
-        size_t rename_count = 1;
-        while ( access( targetfilepath , F_OK ) == 0 )
-        {
-            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
-            rename_count++;
-        }
-        ret_code = copy_file( imagefilepath , targetfilepath );
-        if ( ret_code == true )
-            copy_success_count++;
-    }
-
-    g_strfreev( ( char ** )words );
-    g_regex_unref( regex );
-    if ( g_error != NULL )
-    {
-        g_printerr( "Error while matching: %s\n" , g_error->message );
-        g_error_free( g_error );
-    }
-    return copy_success_count;
+    gtk_widget_show_all( GTK_WIDGET( preview_object.window ) );
+    gtk_main();
 }
 
-static int32_t do_mtga_deck( GtkWidget * grid , const char * line_buff , size_t * count )
+static void preview_destroy( void )
 {
-    int32_t ret_code;
-    int32_t copy_success_count = 0;
-    
-    GError * g_error = NULL;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , 
+    gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
+}
+
+static GSList * get_cardlist( const char * deckfilename , GSList * cardlist )
+{
+    char line_buff[BUFFSIZE];
+    FILE * deckfile = fopen( deckfilename , "r" );
+    if ( deckfile == NULL )
+    {
+        fprintf( stderr , "open deck:\"%s\" faliure\n" , deckfilename );
+        return NULL;
+    }
+
+    int32_t card_local = UNKNOWN_LOCAL;
+    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
+    {
+        if ( ( strncmp( line_buff , "[Main]" , 6 ) == 0 ) || ( strncmp( line_buff , "[main]" , 6 ) == 0 ) )
+            card_local = MAIN;
+        if ( ( strncmp( line_buff , "[Sideboard]" , 11 ) == 0 ) || ( strncmp( line_buff , "[sideboard]" , 11 ) == 0 ) )
+            card_local = SIDEBOARD;
+
+        GError * g_error = NULL;
+        GMatchInfo * match_info;
+        //forge deck format regex
+        GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+        if ( regex == NULL )
+            goto parse_err;
+        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
+        {
+            struct CardObject * card = allocate_cardobject();
+            char ** words = g_regex_split( regex , line_buff , 0 );
+            char * cardnumber_str = words[1];
+            int32_t cardnumber = 0;
+            for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
+                cardnumber = 10*cardnumber + line_buff[i] - '0';
+            card->card_local = card_local;
+            card->cardnumber = cardnumber;
+            strncat( card->cardname , words[2] , BUFFSIZE );
+            strncat( card->cardseries , words[3] , BUFFSIZE );
+            //INT32_MAX is unknown id
+            card->cardid = INT32_MAX;
+            remove_forwardslash( card->cardname );
+            cardlist = g_slist_append( cardlist , ( gpointer )card );
+            //if match succee,continue other test
+            g_strfreev( ( char ** )words );
+            g_regex_unref( regex );
+            continue;
+        }
+
+        g_error = NULL;
+        //goldfish deck format regex
+        regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+        if ( regex == NULL )
+            goto parse_err;
+        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
+        {
+            struct CardObject * card = allocate_cardobject();
+            char ** words = g_regex_split( regex , line_buff , 0 );
+            char * cardnumber_str = words[1];
+            int32_t cardnumber = 0;
+            for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
+                cardnumber = 10*cardnumber + line_buff[i] - '0';
+            card->card_local = card_local;
+            card->cardnumber = cardnumber;
+            strncat( card->cardname , words[2] , BUFFSIZE );
+            card->cardseries = NULL;
+            //INT32_MAX is unknown id
+            card->cardid = INT32_MAX;
+            remove_forwardslash( card->cardname );
+            cardlist = g_slist_append( cardlist , ( gpointer )card );
+            //if match succee,continue other test
+            g_strfreev( ( char ** )words );
+            g_regex_unref( regex );
+            continue;
+        }
+
+        g_error = NULL;
+        //mtga deck format regex
+        regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , 
                             G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-    {
+        if ( regex == NULL )
+            goto parse_err;
+        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
+        {
+            struct CardObject * card = allocate_cardobject();
+            char ** words = g_regex_split( regex , line_buff , 0 );
+            char * cardnumber_str = words[1];
+            char * cardid_str = words[4];
+            int32_t cardnumber = 0;
+            //INT32_MAX is unknown id
+            int32_t cardid = INT32_MAX;
+            for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
+                cardnumber = 10*cardnumber + line_buff[i] - '0';
+            for ( size_t i = 0 ; i < strnlen( cardid_str , BUFFSIZE ) ; i++ )
+                cardid = 10*cardid + line_buff[i] - '0';
+            card->card_local = card_local;
+            card->cardnumber = cardnumber;
+            strncat( card->cardname , words[2] , BUFFSIZE );
+            strncat( card->cardseries , words[3] , BUFFSIZE );
+            card->cardid = cardid;
+            remove_forwardslash( card->cardname );
+            cardlist = g_slist_append( cardlist , ( gpointer )card );
+            //if match succee,continue other test
+            g_strfreev( ( char ** )words );
+            g_regex_unref( regex );
+            continue;
+        }
+
+        continue;
+
+    parse_err:
         if ( g_error != NULL )
         {
             g_printerr( "Error while matching: %s\n" , g_error->message );
             g_error_free( g_error );
+            exit( EXIT_FAILURE );
         }
-        return -1;
-    }
-    GMatchInfo * match_info;
-    if ( g_regex_match( regex , line_buff , 0 , &match_info ) != TRUE )
-        return -1;
-    char ** words = g_regex_split( regex , line_buff , 0 );
-    char * cardnumber_str = words[1];
-    char * cardname = words[2];
-    char * cardseries = words[3];
-    char * cardid = words[4];
-    ( void )cardid;
-    int32_t cardnumber = 0;
-    remove_forwardslash( cardname );
-
-    for ( size_t i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-        cardnumber = 10*cardnumber + line_buff[i] - '0';
-    char imagefilepath[BUFFSIZE];
-    ret_code = makeimagefilepath( imagefilepath , BUFFSIZE , cardname , cardseries );
-    while ( cardnumber-- )
-    {
-        GtkWidget * image = gtk_image_new_from_file( imagefilepath );
-        if ( image == NULL )
-        {
-            g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
-        }
-        GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
-        if ( pixbuf == NULL )
-        {
-            g_print( "%s not is image file or not found\n" , imagefilepath );
-            return copy_success_count;
-        }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
-        gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
-        gtk_grid_attach( GTK_GRID( grid ) , image , *count%config_object.LineCardNumber , *count/config_object.LineCardNumber , 1 , 1 );
-        *count += 1;
-        char targetfilepath[BUFFSIZE];
-        ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber );
-        size_t rename_count = 1;
-        while ( access( targetfilepath , F_OK ) == 0 )
-        {
-            ret_code = maketargetfilepath( targetfilepath , BUFFSIZE , cardname , cardseries , cardnumber + rename_count*100 );
-            rename_count++;
-        }
-        ret_code = copy_file( imagefilepath , targetfilepath );
-        if ( ret_code == true )
-            copy_success_count++;
     }
 
-    g_strfreev( ( char ** )words );
-    g_regex_unref( regex );
-    if ( g_error != NULL )
+    fclose( deckfile );
+    return cardlist;
+}
+
+static struct CardObject * allocate_cardobject( void )
+{
+    struct CardObject * card = ( struct CardObject * )calloc( 1 , sizeof( struct CardObject ) );
+    if ( card == NULL )
+        return card;
+    card->cardname = calloc( 1 , BUFFSIZE*sizeof( char ) );
+    if ( card->cardname == NULL )
     {
-        g_printerr( "Error while matching: %s\n" , g_error->message );
-        g_error_free( g_error );
+        free( card );
+        return NULL;
     }
-    return copy_success_count;
+    card->cardseries = calloc( 1 , BUFFSIZE*sizeof( char ) );
+    if ( card->cardseries == NULL )
+    {
+        free( card->cardname );
+        free( card );
+        return NULL;
+    }
+    return card;
+}
+
+static void free_cardobject( struct CardObject * card )
+{
+    if ( card == NULL )
+        return ;
+    free( card->cardseries );
+    free( card->cardname );
+    free( card );
 }
 
 static void remove_forwardslash( char * str )
@@ -786,6 +804,18 @@ static bool makeimagefilepath( char * imagefilepath , size_t path_maxlen , const
         forgeimagesuffix = "1.full";
     if ( strncmp( cardname , "Forest" , 6 ) == 0 )
         forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Snow-Covered Plains" , 19 ) == 0 )
+        forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Snow-Covered Island" , 19 ) == 0 )
+        forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Snow-Covered Swamp" , 18 ) == 0 )
+        forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Snow-Covered Mountain" , 21 ) == 0 )
+        forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Snow-Covered Forest" , 19 ) == 0 )
+        forgeimagesuffix = "1.full";
+    if ( strncmp( cardname , "Wastes" , 6 ) == 0 )
+        forgeimagesuffix = "1.full";
 
     if ( cardseries != NULL )
         snprintf( imagefilepath , path_maxlen , "%s%s/%s%s%s" , 
@@ -812,10 +842,10 @@ static bool maketargetfilepath( char * targetfilepath , size_t path_maxlen ,  co
         return false;
 
     if ( cardseries != NULL )
-        snprintf( targetfilepath , path_maxlen , "%s%s.%s%zd%s" ,
+        snprintf( targetfilepath , path_maxlen , "%s%s.%s%"PRIu64"%s" ,
             config_object.TargetDirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
     else
-        snprintf( targetfilepath , path_maxlen , "%s%s%zd%s" ,
+        snprintf( targetfilepath , path_maxlen , "%s%s%"PRIu64"%s" ,
             config_object.TargetDirectory , cardname , retry_count , config_object.ImageSuffix );
 
     return true;
