@@ -1,4 +1,3 @@
-#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,13 +13,10 @@
 struct ConfigObject
 {
     gchar * TargetRootDirectory;
-    gboolean targetrootdirectory_nofree;
     gchar * TargetDirectory;
     gchar * ImageRootDirectory;
     gchar * ImageSuffix;
-    gboolean imagesuffix_nofree;
     gchar * DeckFileDirectory;
-    gboolean deckfiledirectory_nofree;
     json_int_t WindowWidth;
     json_int_t WindowHeight;
     json_int_t CardWidth;
@@ -36,8 +32,8 @@ struct ConfigObject
 enum CardLocal
 {
     MAIN = 0,
-    SIDEBOARD = 1,
-    UNKNOWN_LOCAL = G_MAXINT32,
+    SIDEBOARD,
+    UNKNOWN_LOCAL,
 };
 
 struct PreviewObject
@@ -105,7 +101,7 @@ static gboolean get_deckpreview( GtkWidget * window );
 
 static gboolean on_key_press( GtkWidget * widget , GdkEventKey * event , gpointer data );
 
-gint main ( gint argc, gchar * argv[] )
+int main ( int argc, char * argv[] )
 {
     gtk_init( &argc, &argv );
     tool_inital();
@@ -140,13 +136,14 @@ gint main ( gint argc, gchar * argv[] )
             continue;
         gint32 copy_success_count = process_deck( deckfile_fullname );
         if ( config_object.CopyFile == TRUE )
-            g_message( "deck:\"%s\" successfully copied %"PRId32" card images \n" , deckfile_fullname , copy_success_count );
+            g_message( "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images \n" , deckfile_fullname , copy_success_count );
         else
             g_message( "set to do not copy files,deck:\"%s\"\n" , deckfile_fullname );
         g_free( deckfile_fullname );
         g_free( config_object.TargetDirectory );
     }
     g_dir_close( dir_ptr );
+
     tool_destroy();
     return EXIT_SUCCESS;
 }
@@ -166,11 +163,8 @@ void tool_inital( void )
 
     config_object.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
     config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
-    config_object.imagesuffix_nofree = FALSE;
     config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
-    config_object.deckfiledirectory_nofree = FALSE;
     config_object.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
-    config_object.targetrootdirectory_nofree = FALSE;
     //runtime get
     config_object.TargetDirectory = NULL;
     config_object.WindowWidth = get_integer_node( root , "WindowWidth" );
@@ -193,20 +187,17 @@ void tool_inital( void )
     if ( config_object.ImageSuffix == NULL )
     {
         g_message( "get configuration:ImageSuffix faliure,use default ImageSuffix:\".jpg\"\n" );
-        config_object.ImageSuffix = ".jpg";
-        config_object.imagesuffix_nofree = TRUE;
+        config_object.ImageSuffix = g_strdup_printf( "%s" , ".jpg" );
     }
     if ( config_object.DeckFileDirectory == NULL )
     {
         g_message( "get configuration:DeckFileDirectory faliure,use default DeckFileDirectory:\"./\"\n" );
-        config_object.DeckFileDirectory = "./";
-        config_object.deckfiledirectory_nofree = TRUE;
+        config_object.DeckFileDirectory = g_strdup_printf( "%s" , "./");
     }
     if ( config_object.TargetRootDirectory == NULL )
     {
         g_message( "get configuration:TargetRootDirectory faliure,use default TargetRootDirectory:\"./\"\n" );
-        config_object.TargetRootDirectory = "./";
-        config_object.targetrootdirectory_nofree = TRUE;
+        config_object.TargetRootDirectory = g_strdup_printf( "%s" , "./");
     }
     if ( config_object.WindowWidth == 0 ) 
     {
@@ -317,13 +308,10 @@ gint32 process_deck( const gchar * deckfilename )
 
 void tool_destroy( void )
 {
-    free( config_object.ImageRootDirectory );
-    if ( config_object.imagesuffix_nofree != TRUE )
-        free( config_object.ImageSuffix );
-    if ( config_object.deckfiledirectory_nofree != TRUE )
-        free( config_object.DeckFileDirectory );
-    if ( config_object.targetrootdirectory_nofree != TRUE )
-        free( config_object.TargetRootDirectory );
+    g_free( config_object.ImageRootDirectory );
+    g_free( config_object.ImageSuffix );
+    g_free( config_object.DeckFileDirectory );
+    g_free( config_object.TargetRootDirectory );
 }
 
 static gboolean remove_directory( const gchar * dir )
@@ -386,14 +374,7 @@ static gchar * get_string_node( json_t * root, const gchar * nodename )
         return NULL;
     }
     const gchar * onlyread_string = json_string_value( node );
-    gsize string_len = strnlen( onlyread_string , BUFFSIZE ) + 1;
-    gchar * return_string = ( gchar * )malloc( string_len*sizeof( gchar ) );
-    if ( return_string == NULL )
-    {
-        perror( "allocate configuration:" );
-        return NULL;
-    }
-    g_strlcpy( return_string, onlyread_string, string_len );
+    gchar * return_string = g_strdup_printf( "%s" , onlyread_string );
     return return_string;
 }
 
@@ -503,9 +484,9 @@ static void preview_add_title( enum CardLocal card_local , gint32 * postion_coun
     gchar * title_label_buff = NULL;
     GtkWidget * title_label = gtk_label_new( NULL );
     if ( card_local == MAIN )
-        title_label_buff = g_strdup_printf(  "<span font='%"PRId64"'>main</span>" , config_object.TitleFontSize );
+        title_label_buff = g_strdup_printf(  "<span font='%"G_GINT64_FORMAT"'>main</span>" , config_object.TitleFontSize );
     else if ( card_local == SIDEBOARD )
-        title_label_buff = g_strdup_printf( "<span font='%"PRId64"'>sideboard</span>" , config_object.TitleFontSize );
+        title_label_buff = g_strdup_printf( "<span font='%"G_GINT64_FORMAT"'>sideboard</span>" , config_object.TitleFontSize );
     else if ( card_local == UNKNOWN_LOCAL )
         return ;
     gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
@@ -584,10 +565,7 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
         {
             struct CardObject * card = allocate_cardobject();
             gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gchar * cardnumber_str = words[1];
-            gint32 cardnumber = 0;
-            for ( gsize i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-                cardnumber = 10*cardnumber + line_buff[i] - '0';
+            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
             card->card_local = card_local;
             card->cardnumber = cardnumber;
             g_strlcat( card->cardname , words[2] , BUFFSIZE );
@@ -611,10 +589,7 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
         {
             struct CardObject * card = allocate_cardobject();
             gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gchar * cardnumber_str = words[1];
-            gint32 cardnumber = 0;
-            for ( gsize i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-                cardnumber = 10*cardnumber + line_buff[i] - '0';
+            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
             card->card_local = card_local;
             card->cardnumber = cardnumber;
             g_strlcat( card->cardname , words[2] , BUFFSIZE );
@@ -639,15 +614,8 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
         {
             struct CardObject * card = allocate_cardobject();
             gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gchar * cardnumber_str = words[1];
-            gchar * cardid_str = words[4];
-            gint32 cardnumber = 0;
-            //G_MAXINT32 is unknown id
-            gint32 cardid = G_MAXINT32;
-            for ( gsize i = 0 ; i < strnlen( cardnumber_str , BUFFSIZE ) ; i++ )
-                cardnumber = 10*cardnumber + line_buff[i] - '0';
-            for ( gsize i = 0 ; i < strnlen( cardid_str , BUFFSIZE ) ; i++ )
-                cardid = 10*cardid + line_buff[i] - '0';
+            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
+            gint32 cardid = g_ascii_strtoll( words[4] , NULL , 10 );;
             card->card_local = card_local;
             card->cardnumber = cardnumber;
             g_strlcat( card->cardname , words[2] , BUFFSIZE );
@@ -660,9 +628,6 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
             g_regex_unref( regex );
             continue;
         }
-
-        continue;
-
     parse_err:
         if ( g_error != NULL )
         {
@@ -706,6 +671,7 @@ static void free_cardobject( struct CardObject * card )
     free( card );
 }
 
+//forge double-faced,cookies,fusion card name:"Name1 // Name2"
 static void remove_forwardslash( gchar * str )
 {
     //fast check
@@ -756,10 +722,10 @@ static gboolean maketargetfilepath( gchar ** targetfilepath , const gchar * card
         return FALSE;
 
     if ( cardseries != NULL )
-        *targetfilepath = g_strdup_printf( "%s%s.%s%"PRIu64"%s" ,
+        *targetfilepath = g_strdup_printf( "%s%s.%s%"G_GSIZE_FORMAT"%s" ,
             config_object.TargetDirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
     else
-        *targetfilepath = g_strdup_printf( "%s%s%"PRIu64"%s" ,
+        *targetfilepath = g_strdup_printf( "%s%s%"G_GSIZE_FORMAT"%s" ,
             config_object.TargetDirectory , cardname , retry_count , config_object.ImageSuffix );
     return TRUE;
 }
