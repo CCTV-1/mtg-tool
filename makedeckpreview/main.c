@@ -13,7 +13,6 @@
 struct ConfigObject
 {
     gchar * TargetRootDirectory;
-    gchar * TargetDirectory;
     gchar * ImageRootDirectory;
     gchar * ImageSuffix;
     gchar * DeckFileDirectory;
@@ -28,6 +27,12 @@ struct ConfigObject
     gint HideTitleBar;
     gint CopyFile;
 }config_object;
+
+struct DeckObject
+{
+    gchar * deckfullname;
+    gchar * targetdirectory;
+};
 
 enum CardLocal
 {
@@ -56,7 +61,7 @@ struct CardObject
 
 void tool_inital( void );
 
-gint32 process_deck( const gchar * deckfilename );
+gint32 process_deck( struct DeckObject * );
 
 void tool_destroy( void );
 
@@ -73,7 +78,7 @@ static gchar * get_string_node( json_t * root, const gchar * nodename );
 static gint get_boolean_node( json_t * root , const gchar * nodename );
 
 //do process_deck
-static void preview_init( const gchar * deckfilename );
+static void preview_init( struct DeckObject * deck );
 
 static void preview_add_title( enum CardLocal card_local , gint32 * postion_count );
 
@@ -85,7 +90,9 @@ static void preview_destroy( void );
 
 static gboolean copy_file( const gchar * source_path , const gchar * destination_path );
 
-static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist );
+static GSList * get_cardlist( const gchar * deckfilename );
+
+static void delete_cardlist( GSList * cardlist );
 
 static struct CardObject * allocate_cardobject( void );
 
@@ -93,11 +100,11 @@ static void free_cardobject( struct CardObject * card );
 
 static void remove_forwardslash( gchar * str );
 
-static gboolean makeimagefilepath( gchar ** imagefilepath , const gchar * cardname , const gchar * cardseries );
+static gchar * make_imagefile_path( const gchar * cardname , const gchar * cardseries );
 
-static gboolean maketargetfilepath( gchar ** targetfilepath , const gchar * cardname , const gchar * cardseries , gsize retry_count );
+static gchar * make_targetfile_path( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 
-static gboolean get_deckpreview( GtkWidget * window );
+static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
 
 static gboolean on_key_press( GtkWidget * widget , GdkEventKey * event , gpointer data );
 
@@ -106,44 +113,51 @@ int main ( int argc, char * argv[] )
     gtk_init( &argc, &argv );
     tool_inital();
 
-    gchar * deckfile_fullname;
-    const gchar * deckfile_shortname;
-    GDir * dir_ptr;
-    if ( g_file_test( config_object.DeckFileDirectory , G_FILE_TEST_EXISTS ) != TRUE )
+    GSList * decklist = NULL;
+    GtkWindow * window = GTK_WINDOW( gtk_window_new( GTK_WINDOW_TOPLEVEL ) );
+    GtkFileChooserDialog * dialog = GTK_FILE_CHOOSER_DIALOG( gtk_file_chooser_dialog_new( 
+        "select deck file" , window , GTK_FILE_CHOOSER_ACTION_OPEN , "cancel" ,
+        GTK_RESPONSE_CANCEL , "confirm" , GTK_RESPONSE_ACCEPT , NULL ) );
+    gtk_file_chooser_set_select_multiple( GTK_FILE_CHOOSER( dialog ) , TRUE );
+    gtk_file_chooser_set_uri( GTK_FILE_CHOOSER( dialog ) , config_object.DeckFileDirectory );
+    gint ret_code = gtk_dialog_run( GTK_DIALOG( dialog ) );
+    if ( ret_code == GTK_RESPONSE_ACCEPT )
     {
-        g_message( "%s not exitst\n" , config_object.DeckFileDirectory );
-        return EXIT_FAILURE;
+        decklist = gtk_file_chooser_get_filenames( GTK_FILE_CHOOSER( dialog ) );
     }
-    if ( g_file_test( config_object.DeckFileDirectory , G_FILE_TEST_IS_DIR ) != TRUE )
-    {
-        g_message( "%s not is directory\n" , config_object.DeckFileDirectory );
+    if ( decklist == NULL )
         return EXIT_FAILURE;
-    }
-    dir_ptr = g_dir_open( config_object.DeckFileDirectory , 0 , NULL );
-    while( ( deckfile_shortname = g_dir_read_name ( dir_ptr ) ) != NULL )
+    GSList * temp_ptr = decklist;
+    gtk_widget_destroy( GTK_WIDGET( dialog ) );
+    while ( temp_ptr != NULL )
     {
-        deckfile_fullname = g_strdup_printf( "%s%s" , config_object.DeckFileDirectory , deckfile_shortname );
-        if ( g_file_test( deckfile_fullname , G_FILE_TEST_IS_DIR ) == TRUE )
-            continue;
-        config_object.TargetDirectory = g_strdup_printf( "%s%s" , config_object.TargetRootDirectory , deckfile_shortname );
-        gsize targetdirectory_len = strnlen( config_object.TargetDirectory , BUFFSIZE );
+        gchar * deckfile_fullname = ( gchar * )temp_ptr->data;
+        gchar * deckfile_shortname = g_strrstr( ( gchar * )temp_ptr->data , "/" );
+        if ( deckfile_shortname == NULL )
+            //windows path style
+            deckfile_shortname = g_strrstr( ( gchar * )temp_ptr->data , "\\" );
+        //ASCII incompatible character sets may not work
+        deckfile_shortname += 1;
+        gchar * targetdirectory = g_strdup_printf( "%s%s" , config_object.TargetRootDirectory , deckfile_shortname );
+        gsize targetdirectory_len = strnlen( targetdirectory , BUFFSIZE );
         //****.dck --> ****/$(NUL)"
-        config_object.TargetDirectory[targetdirectory_len-4] = '/';
-        config_object.TargetDirectory[targetdirectory_len-3] = '\0';
-        if ( remove_directory( config_object.TargetDirectory ) != TRUE )
+        targetdirectory[targetdirectory_len-4] = '/';
+        targetdirectory[targetdirectory_len-3] = '\0';
+        struct DeckObject deck = { deckfile_fullname , targetdirectory };
+        if ( remove_directory( deck.targetdirectory ) == FALSE )
             continue;
-        if ( make_directory( config_object.TargetDirectory  ) == FALSE )
+        if ( make_directory( deck.targetdirectory ) == FALSE )
             continue;
-        gint32 copy_success_count = process_deck( deckfile_fullname );
+        gint32 copy_success_count = process_deck( &deck );
         if ( config_object.CopyFile == TRUE )
             g_message( "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images \n" , deckfile_fullname , copy_success_count );
         else
             g_message( "set to do not copy files,deck:\"%s\"\n" , deckfile_fullname );
-        g_free( deckfile_fullname );
-        g_free( config_object.TargetDirectory );
+        g_free( targetdirectory );
+        temp_ptr = g_slist_next( temp_ptr );
     }
-    g_dir_close( dir_ptr );
-
+    g_slist_free_full( decklist , ( GDestroyNotify )g_free );
+    //delete_deck_list( decklist );
     tool_destroy();
     return EXIT_SUCCESS;
 }
@@ -165,8 +179,6 @@ void tool_inital( void )
     config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
     config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
     config_object.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
-    //runtime get
-    config_object.TargetDirectory = NULL;
     config_object.WindowWidth = get_integer_node( root , "WindowWidth" );
     config_object.WindowHeight = get_integer_node( root , "WindowHeight" );
     config_object.CardWidth = get_integer_node( root , "CardWidth" );
@@ -253,17 +265,25 @@ void tool_inital( void )
     json_decref( root );
 }
 
-gint32 process_deck( const gchar * deckfilename )
+void tool_destroy( void )
+{
+    g_free( config_object.ImageRootDirectory );
+    g_free( config_object.ImageSuffix );
+    g_free( config_object.DeckFileDirectory );
+    g_free( config_object.TargetRootDirectory );
+}
+
+gint32 process_deck( struct DeckObject * deck )
 {
     gint32 copy_success_count = 0;
     gint32 postion_count = 0;
-    preview_init( deckfilename );
+    preview_init( deck );
 
     //NULL is empty GSList
-    GSList * cardlist = get_cardlist( deckfilename , NULL );
+    GSList * cardlist = get_cardlist( deck->deckfullname );
     if ( cardlist == NULL )
     {
-        g_message( "deck \"%s\" format unknown,parsing stop\n" , deckfilename );
+        g_message( "deck \"%s\" format unknown,parsing stop\n" , deck->deckfullname );
         return 0;
     }
 
@@ -280,15 +300,13 @@ gint32 process_deck( const gchar * deckfilename )
         preview_add_card( card , &postion_count );
         if ( config_object.CopyFile == TRUE )
         {
-            gchar * imagefilepath = NULL;
-            gchar * targetfilepath = NULL;
+            gchar * imagefilepath = make_imagefile_path( card->cardname , card->cardseries );;
+            gchar * targetfilepath = make_targetfile_path( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber );;
             gsize rename_count = 1;
-            makeimagefilepath( &imagefilepath , card->cardname , card->cardseries );
-            maketargetfilepath( &targetfilepath , card->cardname , card->cardseries , card->cardnumber );
             while (  g_file_test( targetfilepath , G_FILE_TEST_EXISTS ) == TRUE )
             {
                 g_free( targetfilepath );
-                maketargetfilepath( &targetfilepath , card->cardname , card->cardseries , card->cardnumber + rename_count*100 );
+                targetfilepath = make_targetfile_path( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber + rename_count*100 );
                 rename_count++;
             }
             if ( copy_file( imagefilepath , targetfilepath ) == TRUE )
@@ -301,17 +319,9 @@ gint32 process_deck( const gchar * deckfilename )
 
     preview_display();
     preview_destroy();
-    g_slist_free_full( cardlist , ( GDestroyNotify )free_cardobject );
+    delete_cardlist( cardlist );
 
     return copy_success_count;
-}
-
-void tool_destroy( void )
-{
-    g_free( config_object.ImageRootDirectory );
-    g_free( config_object.ImageSuffix );
-    g_free( config_object.DeckFileDirectory );
-    g_free( config_object.TargetRootDirectory );
 }
 
 static gboolean remove_directory( const gchar * dir )
@@ -442,7 +452,7 @@ static gboolean copy_file( const gchar * source_path , const gchar * destination
     return TRUE;
 }
 
-static void preview_init( const gchar * deckfilename )
+static void preview_init( struct DeckObject * deck )
 {
     preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
     preview_object.window_icon = gtk_image_new_from_file( "logo.ico" );
@@ -464,19 +474,19 @@ static void preview_init( const gchar * deckfilename )
         gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
     }
     else
-        gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deckfilename );
-    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ), ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
-    g_signal_connect( G_OBJECT( preview_object.window ), "delete_event", G_CALLBACK( get_deckpreview ) , preview_object.window );
-    preview_object.scrolled = gtk_scrolled_window_new( NULL, NULL );
-    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( preview_object.scrolled ), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC );
+        gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deck->deckfullname );
+    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
+    g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event", G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
+    preview_object.scrolled = gtk_scrolled_window_new( NULL , NULL );
+    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( preview_object.scrolled ) , GTK_POLICY_AUTOMATIC , GTK_POLICY_AUTOMATIC );
     preview_object.grid = gtk_grid_new();
     if ( config_object.AutomaticScaling == TRUE )
     {
         gtk_grid_set_row_homogeneous( GTK_GRID( preview_object.grid ) , TRUE );
         gtk_grid_set_column_homogeneous( GTK_GRID( preview_object.grid ) , TRUE );
     }
-    gtk_container_add( GTK_CONTAINER( preview_object.scrolled ), preview_object.grid );
-    gtk_container_add( GTK_CONTAINER( preview_object.window ), preview_object.scrolled );
+    gtk_container_add( GTK_CONTAINER( preview_object.scrolled ) , preview_object.grid );
+    gtk_container_add( GTK_CONTAINER( preview_object.window ) , preview_object.scrolled );
 }
 
 static void preview_add_title( enum CardLocal card_local , gint32 * postion_count )
@@ -501,9 +511,8 @@ static void preview_add_title( enum CardLocal card_local , gint32 * postion_coun
 
 static void preview_add_card( struct CardObject * card , gint32 * postion_count )
 {
-    gchar * imagefilepath = NULL;
+    gchar * imagefilepath = make_imagefile_path( card->cardname , card->cardseries );;
     gint32 cardnumber = card->cardnumber;
-    makeimagefilepath( &imagefilepath , card->cardname , card->cardseries );
     while ( cardnumber-- )
     {
         GtkWidget * image = gtk_image_new_from_file( imagefilepath );
@@ -537,7 +546,7 @@ static void preview_destroy( void )
     gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
 }
 
-static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
+static GSList * get_cardlist( const gchar * deckfilename )
 {
     gchar line_buff[BUFFSIZE];
     FILE * deckfile = fopen( deckfilename , "r" );
@@ -547,6 +556,7 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
         return NULL;
     }
 
+    GSList * cardlist = NULL;
     gint32 card_local = UNKNOWN_LOCAL;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
     {
@@ -641,6 +651,11 @@ static GSList * get_cardlist( const gchar * deckfilename , GSList * cardlist )
     return cardlist;
 }
 
+static void delete_cardlist( GSList * cardlist )
+{
+    g_slist_free_full( cardlist , ( GDestroyNotify )free_cardobject );
+}
+
 static struct CardObject * allocate_cardobject( void )
 {
     struct CardObject * card = ( struct CardObject * )calloc( 1 , sizeof( struct CardObject ) );
@@ -666,8 +681,10 @@ static void free_cardobject( struct CardObject * card )
 {
     if ( card == NULL )
         return ;
-    free( card->cardseries );
-    free( card->cardname );
+    if ( card->cardseries != NULL )
+        free( card->cardseries );
+    if ( card->cardname != NULL )
+        free( card->cardname );
     free( card );
 }
 
@@ -688,10 +705,11 @@ static void remove_forwardslash( gchar * str )
     }
 }
 
-static gboolean makeimagefilepath( gchar ** imagefilepath , const gchar * cardname , const gchar * cardseries  )
+static gchar * make_imagefile_path( const gchar * cardname , const gchar * cardseries  )
 {
+    gchar * imagefilepath = NULL;
     if ( cardname == NULL )
-        return FALSE;
+        return imagefilepath;
 
     const gchar * forgeimagesuffix = ".full"; 
     const gchar * basiclandnamelist[] = 
@@ -699,39 +717,40 @@ static gboolean makeimagefilepath( gchar ** imagefilepath , const gchar * cardna
         "Plains","Island","Swamp","Mountain","Forest",
         "Snow-Covered Plains","Snow-Covered Island",
         "Snow-Covered Swamp","Snow-Covered Mountain",
-        "Snow-Covered Forest","Wastes"
+        "Snow-Covered Forest","Wastes" , NULL
     };
 
-    for ( gsize i = 0 ; i < ( sizeof( basiclandnamelist )/sizeof( basiclandnamelist[0] ) ) ; i++ )
+    for ( gsize i = 0 ; basiclandnamelist[i] != NULL ; i++ )
         if ( strncmp( cardname , basiclandnamelist[i] , BUFFSIZE ) == 0 )
             forgeimagesuffix = "1.full";
 
     if ( cardseries != NULL )
-        *imagefilepath = g_strdup_printf( "%s%s/%s%s%s" , 
+        imagefilepath = g_strdup_printf( "%s%s/%s%s%s" , 
             config_object.ImageRootDirectory , cardseries , cardname , forgeimagesuffix , config_object.ImageSuffix );
     else
-        *imagefilepath = g_strdup_printf( "%s%s%s%s" , 
+        imagefilepath = g_strdup_printf( "%s%s%s%s" , 
             config_object.ImageRootDirectory , cardname , forgeimagesuffix , config_object.ImageSuffix );
 
-    return TRUE;
+    return imagefilepath;
 }
 
-static gboolean maketargetfilepath( gchar ** targetfilepath , const gchar * cardname , const gchar * cardseries , gsize retry_count )
+static gchar * make_targetfile_path( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count )
 {
+    gchar * targetfilepath = NULL;
     if ( cardname == NULL )
-        return FALSE;
-
+        return targetfilepath;
     if ( cardseries != NULL )
-        *targetfilepath = g_strdup_printf( "%s%s.%s%"G_GSIZE_FORMAT"%s" ,
-            config_object.TargetDirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
+        targetfilepath = g_strdup_printf( "%s%s.%s%"G_GSIZE_FORMAT"%s" ,
+            targetdirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
     else
-        *targetfilepath = g_strdup_printf( "%s%s%"G_GSIZE_FORMAT"%s" ,
-            config_object.TargetDirectory , cardname , retry_count , config_object.ImageSuffix );
-    return TRUE;
+        targetfilepath = g_strdup_printf( "%s%s%"G_GSIZE_FORMAT"%s" ,
+            targetdirectory , cardname , retry_count , config_object.ImageSuffix );
+    return targetfilepath;
 }
 
-static gboolean get_deckpreview( GtkWidget * window )
+static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data )
 {
+    ( void )event;
     GdkWindow * gdk_window = gtk_widget_get_window( GTK_WIDGET( window ) );
     GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.WindowWidth , config_object.WindowHeight );
     if ( deckpreview == NULL )
@@ -740,7 +759,7 @@ static gboolean get_deckpreview( GtkWidget * window )
     }
     else
     {
-        gchar * previewname = g_strdup_printf( "%sdeckpreview.jpg" , config_object.TargetDirectory );
+        gchar * previewname = g_strdup_printf( "%sdeckpreview.jpg" , ( const gchar * )data );
         gdk_pixbuf_save( deckpreview , previewname , "jpeg" , NULL , "quality" , "100" , NULL );
         g_free( previewname );
     }
