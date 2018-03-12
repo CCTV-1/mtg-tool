@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 BASEURL = 'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
 
 
-def getcardsinfo(setlongname, localcode='cs'):
+def getcardsinfo(setlongname, localcode='en'):
     """localcode:en -> english,cs -> simplified chinese,ct -> traditional chinese,jp -> Japanese"""
     try:
         cardinfo = []
@@ -35,9 +35,13 @@ def getcardsinfo(setlongname, localcode='cs'):
                     webname, webname.replace(webname[0:2], localcode))
                 # fullwidth to halfwidth
                 cardname = cardname.replace('’', '\'')
+                # Kongming, “Sleeping Dragon” -> Kongming, Sleeping Dragon
+                cardname = cardname.replace('“', '')
+                cardname = cardname.replace('”', '')
                 # meld card back alt attribute value deal with
                 cardname = cardname.replace(' (Bottom)', '')
                 cardname = cardname.replace(' (Top)', '')
+                logging.info( "get card: %s url:%s" , cardname , cardurl )
                 cardinfo.append((cardname, cardurl))
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
