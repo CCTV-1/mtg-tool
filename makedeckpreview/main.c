@@ -17,13 +17,6 @@ enum CardLocal
     SIDEBOARD_LOCAL,
 };
 
-enum PrevGridType
-{
-    IS_EMPTY = 0,
-    IS_TITLE,
-    IS_CARD,
-};
-
 struct ConfigObject
 {
     gchar * TargetRootDirectory;
@@ -105,7 +98,8 @@ static GSList * get_cardlist( const gchar * deckfilename );
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
 static void free_cardobject( struct CardObject * card );
-static void remove_forwardslash( gchar * str );
+static void remove_forwardslash_forge( gchar * str );
+static void remove_forwardslash_mtga( gchar * str );
 static gchar * make_imagefile_path( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_path( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
@@ -693,31 +687,7 @@ static GSList * get_cardlist( const gchar * deckfilename )
             g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             //G_MAXINT32 is unknown id
             card->cardid = G_MAXINT32;
-            remove_forwardslash( card->cardname );
-            cardlist = g_slist_append( cardlist , ( gpointer )card );
-            //if match succee,continue other test
-            g_strfreev( ( gchar ** )words );
-            g_regex_unref( regex );
-            continue;
-        }
-
-        g_error = NULL;
-        //goldfish deck format regex
-        regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-        if ( regex == NULL )
-            goto parse_err;
-        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
-        {
-            struct CardObject * card = allocate_cardobject();
-            gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
-            card->card_local = card_local;
-            card->cardnumber = cardnumber;
-            g_strlcat( card->cardname , words[2] , BUFFSIZE );
-            card->cardseries = NULL;
-            //G_MAXINT32 is unknown id
-            card->cardid = G_MAXINT32;
-            remove_forwardslash( card->cardname );
+            remove_forwardslash_forge( card->cardname );
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
@@ -740,15 +710,45 @@ static GSList * get_cardlist( const gchar * deckfilename )
             card->card_local = card_local;
             card->cardnumber = cardnumber;
             g_strlcat( card->cardname , words[2] , BUFFSIZE );
-            g_strlcat( card->cardseries , words[3] , BUFFSIZE );
+            //mtga format set "DOM" name is "DAR"
+            if ( ( strncmp( "DAR" , words[3] , 4 ) == 0 ) || ( strncmp( "dar" , words[3] , 4 ) == 0 ) )
+                g_strlcat( card->cardseries , "DOM" , BUFFSIZE );
+            else
+                g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             card->cardid = cardid;
-            remove_forwardslash( card->cardname );
+            remove_forwardslash_mtga( card->cardname );
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
             g_regex_unref( regex );
             continue;
         }
+        //goldfish regex match mtga format deck,so first check mtga format.
+        //goldfish deck format regex
+        regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+        if ( regex == NULL )
+            goto parse_err;
+        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
+        {
+            struct CardObject * card = allocate_cardobject();
+            gchar ** words = g_regex_split( regex , line_buff , 0 );
+            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
+            card->card_local = card_local;
+            card->cardnumber = cardnumber;
+            g_strlcat( card->cardname , words[2] , BUFFSIZE );
+            card->cardseries = NULL;
+            //G_MAXINT32 is unknown id
+            card->cardid = G_MAXINT32;
+            //double face card format goldfish equal forge
+            remove_forwardslash_forge( card->cardname );
+            cardlist = g_slist_append( cardlist , ( gpointer )card );
+            //if match succee,continue other test
+            g_strfreev( ( gchar ** )words );
+            g_regex_unref( regex );
+            continue;
+        }
+
+        g_error = NULL;
     parse_err:
         if ( g_error != NULL )
         {
@@ -800,7 +800,7 @@ static void free_cardobject( struct CardObject * card )
 }
 
 //forge double-faced,cookies,fusion card name:"Name1 // Name2"
-static void remove_forwardslash( gchar * str )
+static void remove_forwardslash_forge( gchar * str )
 {
     //fast check
     gint is_exists = strrchr( str , '/' ) == NULL;
@@ -813,6 +813,23 @@ static void remove_forwardslash( gchar * str )
         for ( gsize i = pos_ptr - str ; i <= str_len ; i++ )
             str[i] = str[i+4];
         pos_ptr = strstr( str , " // " );
+    }
+}
+
+//mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
+static void remove_forwardslash_mtga( gchar * str )
+{
+    //fast check
+    gint is_exists = strrchr( str , '/' ) == NULL;
+    if ( is_exists == TRUE )
+        return ;
+    gsize str_len = strnlen( str, BUFFSIZE );
+    gchar * pos_ptr = strstr( str , " /// " );
+    while( pos_ptr )
+    {
+        for ( gsize i = pos_ptr - str ; i <= str_len ; i++ )
+            str[i] = str[i+5];
+        pos_ptr = strstr( str , " /// " );
     }
 }
 
