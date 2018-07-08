@@ -10,6 +10,14 @@
 #define CONFIG_FILE "config.json"
 #define BUFFSIZE 1024
 
+enum DeckType
+{
+    FORGE_FORMAT = 0,
+    MTGA_FORMAT,
+    GOLDFISH_FORMAT,
+    UNKNOWN_FORMAT,
+};
+
 enum CardLocal
 {
     COMMAND_LOCAL = 0,
@@ -90,10 +98,16 @@ static gint get_boolean_node( json_t * root , const gchar * nodename );
 static void preview_init( struct DeckObject * deck );
 static void preview_add_title( enum CardLocal card_local );
 static void preview_add_card( struct CardObject * card );
-static void preview_display();
+static void preview_display( void );
 static void preview_destroy( void );
 
 static gboolean copy_file( const gchar * source_path , const gchar * destination_path );
+static enum DeckType get_deck_type( const gchar * deck_filename );
+
+static GSList * get_cardlist_forge( const gchar * deckfilename );
+static GSList * get_cardlist_mtga( const gchar * deckfilename );
+static GSList * get_cardlist_goldfish( const gchar * deckfilename );
+
 static GSList * get_cardlist( const gchar * deckfilename );
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
@@ -651,7 +665,117 @@ static void preview_destroy( void )
     gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
 }
 
+static enum DeckType get_deck_type( const gchar * deck_filename )
+{
+    gchar line_buff[BUFFSIZE];
+    FILE * deckfile = fopen( deck_filename , "r" );
+    if ( deckfile == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deck_filename );
+        return UNKNOWN_FORMAT;
+    }
+
+    GError * g_error = NULL;
+    GRegex * forge_regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( forge_regex == NULL )
+        goto parse_err;
+    GRegex * mtga_regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , 
+                        G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( mtga_regex == NULL )
+        goto parse_err;
+    GRegex * goldfish_regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( goldfish_regex == NULL )
+        goto parse_err;
+
+    size_t forge_format_count = 0;
+    size_t mtga_format_count = 0;
+    size_t goldfish_format_count = 0;
+
+    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
+    {
+        if ( g_regex_match( forge_regex , line_buff , 0 , NULL ) == TRUE )
+        {
+            forge_format_count++;
+        }
+        if ( g_error != NULL )
+            goto parse_err;
+        else
+            g_error = NULL;
+
+        if ( g_regex_match( mtga_regex , line_buff , 0 , NULL ) == TRUE )
+        {
+            mtga_format_count++;
+        }
+        if ( g_error != NULL )
+            goto parse_err;
+        else
+            g_error = NULL;
+
+        //goldfish regex match mtga format deck,so first check mtga format.
+        if ( g_regex_match( goldfish_regex , line_buff , 0 , NULL ) == TRUE )
+        {
+            goldfish_format_count++;
+        }
+        if ( g_error != NULL )
+            goto parse_err;
+        else
+            g_error = NULL;
+    }
+
+
+    g_regex_unref( forge_regex );
+    g_regex_unref( mtga_regex );
+    g_regex_unref( goldfish_regex );
+    fclose( deckfile );
+        
+    if ( ( forge_format_count >= mtga_format_count ) && ( forge_format_count >= goldfish_format_count ) )
+        return FORGE_FORMAT;
+    else if ( ( mtga_format_count >= forge_format_count ) && ( mtga_format_count >= goldfish_format_count ) )
+        return MTGA_FORMAT;
+    else if ( ( forge_format_count != 0 ) && ( mtga_format_count != 0 ) && ( goldfish_format_count != 0 ) )
+        return GOLDFISH_FORMAT;
+    //avoid no-return warning,can't use else
+    return UNKNOWN_FORMAT;
+    parse_err:
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_error_free( g_error );
+        exit( EXIT_FAILURE );
+}
+
 static GSList * get_cardlist( const gchar * deckfilename )
+{
+    enum DeckType deck_type = get_deck_type( deckfilename );
+    switch ( deck_type )
+    {
+        case FORGE_FORMAT:
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "FORGE DECK" );
+            break;
+        case MTGA_FORMAT:
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "MTGA DECK" );
+            break;
+        case GOLDFISH_FORMAT:
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "GOLDFISH DECK" );
+            break;
+        default:
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "UNKNOWN DECK" );
+    }
+    switch ( deck_type )
+    {
+        case FORGE_FORMAT:
+            return get_cardlist_forge( deckfilename );
+        case MTGA_FORMAT:
+            return get_cardlist_mtga( deckfilename );
+        //goldfish regex match mtga format deck,so first check mtga format.
+        case GOLDFISH_FORMAT:
+            return get_cardlist_goldfish( deckfilename );
+        default :
+            return NULL;
+    }
+
+    return NULL;
+}
+
+static GSList * get_cardlist_forge( const gchar * deckfilename )
 {
     gchar line_buff[BUFFSIZE];
     FILE * deckfile = fopen( deckfilename , "r" );
@@ -663,6 +787,11 @@ static GSList * get_cardlist( const gchar * deckfilename )
 
     GSList * cardlist = NULL;
     gint32 card_local = COMMAND_LOCAL;
+    GError * g_error = NULL;
+    GMatchInfo * match_info;
+    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( regex == NULL )
+        goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
     {
         if ( ( strncmp( line_buff , "[Main]" , 6 ) == 0 ) || ( strncmp( line_buff , "[main]" , 6 ) == 0 ) )
@@ -670,12 +799,6 @@ static GSList * get_cardlist( const gchar * deckfilename )
         if ( ( strncmp( line_buff , "[Sideboard]" , 11 ) == 0 ) || ( strncmp( line_buff , "[sideboard]" , 11 ) == 0 ) )
             card_local = SIDEBOARD_LOCAL;
 
-        GError * g_error = NULL;
-        GMatchInfo * match_info;
-        //forge deck format regex
-        GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-        if ( regex == NULL )
-            goto parse_err;
         if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
         {
             struct CardObject * card = allocate_cardobject();
@@ -694,13 +817,41 @@ static GSList * get_cardlist( const gchar * deckfilename )
             g_regex_unref( regex );
             continue;
         }
-
-        g_error = NULL;
-        //mtga deck format regex
-        regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , 
-                            G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-        if ( regex == NULL )
+        if ( g_error != NULL )
             goto parse_err;
+    }
+    return cardlist;
+
+    parse_err:
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_error_free( g_error );
+        exit( EXIT_FAILURE );
+}
+
+static GSList * get_cardlist_mtga( const gchar * deckfilename )
+{
+    gchar line_buff[BUFFSIZE];
+    FILE * deckfile = fopen( deckfilename , "r" );
+    if ( deckfile == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deckfilename );
+        return NULL;
+    }
+
+    GSList * cardlist = NULL;
+    //mtga now only support limit and standard constructor,no command.
+    gint32 card_local = MAIN_LOCAL;
+    GError * g_error = NULL;
+    GMatchInfo * match_info;
+    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( regex == NULL )
+        goto parse_err;
+    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
+    {
+        //to next local
+        if ( ( strncmp( line_buff , "\r\n" , 4 ) == 0 ) || ( strncmp( line_buff , "\n" , 2 ) == 0 ) )
+            card_local += 1;
+
         if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
         {
             struct CardObject * card = allocate_cardobject();
@@ -723,11 +874,40 @@ static GSList * get_cardlist( const gchar * deckfilename )
             g_regex_unref( regex );
             continue;
         }
-        //goldfish regex match mtga format deck,so first check mtga format.
-        //goldfish deck format regex
-        regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-        if ( regex == NULL )
+        if ( g_error != NULL )
             goto parse_err;
+    }
+    return cardlist;
+
+    parse_err:
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_error_free( g_error );
+        exit( EXIT_FAILURE );
+}
+
+static GSList * get_cardlist_goldfish( const gchar * deckfilename )
+{
+    gchar line_buff[BUFFSIZE];
+    FILE * deckfile = fopen( deckfilename , "r" );
+    if ( deckfile == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deckfilename );
+        return NULL;
+    }
+
+    GSList * cardlist = NULL;
+    gint32 card_local = COMMAND_LOCAL;
+    GError * g_error = NULL;
+    GMatchInfo * match_info;
+    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( regex == NULL )
+        goto parse_err;
+    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
+    {
+        //to next local
+        if ( ( strncmp( line_buff , "\r\n" , 4 ) == 0 ) || ( strncmp( line_buff , "\n" , 2 ) == 0 ) )
+            card_local += 1;
+
         if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
         {
             struct CardObject * card = allocate_cardobject();
@@ -747,19 +927,15 @@ static GSList * get_cardlist( const gchar * deckfilename )
             g_regex_unref( regex );
             continue;
         }
-
-        g_error = NULL;
-    parse_err:
         if ( g_error != NULL )
-        {
-            g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
-            g_error_free( g_error );
-            exit( EXIT_FAILURE );
-        }
+            goto parse_err;
     }
-
-    fclose( deckfile );
     return cardlist;
+
+    parse_err:
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_error_free( g_error );
+        exit( EXIT_FAILURE );
 }
 
 static void delete_cardlist( GSList * cardlist )
