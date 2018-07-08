@@ -699,8 +699,6 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         }
         if ( g_error != NULL )
             goto parse_err;
-        else
-            g_error = NULL;
 
         if ( g_regex_match( mtga_regex , line_buff , 0 , NULL ) == TRUE )
         {
@@ -708,8 +706,6 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         }
         if ( g_error != NULL )
             goto parse_err;
-        else
-            g_error = NULL;
 
         //goldfish regex match mtga format deck,so first check mtga format.
         if ( g_regex_match( goldfish_regex , line_buff , 0 , NULL ) == TRUE )
@@ -718,8 +714,6 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         }
         if ( g_error != NULL )
             goto parse_err;
-        else
-            g_error = NULL;
     }
 
 
@@ -732,7 +726,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         return FORGE_FORMAT;
     else if ( ( mtga_format_count >= forge_format_count ) && ( mtga_format_count >= goldfish_format_count ) )
         return MTGA_FORMAT;
-    else if ( ( forge_format_count != 0 ) && ( mtga_format_count != 0 ) && ( goldfish_format_count != 0 ) )
+    else if ( goldfish_format_count != 0 )
         return GOLDFISH_FORMAT;
     //avoid no-return warning,can't use else
     return UNKNOWN_FORMAT;
