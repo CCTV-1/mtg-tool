@@ -1095,8 +1095,27 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
     if ( widget_layout->select_target == TRUE && event->type == GDK_MOTION_NOTIFY )
     {
-        GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , 
-            widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber );
+        guint select_index = widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber;
+        GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , select_index );
+
+        //avoid underflow overflow
+        if ( x < 0 )
+        {
+            x = widget_layout->dx;
+        }
+        if ( y < 0 )
+        {
+            y = widget_layout->dy;
+        } 
+        if ( x > config_object.CardWidth*config_object.LineCardNumber )
+        {
+            x = config_object.CardWidth*config_object.LineCardNumber;
+        }
+        if ( y > config_object.CardHeight*widget_layout->height )
+        {
+            y = config_object.CardHeight*widget_layout->height;
+        }
+        
         gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , x - widget_layout->dx , y - widget_layout->dy );
     }
 
@@ -1110,14 +1129,25 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     int x, y;
     GdkModifierType state;  
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
-    if ( x > config_object.CardWidth*config_object.LineCardNumber || y > config_object.CardHeight*widget_layout->height )
+
+    //avoid underflow overflow
+    if ( x < 0 )
     {
-        GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , 
-            widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber );
-        gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , widget_layout->select_x/config_object.CardWidth*config_object.CardWidth , widget_layout->select_y/config_object.CardHeight*config_object.CardHeight );
-        widget_layout->select_target = FALSE;
-        return TRUE;
+        x = widget_layout->dx;
     }
+    if ( y < 0 )
+    {
+        y = widget_layout->dy;
+    } 
+    if ( x > config_object.CardWidth*config_object.LineCardNumber )
+    {
+        x = config_object.CardWidth*config_object.LineCardNumber;
+    }
+    if ( y > config_object.CardHeight*widget_layout->height )
+    {
+        y = config_object.CardHeight*widget_layout->height;
+    }
+
     if ( ( x == widget_layout->select_x ) && ( y == widget_layout->select_y ) )
     {
         widget_layout->select_target = FALSE;
@@ -1127,6 +1157,13 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     {
         guint start_index = widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber;
         guint end_index = x/config_object.CardWidth + y/config_object.CardHeight*config_object.LineCardNumber;
+
+        //avoid underflow overflow
+        if ( start_index >= widget_layout->images->len )
+            start_index = widget_layout->images->len - 1;
+        if ( end_index >= widget_layout->images->len )
+            end_index = widget_layout->images->len - 1;
+
         GtkWidget * start_image = g_array_index( widget_layout->images , GtkWidget * , start_index );
         if ( start_index > end_index )
         {
