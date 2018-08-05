@@ -12,5 +12,6 @@
     "CloseWindowKeyValue": 32,
     "AutomaticScaling": false,
     "HideTitleBar": false,
-    "CopyFile": false
+    "CopyFile": false,
+    "UseNetworkImage": false
 }
