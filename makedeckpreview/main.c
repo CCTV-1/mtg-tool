@@ -1174,23 +1174,21 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
     return TRUE;
 }   
 
-static size_t write_data( void * ptr , size_t size , size_t nmemb , void * stream )
-{
-	size_t written = fwrite( ptr , size , nmemb , ( FILE * )stream );
-	return written;
-}
-
 static void download_file( gpointer data , gpointer user_data )
 {
     ( void )user_data;
     struct CardObject * card = ( struct CardObject * )data;
     g_usleep( 1000 );
+    
     gchar * url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
     gchar * source_url = g_uri_escape_string( url , G_URI_RESERVED_CHARS_ALLOWED_IN_PATH"?" , FALSE );
     g_free( url );
     gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
     gchar * destination_path = g_filename_from_uri( destination_uri , NULL , NULL );
+    if ( g_file_test( destination_path , G_FILE_TEST_EXISTS ) == TRUE )
+        return ;
     g_free( destination_uri );
+    
     if ( card->cardseries != NULL )
     {
         gchar * download_dir = g_strdup_printf( "%s%s" , config_object.ImageRootDirectory , card->cardseries );
@@ -1212,7 +1210,8 @@ static void download_file( gpointer data , gpointer user_data )
 	curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
 	curl_easy_setopt( curl_handle , CURLOPT_FOLLOWLOCATION , 1L );
 	curl_easy_setopt( curl_handle , CURLOPT_NOPROGRESS , 1L );
-	curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , write_data );
+    curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , 13L );
+	curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , NULL );
 
 	FILE * download_file = fopen( destination_path, "wb" );
 	if ( download_file )
