@@ -2,8 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <unistd.h>
+
+#include <curl/curl.h>
 #include <glib/gstdio.h>
-#include <glib/gprintf.h>
 #include <gtk/gtk.h>
 #include <jansson.h>
 
@@ -39,6 +41,7 @@ struct ConfigObject
     json_int_t TitleFontSize;
     gint HideTitleBar;
     gint CopyFile;
+    gint UseNetworkImage;
 }config_object;
 
 struct DeckObject
@@ -101,22 +104,23 @@ static void preview_add_card( struct CardObject * card );
 static void preview_display( void );
 static void preview_destroy( void );
 
-static gboolean copy_file( const gchar * source_path , const gchar * destination_path );
+static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri );
 static enum DeckType get_deck_type( const gchar * deck_filename );
 
+static GSList * get_cardlist( const gchar * deckfilename );
 static GSList * get_cardlist_forge( const gchar * deckfilename );
 static GSList * get_cardlist_mtga( const gchar * deckfilename );
 static GSList * get_cardlist_goldfish( const gchar * deckfilename );
 
-static GSList * get_cardlist( const gchar * deckfilename );
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
 static void free_cardobject( struct CardObject * card );
 static void remove_forwardslash_forge( gchar * str );
 static void remove_forwardslash_mtga( gchar * str );
-static gchar * make_imagefile_path( const gchar * cardname , const gchar * cardseries );
-static gchar * make_targetfile_path( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
+static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
+static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
+static void download_file( gpointer data , gpointer user_data );
 static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
@@ -124,6 +128,7 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
 int main ( int argc, char * argv[] )
 {
     gtk_init( &argc, &argv );
+    curl_global_init( CURL_GLOBAL_ALL );
     config_inital();
 
     GSList * decklist = get_deckfile_list( config_object.DeckFileDirectory );
@@ -160,6 +165,7 @@ int main ( int argc, char * argv[] )
     }
 
     delete_deck_list( decklist );
+    curl_global_cleanup();
     config_destroy();
     return EXIT_SUCCESS;
 }
@@ -189,6 +195,7 @@ void config_inital( void )
     config_object.TitleFontSize = get_integer_node( root , "TitleFontSize" );
     config_object.HideTitleBar = get_boolean_node( root , "HideTitleBar" );
     config_object.CopyFile = get_boolean_node( root , "CopyFile" );
+    config_object.UseNetworkImage = get_boolean_node( root , "UseNetworkImage" );
 
     if ( config_object.ImageRootDirectory == NULL )
     {
@@ -198,58 +205,51 @@ void config_inital( void )
     }
     if ( config_object.ImageSuffix == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:ImageSuffix faliure,use default ImageSuffix:\".jpg\"\n" );
         config_object.ImageSuffix = g_strdup_printf( "%s" , ".jpg" );
     }
     if ( config_object.DeckFileDirectory == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:DeckFileDirectory faliure,use default DeckFileDirectory:\"./\"\n" );
         config_object.DeckFileDirectory = g_strdup_printf( "%s" , "./");
     }
     if ( config_object.TargetRootDirectory == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:TargetRootDirectory faliure,use default TargetRootDirectory:\"./\"\n" );
         config_object.TargetRootDirectory = g_strdup_printf( "%s" , "./");
     }
     if ( config_object.WindowWidth == 0 ) 
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:WindowWidth faliure,use default WindowWidth:1050\n" );
         config_object.WindowWidth = 1050;
     }
     if ( config_object.WindowHeight == 0 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:WindowHeight faliure,use default WindowHeight:600\n" );
         config_object.WindowHeight = 600;
     }
     if ( config_object.CardWidth == 0 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:CardWidth faliure,use default CardWidth:70\n" );
         config_object.CardWidth = 70;
     }
     if ( config_object.CardHeight == 0 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:CardHeight faliure,use default CardHeight:100\n" );
         config_object.CardHeight = 100;
     }
     if ( config_object.LineCardNumber == 0 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:LineCardNumber faliure,use default LineCardNumber:15\n" );
         config_object.LineCardNumber = 15;
     }
     if ( config_object.TitleFontSize == 0 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:LineCardNumber faliure,use default LineCardNumber:20\n" );
         config_object.TitleFontSize = 20;
     }
     if ( config_object.HideTitleBar == -1 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:HideTitleBar faliure,use default HideTitleBar:FALSE\n" );
         config_object.HideTitleBar = FALSE;
     }
     if ( config_object.CopyFile == -1 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:CopyFile faliure,use default CopyFile:FALSE\n" );
-        config_object.CopyFile = TRUE;
+        config_object.CopyFile = FALSE;
+    }
+    if ( config_object.UseNetworkImage == -1 )
+    {
+        config_object.UseNetworkImage = FALSE;
     }
 
     json_decref( root );
@@ -277,25 +277,38 @@ gint32 process_deck( struct DeckObject * deck )
     }
 
     GSList * temp = cardlist;
+    //Download Image
+    if ( config_object.UseNetworkImage == TRUE )
+    {
+        GThreadPool * thr_pool = g_thread_pool_new( download_file , NULL , 8 , TRUE , NULL );
+        while( temp != NULL )
+        {
+            struct CardObject * card = ( struct CardObject * )temp->data;
+            g_thread_pool_push( thr_pool , card , NULL );
+            temp = g_slist_next( temp );
+        }
+        g_thread_pool_free( thr_pool , FALSE , TRUE );
+    }
+    temp = cardlist;
     while( temp != NULL )
     {
         struct CardObject * card = ( struct CardObject * )temp->data;
         preview_add_card( card );
         if ( config_object.CopyFile == TRUE )
         {
-            gchar * imagefilepath = make_imagefile_path( card->cardname , card->cardseries );;
-            gchar * targetfilepath = make_targetfile_path( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber );;
+            gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );;
+            gchar * targetfile_uri = make_targetfile_uri( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber );
             gsize rename_count = 1;
-            while (  g_file_test( targetfilepath , G_FILE_TEST_EXISTS ) == TRUE )
+            while ( g_file_test( targetfile_uri , G_FILE_TEST_EXISTS ) == TRUE )
             {
-                g_free( targetfilepath );
-                targetfilepath = make_targetfile_path( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber + rename_count*100 );
+                g_free( targetfile_uri );
+                targetfile_uri = make_targetfile_uri( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber + rename_count*100 );
                 rename_count++;
             }
-            if ( copy_file( imagefilepath , targetfilepath ) == TRUE )
+            if ( copy_file( imagefile_uri , targetfile_uri ) == TRUE )
                 copy_success_count++;
-            g_free( imagefilepath );
-            g_free( targetfilepath );
+            g_free( imagefile_uri );
+            g_free( targetfile_uri );
         }
         temp = g_slist_next( temp );
     }
@@ -424,38 +437,42 @@ static gint get_boolean_node( json_t * root , const gchar * nodename )
     return json_boolean_value( node );
 }
 
-static gboolean copy_file( const gchar * source_path , const gchar * destination_path )
+static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri )
 {
-    GFile * source = g_file_new_for_path( source_path );
-    GFile * destination = g_file_new_for_path( destination_path );
+    if ( source_uri == NULL )
+        return FALSE;
+    if ( destination_uri == NULL )
+        return FALSE;
+    GFile * source = g_file_new_for_uri( source_uri );
+    GFile * destination = g_file_new_for_uri( destination_uri );
     GError * g_error;
-    if ( g_file_copy( source , destination , G_FILE_COPY_NONE , NULL , NULL , NULL , &g_error ) == FALSE )
+    if ( g_file_copy( source , destination , G_FILE_COPY_OVERWRITE , NULL , NULL , NULL , &g_error ) == FALSE )
     {
         g_object_unref( source );
         g_object_unref( destination );
         if ( g_error_matches( g_error , G_IO_ERROR_NOT_FOUND , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not exist\n" , source_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not exist\n" , source_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_EXISTS , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s exist\n" , destination_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s exist\n" , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_IS_DIRECTORY , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory\n" , destination_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory\n" , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_WOULD_MERGE , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s and %s\n" , source_path , destination_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s and %s\n" , source_uri , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_WOULD_RECURSE , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory or \n" , source_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory or \n" , source_uri );
             return FALSE;
         }
     }
@@ -534,20 +551,22 @@ static void preview_add_title( enum CardLocal card_local )
 
 static void preview_add_card( struct CardObject * card )
 {
-    gchar * imagefilepath = make_imagefile_path( card->cardname , card->cardseries );;
+    gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );
+    gchar * imagefile_path = g_filename_from_uri( imagefile_uri , NULL , NULL );
+    g_free( imagefile_uri );
     gint32 cardnumber = card->cardnumber;
     while ( cardnumber-- )
     {
-        GtkWidget * image = gtk_image_new_from_file( imagefilepath );
+        GtkWidget * image = gtk_image_new_from_file( imagefile_path );
         if ( image == NULL )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefilepath );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefile_path );
             return ;
         }
         GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
         if ( pixbuf == NULL )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefilepath );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefile_path );
             return ;
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
@@ -598,7 +617,7 @@ static void preview_add_card( struct CardObject * card )
         }
 
     }
-    g_free( imagefilepath );
+    g_free( imagefile_path );
 }
 
 static void preview_display( void )
@@ -898,6 +917,8 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
         goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
     {
+        if ( line_buff == NULL )
+            continue;
         //to next local
         if ( ( strncmp( line_buff , "\r\n" , 4 ) == 0 ) || ( strncmp( line_buff , "\n" , 2 ) == 0 ) )
             card_local += 1;
@@ -962,10 +983,8 @@ static void free_cardobject( struct CardObject * card )
 {
     if ( card == NULL )
         return ;
-    if ( card->cardseries != NULL )
-        free( card->cardseries );
-    if ( card->cardname != NULL )
-        free( card->cardname );
+    free( card->cardseries );
+    free( card->cardname );
     free( card );
 }
 
@@ -1003,11 +1022,11 @@ static void remove_forwardslash_mtga( gchar * str )
     }
 }
 
-static gchar * make_imagefile_path( const gchar * cardname , const gchar * cardseries  )
+static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries )
 {
-    gchar * imagefilepath = NULL;
+    gchar * imagefile_uri = NULL;
     if ( cardname == NULL )
-        return imagefilepath;
+        return imagefile_uri;
 
     const gchar * forgeimagesuffix = ".full"; 
     const gchar * basiclandnamelist[] = 
@@ -1023,27 +1042,27 @@ static gchar * make_imagefile_path( const gchar * cardname , const gchar * cards
             forgeimagesuffix = "1.full";
 
     if ( cardseries != NULL )
-        imagefilepath = g_strdup_printf( "%s%s/%s%s%s" , 
+        imagefile_uri = g_strdup_printf( "file:///%s%s/%s%s%s" , 
             config_object.ImageRootDirectory , cardseries , cardname , forgeimagesuffix , config_object.ImageSuffix );
     else
-        imagefilepath = g_strdup_printf( "%s%s%s%s" , 
+        imagefile_uri = g_strdup_printf( "file:///%s%s%s%s" , 
             config_object.ImageRootDirectory , cardname , forgeimagesuffix , config_object.ImageSuffix );
 
-    return imagefilepath;
+    return imagefile_uri;
 }
 
-static gchar * make_targetfile_path( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count )
+static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count )
 {
-    gchar * targetfilepath = NULL;
+    gchar * targetfile_uri = NULL;
     if ( cardname == NULL )
-        return targetfilepath;
+        return targetfile_uri;
     if ( cardseries != NULL )
-        targetfilepath = g_strdup_printf( "%s%s.%s%"G_GSIZE_FORMAT"%s" ,
+        targetfile_uri = g_strdup_printf( "file:///%s%s.%s%"G_GSIZE_FORMAT"%s" ,
             targetdirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
     else
-        targetfilepath = g_strdup_printf( "%s%s%"G_GSIZE_FORMAT"%s" ,
+        targetfile_uri = g_strdup_printf( "file:///%s%s%"G_GSIZE_FORMAT"%s" ,
             targetdirectory , cardname , retry_count , config_object.ImageSuffix );
-    return targetfilepath;
+    return targetfile_uri;
 }
 
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data )
@@ -1141,7 +1160,7 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
 {
     ( void )widget;
     struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
-    int x, y;
+    int x , y;
     GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
     if ( x > config_object.CardWidth*config_object.LineCardNumber || y > config_object.CardHeight*widget_layout->height )
@@ -1153,4 +1172,58 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
     widget_layout->select_target = TRUE;
 
     return TRUE;
+}   
+
+static size_t write_data( void * ptr , size_t size , size_t nmemb , void * stream )
+{
+	size_t written = fwrite( ptr , size , nmemb , ( FILE * )stream );
+	return written;
+}
+
+static void download_file( gpointer data , gpointer user_data )
+{
+    ( void )user_data;
+    struct CardObject * card = ( struct CardObject * )data;
+    g_usleep( 1000 );
+    gchar * url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
+    gchar * source_url = g_uri_escape_string( url , G_URI_RESERVED_CHARS_ALLOWED_IN_PATH"?" , FALSE );
+    g_free( url );
+    gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
+    gchar * destination_path = g_filename_from_uri( destination_uri , NULL , NULL );
+    g_free( destination_uri );
+    if ( card->cardseries != NULL )
+    {
+        gchar * download_dir = g_strdup_printf( "%s%s" , config_object.ImageRootDirectory , card->cardseries );
+        if ( g_file_test( download_dir , G_FILE_TEST_EXISTS ) != TRUE )
+            g_mkdir_with_parents( download_dir , S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+        g_free( download_dir );
+    }
+    else
+    {
+        gchar * download_dir = g_strdup_printf( "%s" , config_object.ImageRootDirectory );
+        if ( g_file_test( download_dir , G_FILE_TEST_EXISTS ) != TRUE )
+            g_mkdir_with_parents( download_dir , S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
+        g_free( download_dir );
+    }
+
+	CURL * curl_handle = curl_easy_init();
+
+	curl_easy_setopt( curl_handle , CURLOPT_URL , source_url );
+	curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
+	curl_easy_setopt( curl_handle , CURLOPT_FOLLOWLOCATION , 1L );
+	curl_easy_setopt( curl_handle , CURLOPT_NOPROGRESS , 1L );
+	curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , write_data );
+
+	FILE * download_file = fopen( destination_path, "wb" );
+	if ( download_file )
+	{
+		curl_easy_setopt( curl_handle , CURLOPT_WRITEDATA , download_file );
+		curl_easy_perform( curl_handle );
+		fclose( download_file );
+	}
+
+	curl_easy_cleanup( curl_handle );
+
+    g_free( destination_path );
+    g_free( source_url );
 }
