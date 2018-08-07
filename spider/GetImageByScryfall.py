@@ -7,6 +7,7 @@ import getopt
 import logging
 import math
 import os
+import re
 import sys
 from multiprocessing import Pool
 
@@ -19,6 +20,7 @@ def helps():
         '--getsetlist get Scryfall supported setlist and each set shortname\n'
         '--getsetinfo=[set shortname] get set cards list\n'
         '--downloadset=[set shortname] download set all card image\n'
+        '--downloaddeck=[deckname] download deck content all card image\n'
         '--getcardinfo=[cardname] get card info(usage english name is best)\n'
         '--downloadcard=[cardname] download card image\
 ,but not support download reprint card history image'
@@ -26,7 +28,7 @@ def helps():
 
 
 def getsetlist():
-    """get Scryfall supported Series list and each set shortname"""
+    """get Scryfall.com supported series list and each set shortname"""
     try:
         resp = requests.get(
             'https://api.scryfall.com/sets', timeout=13)
@@ -34,10 +36,22 @@ def getsetlist():
         return serieslist
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info('Get setlist time out\n')
-        exit(False)
     except (AttributeError, KeyError):
-        logging.info('Not get setlist\n')
-        exit(False)
+        logging.info('can\'t get setlist\n')
+
+
+def getcardlist(deckname):
+    """read deck file,get card list"""
+    cardnamelist = []
+    with open(deckname, 'r') as deckfile:
+        for line in deckfile:
+            try:
+                match = re.search(r'([0-9]+)\ ([^|]+)\|(.*)', line)
+                cardname = match.group(2)
+                cardnamelist.append({'name': cardname})
+            except (IndexError, AttributeError):
+                continue
+    return cardnamelist
 
 
 def getsetinfo(setshortname, lang='en'):
@@ -52,13 +66,12 @@ def getsetinfo(setshortname, lang='en'):
         for cardid in range(1, seriessize + 1):
             cardobjs.append((seriescode, cardid, lang))
 
-        with Pool(4) as P:
+        with Pool(processes=8) as P:
             cardsinfo = P.map(getcardinfo_fromid, cardobjs)
 
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info("Get set:%s card list time out", setshortname)
-        exit(False)
     except (AttributeError, TypeError, KeyError):
         logging.info('Set:%s information obtained is wrong\n', setshortname)
 
@@ -73,6 +86,8 @@ def getcardinfo_fromid(cardobj):
         logging.info("Get Card: %s:%s info time out", cardobj[0], cardobj[1])
     except (AttributeError, TypeError, KeyError):
         logging.info("Get Card:%s:%s Info Failure\n", cardobj[0], cardobj[1])
+    except (IndexError):
+        logging.info("cardobj:%s content format faliure\n", str(cardobj))
 
 
 def getcardinfo_fromname(cardname):
@@ -87,12 +102,13 @@ def getcardinfo_fromname(cardname):
     except (AttributeError, TypeError, KeyError):
         logging.info("Get Card:%s Info Failure\n", cardname)
 
+
 def downloadset(setname, lang='en'):
     cardsinfo = getsetinfo(setname, lang)
     if os.path.exists('./' + setname) is False:
         os.mkdir('./' + setname)
     os.chdir('./' + setname)
-    P = Pool(processes=4)
+    P = Pool(processes=8)
     for cardobj in cardsinfo:
         P.apply_async(downloadcard, args=(
             cardobj, ))
@@ -100,20 +116,41 @@ def downloadset(setname, lang='en'):
     P.join()
     os.chdir('../')
 
-def downloadcard(cardobj):
+
+def downloaddeck(deckname):
+    cardlist = getcardlist(deckname)
+    if os.path.exists('./images') is False:
+        os.mkdir('./images')
+    os.chdir('./images')
+    P = Pool(processes=8)
+    for cardobj in cardlist:
+        P.apply_async(downloadcard, args=(
+            cardobj, False))
+    P.close()
+    P.join()
+    os.chdir('../')
+
+
+def downloadcard(cardobj, rename_flags=True):
+    if rename_flags == True:
+        open_flags = 'xb'
+    else:
+        open_flags = 'wb'
     renamecount = 0
     # a set base land number max value
     flag = 8
     try:
         basecardname = cardobj['name']
         cardname = cardobj['name']
-        image_object = requests.get('https://api.scryfall.com/cards/named?exact={0}&format=image'.format(cardname), timeout=13)
+        image_object = requests.get(
+            'https://api.scryfall.com/cards/named?exact={0}&format=image'.format(cardname), timeout=13)
         if 'image' in image_object.headers['Content-Type']:
             while flag:
                 flag -= 1
                 try:
                     # x mode in python3.3+
-                    open(cardname + '.full.jpg', 'xb').write(image_object.content)
+                    open(cardname + '.full.jpg',
+                         open_flags).write(image_object.content)
                     logging.info("Download card:%s success", cardname)
                     break
                 except FileNotFoundError:
@@ -133,12 +170,13 @@ def downloadcard(cardobj):
     except (AttributeError, TypeError, KeyError):
         logging.info("The card:%s information obtained is wrong\n", cardname)
 
+
 def main():
     logging.basicConfig(filename='GetImage.log',
                         filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
-            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
+            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
             if name in '--help':
@@ -174,14 +212,20 @@ def main():
                 downloadset(setshortname)
                 continue
 
+            if name in '--downloaddeck':
+                deckname = value
+                downloaddeck(deckname)
+                continue
+
             if name in '--downloadcard':
                 cardname = value
-                cardobj = getcardinfo_fromname(cardname)
-                downloadcard(cardobj)
+                downloadcard({'name': cardname}, False)
                 continue
 
     except getopt.GetoptError:
         helps()
+    except (AttributeError, TypeError, KeyError):
+        print('get series or card information format failure')
 
 
 if __name__ == '__main__':
