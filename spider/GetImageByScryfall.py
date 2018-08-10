@@ -17,7 +17,7 @@ import requests
 def helps():
     """get help information"""
     print(
-        '--getsetlist get Scryfall supported setlist and each set shortname\n'
+        '--getsetlist get Scryfall.com supported setlist and each set shortname\n'
         '--getsetinfo=[set shortname] get set cards list\n'
         '--downloadset=[set shortname] download set all card image\n'
         '--downloaddeck=[deckname] download deck content all card image\n'
@@ -32,6 +32,8 @@ def getsetlist():
     try:
         resp = requests.get(
             'https://api.scryfall.com/sets', timeout=13)
+        if resp.status_code != 200:
+            return None
         serieslist = resp.json()['data']
         return serieslist
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
@@ -59,6 +61,8 @@ def getsetinfo(setshortname, lang='en'):
     try:
         resp = requests.get(
             'https://api.scryfall.com/sets/{0}'.format(setshortname), timeout=13)
+        if resp.status_code != 200:
+            return None
         seriessize = resp.json()['card_count']
         seriescode = resp.json()['code']
 
@@ -71,36 +75,42 @@ def getsetinfo(setshortname, lang='en'):
 
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get set:%s card list time out", setshortname)
+        logging.info("Get set:'%s' card list time out", setshortname)
     except (AttributeError, TypeError, KeyError):
-        logging.info('Set:%s information obtained is wrong\n', setshortname)
+        logging.info("Set:'%s' information obtained is wrong\n", setshortname)
 
 
 def getcardinfo_fromid(cardobj):
     try:
         resp = requests.get(
+            # serie_code,serie_id,cardlang
             'https://api.scryfall.com/cards/{0}/{1}/{2}'.format(cardobj[0], cardobj[1], cardobj[2]), timeout=13)
+        if resp.status_code != 200:
+            return None
         cardinfo = resp.json()
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get Card: %s:%s info time out", cardobj[0], cardobj[1])
+        logging.info("Get Card: '%s':'%s' info time out",
+                     cardobj[0], cardobj[1])
     except (AttributeError, TypeError, KeyError):
-        logging.info("Get Card:%s:%s Info Failure\n", cardobj[0], cardobj[1])
+        logging.info("Get Card:'%s':'%s' Info Failure\n",
+                     cardobj[0], cardobj[1])
     except (IndexError):
-        logging.info("cardobj:%s content format faliure\n", str(cardobj))
+        logging.info("cardobj:'%s' content format faliure\n", str(cardobj))
 
 
 def getcardinfo_fromname(cardname):
     try:
         resp = requests.get(
             'https://api.scryfall.com/cards/named?exact={0}'.format(cardname), timeout=13)
+        if resp.status_code != 200:
+            return None
         cardinfo = resp.json()
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get Card: %s info time out", cardname)
-        exit(False)
+        logging.info("Get Card:'%s' info time out", cardname)
     except (AttributeError, TypeError, KeyError):
-        logging.info("Get Card:%s Info Failure\n", cardname)
+        logging.info("Get Card:'%s' Info Failure\n", cardname)
 
 
 def downloadset(setname, lang='en'):
@@ -144,31 +154,30 @@ def downloadcard(cardobj, rename_flags=True):
         cardname = cardobj['name']
         image_object = requests.get(
             'https://api.scryfall.com/cards/named?exact={0}&format=image'.format(cardname), timeout=13)
-        if 'image' in image_object.headers['Content-Type']:
-            while flag:
-                flag -= 1
-                try:
-                    # x mode in python3.3+
-                    open(cardname + '.full.jpg',
-                         open_flags).write(image_object.content)
-                    logging.info("Download card:%s success", cardname)
-                    break
-                except FileNotFoundError:
-                    cardname = cardname.replace(' // ', '')
-                    logging.info("Cookiescard:%s rename to:%s\n",
-                                 basecardname, cardname)
-                except FileExistsError:
-                    # rename base land
-                    renamecount += 1
-                    cardname = basecardname + str(renamecount)
-        else:
-            logging.info("Request type not is image,\
-            the card is:%s\n", cardname)
+        if image_object.status_code != 200:
+            logging.info("get card:'%s' image fail\n", cardname)
+            return
+        while flag:
+            flag -= 1
+            try:
+                # x mode in python3.3+
+                open(cardname + '.full.jpg',
+                     open_flags).write(image_object.content)
+                logging.info("Download card:'%s' success", cardname)
+                break
+            except FileNotFoundError:
+                cardname = cardname.replace(' // ', '')
+                logging.info("Cookiescard:'%s' rename to:%s\n",
+                             basecardname, cardname)
+            except FileExistsError:
+                # rename base land
+                renamecount += 1
+                cardname = basecardname + str(renamecount)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info(
-            "Download Card %s request timeout stop downloading!\n", cardname)
+            "Download Card '%s' request timeout stop downloading!\n", cardname)
     except (AttributeError, TypeError, KeyError):
-        logging.info("The card:%s information obtained is wrong\n", cardname)
+        logging.info("The card:'%s' information obtained is wrong\n", cardname)
 
 
 def main():
