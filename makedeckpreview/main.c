@@ -490,6 +490,7 @@ static void preview_init( struct DeckObject * deck )
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , "logo.ico" );
     else
         gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
+    g_object_unref( icon_pixbuf );
 
     if ( config_object.HideTitleBar )
     {
@@ -571,6 +572,8 @@ static void preview_add_card( struct CardObject * card )
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
+        g_object_unref( pixbuf );
+        
         switch ( card->card_local )
         {
             case COMMAND_LOCAL:
@@ -735,7 +738,6 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
             goto parse_err;
     }
 
-
     g_regex_unref( forge_regex );
     g_regex_unref( mtga_regex );
     g_regex_unref( goldfish_regex );
@@ -833,10 +835,13 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
         if ( g_error != NULL )
             goto parse_err;
     }
+
+    g_regex_unref( regex );
     return cardlist;
 
     parse_err:
         g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
 }
@@ -890,10 +895,13 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
         if ( g_error != NULL )
             goto parse_err;
     }
+    
+    g_regex_unref( regex );
     return cardlist;
 
     parse_err:
         g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
 }
@@ -945,10 +953,13 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
         if ( g_error != NULL )
             goto parse_err;
     }
+
+    g_regex_unref( regex );
     return cardlist;
 
     parse_err:
         g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
 }
@@ -1222,9 +1233,22 @@ static void download_file( gpointer data , gpointer user_data )
     g_free( url );
     gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
     gchar * destination_path = g_filename_from_uri( destination_uri , NULL , NULL );
-    if ( g_file_test( destination_path , G_FILE_TEST_EXISTS ) == TRUE )
-        return ;
     g_free( destination_uri );
+    
+    if ( g_file_test( destination_path , G_FILE_TEST_EXISTS ) == TRUE )
+    {
+        GdkPixbuf * image_pixbuf = gdk_pixbuf_new_from_file( destination_path , NULL );
+
+        //image format check
+        if ( image_pixbuf != NULL )
+        {
+            g_object_unref( image_pixbuf );
+            return ;
+        }
+
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "'%s' don't is image file,delete and redownload" , destination_path );
+        g_remove( destination_path );
+    }
     
     if ( card->cardseries != NULL )
     {
