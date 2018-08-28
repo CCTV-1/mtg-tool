@@ -142,42 +142,54 @@ def downloaddeck(deckname):
 
 
 def downloadcard(cardobj, rename_flags=True):
-    if rename_flags == True:
-        open_flags = 'xb'
-    else:
-        open_flags = 'wb'
-    renamecount = 0
-    # a set base land number max value
-    flag = 8
+    download_descptions = []
+
     try:
-        basecardname = cardobj['name']
-        cardname = cardobj['name']
-        image_object = requests.get(
-            'https://api.scryfall.com/cards/named?exact={0}&format=image'.format(cardname), timeout=13)
-        if image_object.status_code != 200:
-            logging.info("get card:'%s' image fail\n", cardname)
-            return
-        while flag:
-            flag -= 1
-            try:
-                # x mode in python3.3+
-                open(cardname + '.full.jpg',
-                     open_flags).write(image_object.content)
-                logging.info("Download card:'%s' success", cardname)
-                break
-            except FileNotFoundError:
-                cardname = cardname.replace(' // ', '')
-                logging.info("Cookiescard:'%s' rename to:%s\n",
-                             basecardname, cardname)
-            except FileExistsError:
-                # rename base land
-                renamecount += 1
-                cardname = basecardname + str(renamecount)
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info(
-            "Download Card '%s' request timeout stop downloading!\n", cardname)
-    except (AttributeError, TypeError, KeyError):
-        logging.info("The card:'%s' information obtained is wrong\n", cardname)
+        download_descptions.append(
+            (cardobj['name'], cardobj['image_uris']['large']))
+    except (KeyError):
+        for card_face in cardobj['card_faces']:
+            download_descptions.append(
+                (card_face['name'], card_face['image_uris']['large']))
+
+    for download_descption in download_descptions:
+        if rename_flags == True:
+            open_flags = 'xb'
+        else:
+            open_flags = 'wb'
+        retry_flag = 8
+
+        try:
+            renamecount = 0
+            basecardname = download_descption[0]
+            cardname = basecardname
+            image_object = requests.get(download_descption[1], timeout=13)
+            if image_object.status_code != 200:
+                logging.info("get card:'%s' image fail\n", cardname)
+                return
+            while retry_flag:
+                try:
+                    # x mode in python3.3+
+                    open(cardname + '.full.jpg',
+                         open_flags).write(image_object.content)
+                    logging.info("Download card:'%s' success", cardname)
+                    break
+                except FileNotFoundError:
+                    cardname = cardname.replace(' // ', '')
+                    retry_flag -= 1
+                    logging.info("Cookiescard:'%s' rename to:'%s'\n",
+                                 basecardname, cardname)
+                except FileExistsError:
+                    # rename base land
+                    renamecount += 1
+                    retry_flag -= 1
+                    cardname = basecardname + str(renamecount)
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+            logging.info(
+                "Download Card '%s' request timeout stop downloading!\n", cardname)
+        except (AttributeError, TypeError, KeyError):
+            logging.info(
+                "The card:'%s' information obtained is wrong\n", cardname)
 
 
 def main():
@@ -228,7 +240,8 @@ def main():
 
             if name in '--downloadcard':
                 cardname = value
-                downloadcard({'name': cardname}, False)
+                cardinfo = getcardinfo_fromname(cardname)
+                downloadcard(cardinfo, False)
                 continue
 
     except getopt.GetoptError:
