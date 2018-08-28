@@ -48,9 +48,9 @@ def getcardlist(deckname):
     with open(deckname, 'r') as deckfile:
         for line in deckfile:
             try:
-                match = re.search(r'([0-9]+)\ ([^|]+)\|(.*)', line)
+                match = re.search(r'([0-9]+)\ ([^|^\r^\n]+)', line)
                 cardname = match.group(2)
-                cardnamelist.append({'name': cardname})
+                cardnamelist.append(cardname)
             except (IndexError, AttributeError):
                 continue
     return cardnamelist
@@ -127,13 +127,16 @@ def downloadset(setname, lang='en'):
     os.chdir('../')
 
 
-def downloaddeck(deckname):
+def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
+    with Pool(processes=8) as P:
+        cardsinfo = P.map(getcardinfo_fromname, cardlist)
+
     if os.path.exists('./images') is False:
         os.mkdir('./images')
     os.chdir('./images')
     P = Pool(processes=8)
-    for cardobj in cardlist:
+    for cardobj in cardsinfo:
         P.apply_async(downloadcard, args=(
             cardobj, False))
     P.close()
@@ -141,16 +144,16 @@ def downloaddeck(deckname):
     os.chdir('../')
 
 
-def downloadcard(cardobj, rename_flags=True):
+def downloadcard(cardobj, rename_flags=True, resolution='large'):
     download_descptions = []
 
     try:
         download_descptions.append(
-            (cardobj['name'], cardobj['image_uris']['large']))
+            (cardobj['name'], cardobj['image_uris'][resolution]))
     except (KeyError):
         for card_face in cardobj['card_faces']:
             download_descptions.append(
-                (card_face['name'], card_face['image_uris']['large']))
+                (card_face['name'], card_face['image_uris'][resolution]))
 
     for download_descption in download_descptions:
         if rename_flags == True:
