@@ -41,7 +41,7 @@ def getcardsinfo(setlongname, localcode='en'):
                 # meld card back alt attribute value deal with
                 cardname = cardname.replace(' (Bottom)', '')
                 cardname = cardname.replace(' (Top)', '')
-                logging.info( "get card: %s url:%s" , cardname , cardurl )
+                logging.info("get card: %s url:%s", cardname, cardurl)
                 cardinfo.append((cardname, cardurl))
         return cardinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
@@ -52,7 +52,7 @@ def getcardsinfo(setlongname, localcode='en'):
         exit(False)
 
 
-def downloadimage(cardname, cardurl,filename_format='forge'):
+def downloadimage(cardname, cardurl, filename_format='forge'):
     """Download the card image represented by cardname
     cardurl is used to determine the picture link"""
     renamecount = 0
@@ -62,7 +62,8 @@ def downloadimage(cardname, cardurl,filename_format='forge'):
     try:
         imageobject = requests.get(cardurl, timeout=13)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Download Card %s request timeout stop downloading!\n", cardname)
+        logging.info(
+            "Download Card %s request timeout stop downloading!\n", cardname)
     try:
         if 'image' in imageobject.headers['Content-Type']:
             while flag:
@@ -79,7 +80,8 @@ def downloadimage(cardname, cardurl,filename_format='forge'):
                         cardname = cardname.replace('//', '-')
                     else:
                         pass
-                    logging.info("cookiescard:%s rename to:%s\n", basecardname, cardname)
+                    logging.info("cookiescard:%s rename to:%s\n",
+                                 basecardname, cardname)
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
@@ -92,7 +94,8 @@ def downloadimage(cardname, cardurl,filename_format='forge'):
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
+    logging.basicConfig(filename='GetImage.log',
+                        filemode='w', level=logging.INFO)
     setshortname = input('You plan download setshortname:')
     setlongname = input('You plan download setlongname:')
     # Aether Revolt to Aether-Revolt
@@ -102,7 +105,8 @@ def main():
     os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
     processpool = Pool(processes=4)
-    print("Download set:{0} start,Card total {1}".format(setshortname, len(cardsinfo)))
+    print("Download set:{0} start,Card total {1}".format(
+        setshortname, len(cardsinfo)))
     for cardobj in cardsinfo:
         processpool.apply_async(
             downloadimage, args=(cardobj[0], cardobj[1], ))
