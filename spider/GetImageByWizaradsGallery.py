@@ -52,7 +52,7 @@ def getcardsinfo(setlongname, localcode='en'):
         exit(False)
 
 
-def downloadimage(cardname, cardurl):
+def downloadimage(cardname, cardurl,filename_format='forge'):
     """Download the card image represented by cardname
     cardurl is used to determine the picture link"""
     renamecount = 0
@@ -73,7 +73,12 @@ def downloadimage(cardname, cardurl):
                     logging.info("Download card:%s success", cardname)
                     break
                 except FileNotFoundError:
-                    cardname = cardname.replace(' // ', '')
+                    if filename_format == 'forge':
+                        cardname = cardname.replace(' // ', '')
+                    elif filename_format == 'xmage':
+                        cardname = cardname.replace('//', '-')
+                    else:
+                        pass
                     logging.info("cookiescard:%s rename to:%s\n", basecardname, cardname)
                 except FileExistsError:
                     # rename base land
