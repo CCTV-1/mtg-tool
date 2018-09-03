@@ -144,7 +144,7 @@ def downloaddeck(deckname, lang='en'):
     os.chdir('../')
 
 
-def downloadcard(cardobj, rename_flags=True, resolution='large', file_name_format='xmage'):
+def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format='xmage'):
     download_descptions = []
 
     try:
