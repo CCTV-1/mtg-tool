@@ -144,7 +144,7 @@ def downloaddeck(deckname, lang='en'):
     os.chdir('../')
 
 
-def downloadcard(cardobj, rename_flags=True, resolution='large'):
+def downloadcard(cardobj, rename_flags=True, resolution='large', file_name_format='xmage'):
     download_descptions = []
 
     try:
@@ -178,7 +178,12 @@ def downloadcard(cardobj, rename_flags=True, resolution='large'):
                     logging.info("Download card:'%s' success", cardname)
                     break
                 except FileNotFoundError:
-                    cardname = cardname.replace(' // ', '')
+                    if filename_format == 'forge':
+                        cardname = cardname.replace(' // ', '')
+                    elif filename_format == 'xmage':
+                        cardname = cardname.replace('//', '-')
+                    else:
+                        pass
                     retry_flag -= 1
                     logging.info("Cookiescard:'%s' rename to:'%s'\n",
                                  basecardname, cardname)
