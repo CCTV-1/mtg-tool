@@ -59,7 +59,7 @@ def getcardsinfo(seriesobj):
         cardsinfoobj = resp.json()['data']['cards']
         responsesize = len(cardsinfoobj)
         for i in range(responsesize):
-                cardsinfo_tmp.append(cardsinfoobj[i])
+            cardsinfo_tmp.append(cardsinfoobj[i])
         for page in range(1, math.ceil(seriessize/responsesize)):
             requestdata = {
                 'order': '-seriesPubtime,+sindex',
@@ -78,7 +78,8 @@ def getcardsinfo(seriesobj):
         logging.info("Get set:%s card list time out", seriesobj['ename'])
         exit(False)
     except (AttributeError, TypeError, KeyError):
-        logging.info('Set:%s information obtained is wrong\n', seriesobj['ename'])
+        logging.info('Set:%s information obtained is wrong\n',
+                     seriesobj['ename'])
 
 
 def getcardinfo(cardname):
@@ -102,7 +103,7 @@ def getcardinfo(cardname):
         logging.info("Get Card:%s Info Failure\n", cardname)
 
 
-def downloadimage(cardobj_parameters):
+def downloadimage(cardobj_parameters, filename_format='xmage'):
     """Download the card image represented by cardobj_parameters"""
     renamecount = 0
     # a set base land number max value
@@ -121,8 +122,14 @@ def downloadimage(cardobj_parameters):
                     logging.info("Download card:%s success", cardname)
                     break
                 except FileNotFoundError:
-                    cardname = cardname.replace(' // ', '')
-                    logging.info("Cookiescard:%s rename to:%s\n", basecardname, cardname)
+                    if filename_format == 'forge':
+                        cardname = cardname.replace(' // ', '')
+                    elif filename_format == 'xmage':
+                        cardname = cardname.replace('//', '-')
+                    else:
+                        pass
+                    logging.info("Cookiescard:%s rename to:%s\n",
+                                 basecardname, cardname)
                 except FileExistsError:
                     # rename base land
                     renamecount += 1
@@ -131,18 +138,20 @@ def downloadimage(cardobj_parameters):
             logging.info("Request type not is image,\
             the card is:%s\n", cardname)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Download Card %s request timeout stop downloading!\n", cardname)
+        logging.info(
+            "Download Card %s request timeout stop downloading!\n", cardname)
     except (AttributeError, TypeError, KeyError):
         logging.info("The card:%s information obtained is wrong\n", cardname)
 
 
 def main():
     """main function"""
-    logging.basicConfig(filename='GetImage.log', filemode='w', level=logging.INFO)
+    logging.basicConfig(filename='GetImage.log',
+                        filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
             'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
-        args = args #wipe off unused warning
+        args = args  # wipe off unused warning
         for name, value in options:
             if name in '--help':
                 helps()
@@ -186,14 +195,16 @@ def main():
                     os.mkdir('./' + setshortname)
                 os.chdir('./' + setshortname)
                 P = Pool(processes=4)
-                print("Download set:{0} start,Card total {1}".format(setshortname, setsize))
+                print("Download set:{0} start,Card total {1}".format(
+                    setshortname, setsize))
                 for cardobj in cardsinfo:
                     P.apply_async(downloadimage, args=(
                         cardobj, ))
-                    #downloadimage(cardobj)
+                    # downloadimage(cardobj)
                 P.close()
                 P.join()
-                print('Set {0} all card image download end'.format(setshortname))
+                print('Set {0} all card image download end'.format(
+                    setshortname))
                 os.chdir('../')
                 continue
 
