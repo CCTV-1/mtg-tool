@@ -153,35 +153,35 @@ def main():
             'help', 'getsetlist', 'getcardslist=', 'getcardinfo=', 'downloadset=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
-            if name in '--help':
+            if name == '--help':
                 helps()
                 continue
 
-            if name in '--getsetlist':
+            if name == '--getsetlist':
                 setlist = getsetlist()
                 print('support set is:\n')
                 for setobj in setlist:
                     print("{0}({1})".format(setobj['ename'], setobj['abbr']))
                 continue
 
-            if name in '--getcardslist':
+            if name == '--getcardslist':
                 setlist = getsetlist()
                 setshortname = value  # 'akh
                 for setobj in setlist:
-                    if setshortname in setobj['abbr']:
+                    if setshortname == setobj['abbr']:
                         cardsinfo = getcardsinfo(setobj)
                         continue
                 for cardobj in cardsinfo:
                     print("{0}\t{1}".format(cardobj['ename'], cardobj['mana']))
                 continue
 
-            if name in '--getcardinfo':
+            if name == '--getcardinfo':
                 cardinfo = getcardinfo(value)
                 for infokey in cardinfo:
                     print("{0}:{1}".format(infokey, cardinfo[infokey]))
                 continue
 
-            if name in '--downloadset':
+            if name == '--downloadset':
                 setlist = getsetlist()
                 setshortname = value
                 for setobj in setlist:
@@ -208,7 +208,7 @@ def main():
                 os.chdir('../')
                 continue
 
-            if name in '--downloadcard':
+            if name == '--downloadcard':
                 cardobj = getcardinfo(value)
                 downloadimage(cardobj)
                 continue
