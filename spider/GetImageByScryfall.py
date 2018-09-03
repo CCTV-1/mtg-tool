@@ -208,18 +208,18 @@ def main():
             'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
-            if name in '--help':
+            if name == '--help':
                 helps()
                 continue
 
-            if name in '--getsetlist':
+            if name == '--getsetlist':
                 setlist = getsetlist()
                 print('support set is:\n')
                 for setobj in setlist:
                     print("{0}({1})".format(setobj['name'], setobj['code']))
                 continue
 
-            if name in '--getsetinfo':
+            if name == '--getsetinfo':
                 setshortname = value  # 'akh
                 cardsinfo = getsetinfo(setshortname)
                 for cardobj in cardsinfo:
@@ -227,7 +227,7 @@ def main():
                         cardobj['name'], cardobj['mana_cost']))
                 continue
 
-            if name in '--getcardinfo':
+            if name == '--getcardinfo':
                 cardinfo = getcardinfo_fromname(value)
                 print("{0}:{1}".format('name', cardinfo['name']))
                 print("{0}:{1}".format('mana cost', cardinfo['mana_cost']))
@@ -236,17 +236,17 @@ def main():
                     'card content', cardinfo['oracle_text']))
                 continue
 
-            if name in '--downloadset':
+            if name == '--downloadset':
                 setshortname = value
                 downloadset(setshortname)
                 continue
 
-            if name in '--downloaddeck':
+            if name == '--downloaddeck':
                 deckname = value
                 downloaddeck(deckname)
                 continue
 
-            if name in '--downloadcard':
+            if name == '--downloadcard':
                 cardname = value
                 cardinfo = getcardinfo_fromname(cardname)
                 downloadcard(cardinfo, False)
