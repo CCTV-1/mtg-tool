@@ -14,10 +14,10 @@
 
 enum DeckType
 {
-    FORGE_FORMAT = 0,
-    MTGA_FORMAT,
-    GOLDFISH_FORMAT,
-    UNKNOWN_FORMAT,
+    FORGE_DECK_FORMAT = 0,
+    MTGA_DECK_FORMAT,
+    GOLDFISH_DECK_FORMAT,
+    UNKNOWN_DECK_FORMAT,
 };
 
 enum CardLocal
@@ -27,8 +27,16 @@ enum CardLocal
     SIDEBOARD_LOCAL,
 };
 
+enum ImageNameFormat
+{
+    FORGE_NAME_FORMAT = 0,
+    XMAGE_NAME_FORMAT,
+    UNKNOWN_NAME_FORMAT
+};
+
 struct ConfigObject
 {
+    enum ImageNameFormat image_name_format;
     gchar * TargetRootDirectory;
     gchar * ImageRootDirectory;
     gchar * ImageSuffix;
@@ -115,8 +123,8 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename );
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
 static void free_cardobject( struct CardObject * card );
-static void remove_forwardslash_forge( gchar * str );
-static void remove_forwardslash_mtga( gchar * str );
+static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_str );
+static gchar * cardname_to_imagename( gchar * cardname , enum DeckType deck_type );
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
@@ -183,6 +191,7 @@ void config_inital( void )
         exit( EXIT_FAILURE );
     }
 
+    config_object.image_name_format = get_integer_node( root , "ImageNameFormat" );
     config_object.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
     config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
     config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
@@ -323,14 +332,22 @@ gint32 process_deck( struct DeckObject * deck )
 static GSList * get_deckfile_list( const gchar * deck_path )
 {
     GDir * dir_ptr = g_dir_open( deck_path , 0 , NULL );
-
     GSList * deck_list = NULL;
+
+    if ( dir_ptr == NULL )
+        return deck_list;
 
     //exists and type check
     if ( g_file_test( deck_path , G_FILE_TEST_EXISTS ) != TRUE )
-        return NULL;
+    {
+        g_dir_close( dir_ptr );
+        return deck_list;
+    }
     if ( g_file_test( deck_path , G_FILE_TEST_IS_DIR ) != TRUE )
-        return NULL;
+    {
+        g_dir_close( dir_ptr );
+        return deck_list;
+    }
 
     //g_dir_read_name auto ignore "." ".."
     const gchar * filename;
@@ -360,6 +377,10 @@ static gboolean remove_directory( const gchar * dir )
         return g_remove( dir );
 
     dir_ptr = g_dir_open( dir , 0 , NULL );
+
+    if ( dir_ptr == NULL )
+        return FALSE;
+
     //g_dir_read_name auto ignore "." ".."
     const gchar * filename;
     while ( ( filename = g_dir_read_name( dir_ptr ) ) != NULL )
@@ -375,6 +396,9 @@ static gboolean remove_directory( const gchar * dir )
 
 static gboolean make_directory( const gchar * dir )
 {
+    if ( dir == NULL )
+        return FALSE;
+
     GError * g_error;
     GFile * targetdirectory = g_file_new_for_path( dir );
     if ( g_file_make_directory_with_parents( targetdirectory , NULL , &g_error ) == FALSE )
@@ -694,7 +718,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     if ( deckfile == NULL )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deck_filename );
-        return UNKNOWN_FORMAT;
+        return UNKNOWN_DECK_FORMAT;
     }
 
     GError * g_error = NULL;
@@ -744,13 +768,13 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     fclose( deckfile );
         
     if ( ( forge_format_count >= mtga_format_count ) && ( forge_format_count >= goldfish_format_count ) )
-        return FORGE_FORMAT;
+        return FORGE_DECK_FORMAT;
     else if ( ( mtga_format_count >= forge_format_count ) && ( mtga_format_count >= goldfish_format_count ) )
-        return MTGA_FORMAT;
+        return MTGA_DECK_FORMAT;
     else if ( goldfish_format_count != 0 )
-        return GOLDFISH_FORMAT;
+        return GOLDFISH_DECK_FORMAT;
     //avoid no-return warning,can't use else
-    return UNKNOWN_FORMAT;
+    return UNKNOWN_DECK_FORMAT;
     parse_err:
         g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
         g_error_free( g_error );
@@ -762,13 +786,13 @@ static GSList * get_cardlist( const gchar * deckfilename )
     enum DeckType deck_type = get_deck_type( deckfilename );
     switch ( deck_type )
     {
-        case FORGE_FORMAT:
+        case FORGE_DECK_FORMAT:
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "FORGE DECK" );
             break;
-        case MTGA_FORMAT:
+        case MTGA_DECK_FORMAT:
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "MTGA DECK" );
             break;
-        case GOLDFISH_FORMAT:
+        case GOLDFISH_DECK_FORMAT:
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "GOLDFISH DECK" );
             break;
         default:
@@ -776,12 +800,12 @@ static GSList * get_cardlist( const gchar * deckfilename )
     }
     switch ( deck_type )
     {
-        case FORGE_FORMAT:
+        case FORGE_DECK_FORMAT:
             return get_cardlist_forge( deckfilename );
-        case MTGA_FORMAT:
+        case MTGA_DECK_FORMAT:
             return get_cardlist_mtga( deckfilename );
         //goldfish regex match mtga format deck,so first check mtga format.
-        case GOLDFISH_FORMAT:
+        case GOLDFISH_DECK_FORMAT:
             return get_cardlist_goldfish( deckfilename );
         default :
             return NULL;
@@ -825,7 +849,11 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
             g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             //G_MAXINT32 is unknown id
             card->cardid = G_MAXINT32;
-            remove_forwardslash_forge( card->cardname );
+
+            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            free( card->cardname );
+            card->cardname = image_name;
+
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
@@ -885,7 +913,11 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
             else
                 g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             card->cardid = cardid;
-            remove_forwardslash_mtga( card->cardname );
+            
+            gchar * image_name = cardname_to_imagename( card->cardname , MTGA_DECK_FORMAT );
+            free( card->cardname );
+            card->cardname = image_name;
+            
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
@@ -943,7 +975,10 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
             //G_MAXINT32 is unknown id
             card->cardid = G_MAXINT32;
             //double face card format goldfish equal forge
-            remove_forwardslash_forge( card->cardname );
+            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            free( card->cardname );
+            card->cardname = image_name;
+
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
@@ -999,38 +1034,121 @@ static void free_cardobject( struct CardObject * card )
     free( card );
 }
 
-//forge double-faced,cookies,fusion card name:"Name1 // Name2"
-static void remove_forwardslash_forge( gchar * str )
+static gchar * cardname_to_imagename( gchar * cardname , enum DeckType deck_type )
 {
-    //fast check
-    gint is_exists = strrchr( str , '/' ) == NULL;
-    if ( is_exists == TRUE )
-        return ;
-    gsize str_len = strnlen( str, BUFFSIZE );
-    gchar * pos_ptr = strstr( str , " // " );
-    while( pos_ptr )
+    gchar * new_str = NULL;
+
+    //forge double-faced,cookies,fusion card name:"Name1 // Name2"
+    if ( ( deck_type == FORGE_DECK_FORMAT ) || ( deck_type == GOLDFISH_DECK_FORMAT ) )
     {
-        for ( gsize i = pos_ptr - str ; i <= str_len ; i++ )
-            str[i] = str[i+4];
-        pos_ptr = strstr( str , " // " );
+        if ( config_object.image_name_format == FORGE_NAME_FORMAT )
+            new_str = strreplace( cardname , " // " , "" );
+        else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
+            new_str = strreplace( cardname , "//" , "-" );
+
+        if ( new_str == NULL )
+            return NULL;
     }
+
+    //mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
+    if ( deck_type == MTGA_DECK_FORMAT )
+    {
+        if ( config_object.image_name_format == FORGE_NAME_FORMAT )
+            new_str = strreplace( cardname , " /// " , "" );
+        else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
+            new_str = strreplace( cardname , "///" , "-" );
+    
+        if ( new_str == NULL )
+            return NULL;
+    }
+
+    //file system name limmit replace:"\/:*?"<>|"
+
+    return new_str;
 }
 
-//mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
-static void remove_forwardslash_mtga( gchar * str )
+static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_str )
 {
-    //fast check
-    gint is_exists = strrchr( str , '/' ) == NULL;
-    if ( is_exists == TRUE )
-        return ;
-    gsize str_len = strnlen( str, BUFFSIZE );
-    gchar * pos_ptr = strstr( str , " /// " );
-    while( pos_ptr )
+    if ( source_str == NULL )
+        return NULL;
+    if ( from_str == NULL )
+        return NULL;
+    if ( to_str == NULL )
+        return NULL;
+    
+    size_t source_len = strnlen( source_str , 2048 );
+    size_t from_len = strnlen( from_str , 2048 );
+    size_t to_len = strnlen( to_str , 2048 );
+    size_t replace_count = 0;
+    
+    if ( ( from_len == 0 ) || ( source_len == 0 ) )
     {
-        for ( gsize i = pos_ptr - str ; i <= str_len ; i++ )
-            str[i] = str[i+5];
-        pos_ptr = strstr( str , " /// " );
+        gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
+        if ( new_str == NULL )
+            return NULL;
+        memcpy( new_str , source_str , source_len + 1 );
+        return new_str;
     }
+
+    gchar * temp_ptr = source_str;
+    for ( gchar * find_ptr = NULL ; ( find_ptr = strstr( temp_ptr , from_str ) ) != NULL ; replace_count++ )
+        temp_ptr = find_ptr + from_len;
+    
+    if ( replace_count == 0 )
+    {
+        gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
+        if ( new_str == NULL )
+            return NULL;
+        memcpy( new_str , source_str , source_len + 1 );
+        return new_str;
+    }
+
+    gboolean len_up = FALSE;
+    size_t chane_len = 0;
+    if ( to_len > from_len )
+    {
+        chane_len = to_len - from_len;
+        len_up = TRUE;
+    }
+    else
+    {
+        chane_len = from_len - to_len;
+        len_up = FALSE;
+    }
+    
+    //replace to overflow
+    if ( chane_len > ( SIZE_MAX - source_len )/replace_count )
+        return NULL;
+    
+    size_t new_str_len = 0;
+    if ( len_up == TRUE )
+        new_str_len = source_len + replace_count*chane_len;
+    else
+        new_str_len = source_len - replace_count*chane_len;
+
+    //NUL in end
+    gchar * new_str = ( gchar * )malloc( ( new_str_len + 1 ) * sizeof( gchar ) );
+    if ( new_str == NULL )
+        return NULL;
+
+    gchar * start_ptr = source_str;
+    gchar * end_ptr = source_str + source_len;
+    gchar * copy_to_ptr = new_str;
+    while( replace_count-- > 0 )
+    {
+        gchar *  offset_ptr = strstr( start_ptr , from_str );
+        if ( offset_ptr == NULL )
+            break;
+        gchar * next_ptr = offset_ptr + from_len;
+        memcpy( copy_to_ptr , start_ptr , offset_ptr - start_ptr );
+        copy_to_ptr += ( offset_ptr - start_ptr );
+        memcpy( copy_to_ptr , to_str , to_len );
+        copy_to_ptr += to_len;
+        start_ptr = next_ptr;
+    }
+    memcpy( copy_to_ptr , start_ptr , end_ptr - start_ptr + 1 );
+
+    return new_str;
 }
 
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries )
