@@ -37,19 +37,19 @@ enum ImageNameFormat
 struct ConfigObject
 {
     enum ImageNameFormat image_name_format;
-    gchar * TargetRootDirectory;
-    gchar * ImageRootDirectory;
-    gchar * ImageSuffix;
-    gchar * DeckFileDirectory;
-    json_int_t WindowWidth;
-    json_int_t WindowHeight;
-    json_int_t CardWidth;
-    json_int_t CardHeight;
-    json_int_t LineCardNumber;
-    json_int_t TitleFontSize;
-    gint HideTitleBar;
-    gint CopyFile;
-    gint UseNetworkImage;
+    gchar * target_root_directory;
+    gchar * image_root_directory;
+    gchar * image_suffix;
+    gchar * deck_file_directory;
+    json_int_t window_width;
+    json_int_t window_height;
+    json_int_t card_width;
+    json_int_t card_height;
+    json_int_t line_card_number;
+    json_int_t title_font_size;
+    gint hide_title_bar;
+    gint copy_file;
+    gint use_network_image;
 }config_object;
 
 struct DeckObject
@@ -139,7 +139,7 @@ int main ( int argc, char * argv[] )
     curl_global_init( CURL_GLOBAL_ALL );
     config_inital();
 
-    GSList * decklist = get_deckfile_list( config_object.DeckFileDirectory );
+    GSList * decklist = get_deckfile_list( config_object.deck_file_directory );
 
     if ( decklist == NULL )
         return EXIT_FAILURE;
@@ -153,7 +153,7 @@ int main ( int argc, char * argv[] )
             deckfile_shortname = g_strrstr( ( gchar * )temp_ptr->data , "\\" );
         //ASCII incompatible character sets may not work
         deckfile_shortname += 1;
-        gchar * targetdirectory = g_strdup_printf( "%s%s" , config_object.TargetRootDirectory , deckfile_shortname );
+        gchar * targetdirectory = g_strdup_printf( "%s%s" , config_object.target_root_directory , deckfile_shortname );
         gsize targetdirectory_len = strnlen( targetdirectory , BUFFSIZE );
         //****.dck --> ****/$(NUL)"
         targetdirectory[targetdirectory_len-4] = '/';
@@ -164,7 +164,7 @@ int main ( int argc, char * argv[] )
         if ( make_directory( deck.targetdirectory ) == FALSE )
             continue;
         gint32 copy_success_count = process_deck( &deck );
-        if ( config_object.CopyFile == TRUE )
+        if ( config_object.copy_file == TRUE )
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images \n" , deckfile_fullname , copy_success_count );
         else
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "set to do not copy files,deck:\"%s\"\n" , deckfile_fullname );
@@ -192,73 +192,73 @@ void config_inital( void )
     }
 
     config_object.image_name_format = get_integer_node( root , "ImageNameFormat" );
-    config_object.ImageRootDirectory = get_string_node( root, "ImageRootDirectory" );
-    config_object.ImageSuffix = get_string_node( root, "ImageSuffix" );
-    config_object.DeckFileDirectory = get_string_node( root, "DeckFileDirectory" );
-    config_object.TargetRootDirectory = get_string_node( root , "TargetRootDirectory" );
-    config_object.WindowWidth = get_integer_node( root , "WindowWidth" );
-    config_object.WindowHeight = get_integer_node( root , "WindowHeight" );
-    config_object.CardWidth = get_integer_node( root , "CardWidth" );
-    config_object.CardHeight = get_integer_node( root , "CardHeight" );
-    config_object.LineCardNumber = get_integer_node( root , "LineCardNumber" );
-    config_object.TitleFontSize = get_integer_node( root , "TitleFontSize" );
-    config_object.HideTitleBar = get_boolean_node( root , "HideTitleBar" );
-    config_object.CopyFile = get_boolean_node( root , "CopyFile" );
-    config_object.UseNetworkImage = get_boolean_node( root , "UseNetworkImage" );
+    config_object.image_root_directory = get_string_node( root, "ImageRootDirectory" );
+    config_object.image_suffix = get_string_node( root, "ImageSuffix" );
+    config_object.deck_file_directory = get_string_node( root, "DeckFileDirectory" );
+    config_object.target_root_directory = get_string_node( root , "TargetRootDirectory" );
+    config_object.window_width = get_integer_node( root , "WindowWidth" );
+    config_object.window_height = get_integer_node( root , "WindowHeight" );
+    config_object.card_width = get_integer_node( root , "CardWidth" );
+    config_object.card_height = get_integer_node( root , "CardHeight" );
+    config_object.line_card_number = get_integer_node( root , "LineCardNumber" );
+    config_object.title_font_size = get_integer_node( root , "TitleFontSize" );
+    config_object.hide_title_bar = get_boolean_node( root , "HideTitleBar" );
+    config_object.copy_file = get_boolean_node( root , "CopyFile" );
+    config_object.use_network_image = get_boolean_node( root , "UseNetworkImage" );
 
-    if ( config_object.ImageRootDirectory == NULL )
+    if ( config_object.image_root_directory == NULL )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit\n" );
         json_decref( root );
         exit( EXIT_FAILURE );
     }
-    if ( config_object.ImageSuffix == NULL )
+    if ( config_object.image_suffix == NULL )
     {
-        config_object.ImageSuffix = g_strdup_printf( "%s" , ".jpg" );
+        config_object.image_suffix = g_strdup_printf( "%s" , ".jpg" );
     }
-    if ( config_object.DeckFileDirectory == NULL )
+    if ( config_object.deck_file_directory == NULL )
     {
-        config_object.DeckFileDirectory = g_strdup_printf( "%s" , "./");
+        config_object.deck_file_directory = g_strdup_printf( "%s" , "./");
     }
-    if ( config_object.TargetRootDirectory == NULL )
+    if ( config_object.target_root_directory == NULL )
     {
-        config_object.TargetRootDirectory = g_strdup_printf( "%s" , "./");
+        config_object.target_root_directory = g_strdup_printf( "%s" , "./");
     }
-    if ( config_object.WindowWidth == 0 ) 
+    if ( config_object.window_width == 0 ) 
     {
-        config_object.WindowWidth = 1050;
+        config_object.window_width = 1050;
     }
-    if ( config_object.WindowHeight == 0 )
+    if ( config_object.window_height == 0 )
     {
-        config_object.WindowHeight = 600;
+        config_object.window_height = 600;
     }
-    if ( config_object.CardWidth == 0 )
+    if ( config_object.card_width == 0 )
     {
-        config_object.CardWidth = 70;
+        config_object.card_width = 70;
     }
-    if ( config_object.CardHeight == 0 )
+    if ( config_object.card_height == 0 )
     {
-        config_object.CardHeight = 100;
+        config_object.card_height = 100;
     }
-    if ( config_object.LineCardNumber == 0 )
+    if ( config_object.line_card_number == 0 )
     {
-        config_object.LineCardNumber = 15;
+        config_object.line_card_number = 15;
     }
-    if ( config_object.TitleFontSize == 0 )
+    if ( config_object.title_font_size == 0 )
     {
-        config_object.TitleFontSize = 20;
+        config_object.title_font_size = 20;
     }
-    if ( config_object.HideTitleBar == -1 )
+    if ( config_object.hide_title_bar == -1 )
     {
-        config_object.HideTitleBar = FALSE;
+        config_object.hide_title_bar = FALSE;
     }
-    if ( config_object.CopyFile == -1 )
+    if ( config_object.copy_file == -1 )
     {
-        config_object.CopyFile = FALSE;
+        config_object.copy_file = FALSE;
     }
-    if ( config_object.UseNetworkImage == -1 )
+    if ( config_object.use_network_image == -1 )
     {
-        config_object.UseNetworkImage = FALSE;
+        config_object.use_network_image = FALSE;
     }
 
     json_decref( root );
@@ -266,10 +266,10 @@ void config_inital( void )
 
 void config_destroy( void )
 {
-    g_free( config_object.ImageRootDirectory );
-    g_free( config_object.ImageSuffix );
-    g_free( config_object.DeckFileDirectory );
-    g_free( config_object.TargetRootDirectory );
+    g_free( config_object.image_root_directory );
+    g_free( config_object.image_suffix );
+    g_free( config_object.deck_file_directory );
+    g_free( config_object.target_root_directory );
 }
 
 gint32 process_deck( struct DeckObject * deck )
@@ -287,7 +287,7 @@ gint32 process_deck( struct DeckObject * deck )
 
     GSList * temp = cardlist;
     //Download Image
-    if ( config_object.UseNetworkImage == TRUE )
+    if ( config_object.use_network_image == TRUE )
     {
         GThreadPool * thr_pool = g_thread_pool_new( download_file , NULL , 8 , TRUE , NULL );
         while( temp != NULL )
@@ -303,7 +303,7 @@ gint32 process_deck( struct DeckObject * deck )
     {
         struct CardObject * card = ( struct CardObject * )temp->data;
         preview_add_card( card );
-        if ( config_object.CopyFile == TRUE )
+        if ( config_object.copy_file == TRUE )
         {
             gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );;
             gchar * targetfile_uri = make_targetfile_uri( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber );
@@ -516,14 +516,14 @@ static void preview_init( struct DeckObject * deck )
         gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
     g_object_unref( icon_pixbuf );
 
-    if ( config_object.HideTitleBar )
+    if ( config_object.hide_title_bar )
     {
         gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
     }
     else
         gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deck->deckfullname );
 
-    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.WindowWidth , ( gint )config_object.WindowHeight );
+    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.window_width , ( gint )config_object.window_height );
     g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event", G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
 
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL , NULL );
@@ -558,19 +558,19 @@ static void preview_add_title( enum CardLocal card_local )
     gchar * title_label_buff = NULL;
     GtkWidget * title_label = gtk_label_new( NULL );
     if ( card_local == MAIN_LOCAL )
-        title_label_buff = g_strdup_printf(  "<span font='%"G_GINT64_FORMAT"'>main</span>" , config_object.TitleFontSize );
+        title_label_buff = g_strdup_printf(  "<span font='%"G_GINT64_FORMAT"'>main</span>" , config_object.title_font_size );
     else if ( card_local == SIDEBOARD_LOCAL )
-        title_label_buff = g_strdup_printf( "<span font='%"G_GINT64_FORMAT"'>sideboard</span>" , config_object.TitleFontSize );
+        title_label_buff = g_strdup_printf( "<span font='%"G_GINT64_FORMAT"'>sideboard</span>" , config_object.title_font_size );
     else if ( card_local == COMMAND_LOCAL )
         return ;
     gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
 
     GtkWidget * title_box = gtk_event_box_new();
-    gtk_widget_set_size_request( GTK_WIDGET( title_box ) , config_object.WindowWidth , config_object.TitleFontSize );
+    gtk_widget_set_size_request( GTK_WIDGET( title_box ) , config_object.window_width , config_object.title_font_size );
     gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
     
     gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , title_box , 0 , preview_object.layout_height );
-    preview_object.layout_height += 2*config_object.TitleFontSize;
+    preview_object.layout_height += 2*config_object.title_font_size;
     g_free( title_label_buff );
 }
 
@@ -594,7 +594,7 @@ static void preview_add_card( struct CardObject * card )
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefile_path );
             return ;
         }
-        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.CardWidth , config_object.CardHeight , GDK_INTERP_BILINEAR );
+        pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.card_width , config_object.card_height , GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
         g_object_unref( pixbuf );
         
@@ -605,11 +605,11 @@ static void preview_add_card( struct CardObject * card )
                 gtk_layout_put( GTK_LAYOUT( preview_object.command_layout.layout ) , image , 
                     preview_object.command_layout.width , preview_object.command_layout.height );
                 g_array_append_val( preview_object.command_layout.images , image );
-                preview_object.command_layout.width += config_object.CardWidth;
-                if ( preview_object.command_layout.width == ( config_object.LineCardNumber )*( config_object.CardWidth ) )
+                preview_object.command_layout.width += config_object.card_width;
+                if ( preview_object.command_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
                 {
                     preview_object.command_layout.width = 0;
-                    preview_object.command_layout.height += config_object.CardHeight;
+                    preview_object.command_layout.height += config_object.card_height;
                 }
                 break;
             }
@@ -618,11 +618,11 @@ static void preview_add_card( struct CardObject * card )
                 gtk_layout_put( GTK_LAYOUT( preview_object.main_layout.layout ) , image , 
                     preview_object.main_layout.width , preview_object.main_layout.height );
                 g_array_append_val( preview_object.main_layout.images , image );
-                preview_object.main_layout.width += config_object.CardWidth;
-                if ( preview_object.main_layout.width == ( config_object.LineCardNumber )*( config_object.CardWidth ) )
+                preview_object.main_layout.width += config_object.card_width;
+                if ( preview_object.main_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
                 {
                     preview_object.main_layout.width = 0;
-                    preview_object.main_layout.height += config_object.CardHeight;
+                    preview_object.main_layout.height += config_object.card_height;
                 }
                 break;
             }
@@ -631,11 +631,11 @@ static void preview_add_card( struct CardObject * card )
                 gtk_layout_put( GTK_LAYOUT( preview_object.sideboard_layout.layout ) , image , 
                     preview_object.sideboard_layout.width , preview_object.sideboard_layout.height );
                 g_array_append_val( preview_object.sideboard_layout.images , image );
-                preview_object.sideboard_layout.width += config_object.CardWidth;
-                if ( preview_object.sideboard_layout.width == ( config_object.LineCardNumber )*( config_object.CardWidth ) )
+                preview_object.sideboard_layout.width += config_object.card_width;
+                if ( preview_object.sideboard_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
                 {
                     preview_object.sideboard_layout.width = 0;
-                    preview_object.sideboard_layout.height += config_object.CardHeight;
+                    preview_object.sideboard_layout.height += config_object.card_height;
                 }
                 break;
             }
@@ -652,8 +652,8 @@ static void preview_display( void )
     if ( preview_object.command_layout.images->len != 0 )
     {
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.command_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.command_layout.images->len ) % config_object.LineCardNumber != 0 )
-            preview_object.command_layout.height += config_object.CardHeight;
+        if ( ( preview_object.command_layout.images->len ) % config_object.line_card_number != 0 )
+            preview_object.command_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.command_layout.height;
     }
 
@@ -661,8 +661,8 @@ static void preview_display( void )
     {
         preview_add_title( MAIN_LOCAL );              
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.main_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.main_layout.images->len ) % config_object.LineCardNumber != 0 )
-            preview_object.main_layout.height += config_object.CardHeight;
+        if ( ( preview_object.main_layout.images->len ) % config_object.line_card_number != 0 )
+            preview_object.main_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.main_layout.height;
     }
     
@@ -670,8 +670,8 @@ static void preview_display( void )
     {
         preview_add_title( SIDEBOARD_LOCAL );         
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.sideboard_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.sideboard_layout.images->len ) % config_object.LineCardNumber != 0 )
-            preview_object.sideboard_layout.height += config_object.CardHeight;
+        if ( ( preview_object.sideboard_layout.images->len ) % config_object.line_card_number != 0 )
+            preview_object.sideboard_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.sideboard_layout.height;
     }
 
@@ -696,12 +696,12 @@ static void preview_display( void )
         | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
 
     gtk_widget_set_size_request( GTK_WIDGET( preview_object.command_layout.layout ) , 
-        config_object.LineCardNumber*config_object.CardWidth , preview_object.command_layout.height );
+        config_object.line_card_number*config_object.card_width , preview_object.command_layout.height );
     gtk_widget_set_size_request( GTK_WIDGET( preview_object.main_layout.layout ) , 
-        config_object.LineCardNumber*config_object.CardWidth , preview_object.main_layout.height );
+        config_object.line_card_number*config_object.card_width , preview_object.main_layout.height );
     gtk_widget_set_size_request( GTK_WIDGET( preview_object.sideboard_layout.layout ) , 
-        config_object.LineCardNumber*config_object.CardWidth , preview_object.sideboard_layout.height );
-    gtk_layout_set_size( GTK_LAYOUT( preview_object.layout ) , config_object.LineCardNumber*config_object.CardWidth , preview_object.layout_height );
+        config_object.line_card_number*config_object.card_width , preview_object.sideboard_layout.height );
+    gtk_layout_set_size( GTK_LAYOUT( preview_object.layout ) , config_object.line_card_number*config_object.card_width , preview_object.layout_height );
     gtk_widget_show_all( GTK_WIDGET( preview_object.window ) );
     gtk_main();
 }
@@ -1172,10 +1172,10 @@ static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardse
 
     if ( cardseries != NULL )
         imagefile_uri = g_strdup_printf( "file:///%s%s/%s%s%s" , 
-            config_object.ImageRootDirectory , cardseries , cardname , forgeimagesuffix , config_object.ImageSuffix );
+            config_object.image_root_directory , cardseries , cardname , forgeimagesuffix , config_object.image_suffix );
     else
         imagefile_uri = g_strdup_printf( "file:///%s%s%s%s" , 
-            config_object.ImageRootDirectory , cardname , forgeimagesuffix , config_object.ImageSuffix );
+            config_object.image_root_directory , cardname , forgeimagesuffix , config_object.image_suffix );
 
     return imagefile_uri;
 }
@@ -1187,10 +1187,10 @@ static gchar * make_targetfile_uri( const char * targetdirectory , const gchar *
         return targetfile_uri;
     if ( cardseries != NULL )
         targetfile_uri = g_strdup_printf( "file:///%s%s.%s%"G_GSIZE_FORMAT"%s" ,
-            targetdirectory , cardname , cardseries , retry_count , config_object.ImageSuffix );
+            targetdirectory , cardname , cardseries , retry_count , config_object.image_suffix );
     else
         targetfile_uri = g_strdup_printf( "file:///%s%s%"G_GSIZE_FORMAT"%s" ,
-            targetdirectory , cardname , retry_count , config_object.ImageSuffix );
+            targetdirectory , cardname , retry_count , config_object.image_suffix );
     return targetfile_uri;
 }
 
@@ -1198,7 +1198,7 @@ static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointe
 {
     ( void )event;
     GdkWindow * gdk_window = gtk_widget_get_window( GTK_WIDGET( window ) );
-    GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.WindowWidth , config_object.WindowHeight );
+    GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.window_width , config_object.window_height );
     if ( deckpreview == NULL )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get deck preview buff faliure\n" );
@@ -1224,7 +1224,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
     if ( widget_layout->select_target == TRUE && event->type == GDK_MOTION_NOTIFY )
     {
-        guint select_index = widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber;
+        guint select_index = widget_layout->select_x/config_object.card_width + widget_layout->select_y/config_object.card_height*config_object.line_card_number;
         GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , select_index );
 
         //avoid underflow overflow
@@ -1236,13 +1236,13 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
         {
             y = widget_layout->dy;
         } 
-        if ( x > config_object.CardWidth*config_object.LineCardNumber )
+        if ( x > config_object.card_width*config_object.line_card_number )
         {
-            x = config_object.CardWidth*config_object.LineCardNumber;
+            x = config_object.card_width*config_object.line_card_number;
         }
-        if ( y > config_object.CardHeight*widget_layout->height )
+        if ( y > config_object.card_height*widget_layout->height )
         {
-            y = config_object.CardHeight*widget_layout->height;
+            y = config_object.card_height*widget_layout->height;
         }
         
         gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , x - widget_layout->dx , y - widget_layout->dy );
@@ -1268,13 +1268,13 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     {
         y = widget_layout->dy;
     } 
-    if ( x > config_object.CardWidth*config_object.LineCardNumber )
+    if ( x > config_object.card_width*config_object.line_card_number )
     {
-        x = config_object.CardWidth*config_object.LineCardNumber;
+        x = config_object.card_width*config_object.line_card_number;
     }
-    if ( y > config_object.CardHeight*widget_layout->height )
+    if ( y > config_object.card_height*widget_layout->height )
     {
-        y = config_object.CardHeight*widget_layout->height;
+        y = config_object.card_height*widget_layout->height;
     }
 
     if ( ( x == widget_layout->select_x ) && ( y == widget_layout->select_y ) )
@@ -1284,8 +1284,8 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     }
     if ( widget_layout->select_target == TRUE )
     {
-        guint start_index = widget_layout->select_x/config_object.CardWidth + widget_layout->select_y/config_object.CardHeight*config_object.LineCardNumber;
-        guint end_index = x/config_object.CardWidth + y/config_object.CardHeight*config_object.LineCardNumber;
+        guint start_index = widget_layout->select_x/config_object.card_width + widget_layout->select_y/config_object.card_height*config_object.line_card_number;
+        guint end_index = x/config_object.card_width + y/config_object.card_height*config_object.line_card_number;
 
         //avoid underflow overflow
         if ( start_index >= widget_layout->images->len )
@@ -1300,7 +1300,7 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
             {
                 GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i - 1 );
                 gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , 
-                    i%( config_object.LineCardNumber )*config_object.CardWidth , i/( config_object.LineCardNumber )*config_object.CardHeight );
+                    i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
                 g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
             }
         }
@@ -1310,12 +1310,12 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
             {
                 GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i + 1 );
                 gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , 
-                    i%( config_object.LineCardNumber )*config_object.CardWidth , i/( config_object.LineCardNumber )*config_object.CardHeight );
+                    i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
                 g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
             }
         }
         gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , start_image , 
-                end_index%( config_object.LineCardNumber )*config_object.CardWidth , end_index/( config_object.LineCardNumber )*config_object.CardHeight );
+                end_index%( config_object.line_card_number )*config_object.card_width , end_index/( config_object.line_card_number )*config_object.card_height );
         g_array_index( widget_layout->images , GtkWidget * , end_index ) = start_image;
         widget_layout->select_target = FALSE;
     }
@@ -1329,12 +1329,12 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
     int x , y;
     GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
-    if ( x > config_object.CardWidth*config_object.LineCardNumber || y > config_object.CardHeight*widget_layout->height )
+    if ( x > config_object.card_width*config_object.line_card_number || y > config_object.card_height*widget_layout->height )
         return TRUE;
     widget_layout->select_x = x;
     widget_layout->select_y = y;
-    widget_layout->dx = widget_layout->select_x - x/config_object.CardWidth*config_object.CardWidth;
-    widget_layout->dy = widget_layout->select_y - y/config_object.CardWidth*config_object.CardWidth;
+    widget_layout->dx = widget_layout->select_x - x/config_object.card_width*config_object.card_width;
+    widget_layout->dy = widget_layout->select_y - y/config_object.card_width*config_object.card_width;
     widget_layout->select_target = TRUE;
 
     return TRUE;
@@ -1370,14 +1370,14 @@ static void download_file( gpointer data , gpointer user_data )
     
     if ( card->cardseries != NULL )
     {
-        gchar * download_dir = g_strdup_printf( "%s%s" , config_object.ImageRootDirectory , card->cardseries );
+        gchar * download_dir = g_strdup_printf( "%s%s" , config_object.image_root_directory , card->cardseries );
         if ( g_file_test( download_dir , G_FILE_TEST_EXISTS ) != TRUE )
             g_mkdir_with_parents( download_dir , S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
         g_free( download_dir );
     }
     else
     {
-        gchar * download_dir = g_strdup_printf( "%s" , config_object.ImageRootDirectory );
+        gchar * download_dir = g_strdup_printf( "%s" , config_object.image_root_directory );
         if ( g_file_test( download_dir , G_FILE_TEST_EXISTS ) != TRUE )
             g_mkdir_with_parents( download_dir , S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH );
         g_free( download_dir );
