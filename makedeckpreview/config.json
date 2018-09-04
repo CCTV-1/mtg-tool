@@ -1,17 +1,18 @@
 {
-    "TargetRootDirectory": "../images/",
-    "ImageRootDirectory": "D:/forge/Cache/pics/cards/",
+    "TargetRootDirectory": "./images/",
+    "ImageRootDirectory": "D:/cards/",
     "ImageSuffix": ".jpg",
-    "DeckFileDirectory": "../deck",
-    "WindowWidth": 1260,
-    "WindowHeight": 750,
+    "ImageNameFormat": 1,
+    "DeckFileDirectory": "./deck",
+    "WindowWidth": 1575,
+    "WindowHeight": 1050,
     "CardWidth": 105,
     "CardHeight": 150,
-    "LineCardNumber": 12,
+    "LineCardNumber": 15,
     "TitleFontSize": 20,
     "CloseWindowKeyValue": 32,
     "AutomaticScaling": false,
     "HideTitleBar": false,
     "CopyFile": false,
-    "UseNetworkImage": false
+    "UseNetworkImage": true
 }
