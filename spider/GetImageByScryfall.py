@@ -66,7 +66,7 @@ def getsetinfo(setshortname, lang='en'):
         info_content = resp.json()
         cardsinfo = []
         for cardinfo in info_content['data']:
-            cardsinfo.append( cardinfo )
+            cardsinfo.append(cardinfo)
         has_more = info_content['has_more']
 
         while has_more != False:
@@ -74,7 +74,7 @@ def getsetinfo(setshortname, lang='en'):
                 info_content.get('next_page'), timeout=13)
             info_content = resp.json()
             for cardinfo in info_content['data']:
-                cardsinfo.append( cardinfo )
+                cardsinfo.append(cardinfo)
             has_more = info_content['has_more']
 
         return cardsinfo
@@ -227,17 +227,34 @@ def main():
                 setshortname = value  # 'akh
                 cardsinfo = getsetinfo(setshortname)
                 for cardobj in cardsinfo:
-                    print("{0}\t{1}".format(
-                        cardobj['name'], cardobj['mana_cost']))
+                    try:
+                        print("{0}\t{1}".format(
+                            cardobj['name'], cardobj['mana_cost']))
+                    except KeyError:
+                        for face in cardobj['card_faces']:
+                            print("{0}\t{1}".format(
+                                face['name'], face['mana_cost']))
                 continue
 
             if name == '--getcardinfo':
                 cardinfo = getcardinfo_fromname(value)
-                print("{0}:{1}".format('name', cardinfo['name']))
-                print("{0}:{1}".format('mana cost', cardinfo['mana_cost']))
-                print("{0}:{1}".format('card type', cardinfo['type_line']))
-                print("{0}:{1}".format(
-                    'card content', cardinfo['oracle_text']))
+                try:
+                    print("{0}:\'{1}\'".format('card name', cardinfo['name']))
+                    print("{0}:\'{1}\'".format(
+                        'mana cost', cardinfo['mana_cost']))
+                    print("{0}:\'{1}\'".format(
+                        'card type', cardinfo['type_line']))
+                    print("{0}:\n\'{1}\'".format(
+                        'card text', cardinfo['oracle_text']))
+                except KeyError:
+                    for face in cardinfo['card_faces']:
+                        print("{0}:\'{1}\'".format('card name', face['name']))
+                        print("{0}:\'{1}\'".format(
+                            'mana cost', face['mana_cost']))
+                        print("{0}:\'{1}\'".format(
+                            'card type', face['type_line']))
+                        print("{0}:\n\'{1}\'".format(
+                            'card text', face['oracle_text']))
                 continue
 
             if name == '--downloadset':
