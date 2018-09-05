@@ -3,6 +3,8 @@
 
 """Get card image in https://scryfall.com"""
 
+import pdb
+
 import getopt
 import logging
 import math
@@ -60,19 +62,24 @@ def getsetinfo(setshortname, lang='en'):
     """Get Series information"""
     try:
         resp = requests.get(
-            'https://api.scryfall.com/sets/{0}'.format(setshortname), timeout=13)
+            'https://api.scryfall.com/cards/search?q=s:{0}'.format(setshortname), timeout=13)
         if resp.status_code != 200:
             return None
-        seriessize = resp.json()['card_count']
-        seriescode = resp.json()['code']
+        info_content = resp.json()
+        cardsinfo = []
+        for cardinfo in info_content['data']:
+            cardsinfo.append( cardinfo )
+        has_more = info_content['has_more']
 
-        cardobjs = []
-        for cardid in range(1, seriessize + 1):
-            cardobjs.append((seriescode, cardid, lang))
+        while has_more != False:
+            resp = requests.get(
+                info_content.get('next_page'), timeout=13)
+            info_content = resp.json()
+            for cardinfo in info_content['data']:
+                cardsinfo.append( cardinfo )
+            has_more = info_content['has_more']
 
-        with Pool(processes=8) as P:
-            cardsinfo = P.map(getcardinfo_fromid, cardobjs)
-
+        pdb.set_trace()
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info("Get set:'%s' card list time out", setshortname)
