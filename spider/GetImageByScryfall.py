@@ -3,8 +3,6 @@
 
 """Get card image in https://scryfall.com"""
 
-import pdb
-
 import getopt
 import logging
 import math
@@ -79,7 +77,6 @@ def getsetinfo(setshortname, lang='en'):
                 cardsinfo.append( cardinfo )
             has_more = info_content['has_more']
 
-        pdb.set_trace()
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info("Get set:'%s' card list time out", setshortname)
