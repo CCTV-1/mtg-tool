@@ -124,8 +124,9 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename );
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
 static void free_cardobject( struct CardObject * card );
-static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_str );
-static gchar * cardname_to_imagename( gchar * cardname , enum DeckType deck_type );
+static char * stem_name( const char * filename );
+static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str );
+static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType deck_type );
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
@@ -141,24 +142,16 @@ int main ( int argc, char * argv[] )
     config_inital();
 
     GSList * decklist = get_deckfile_list( config_object.deck_file_directory );
-
     if ( decklist == NULL )
         return EXIT_FAILURE;
+    
     GSList * temp_ptr = decklist;
     while ( temp_ptr != NULL )
     {
         gchar * deckfile_fullname = ( gchar * )temp_ptr->data;
-        gchar * deckfile_shortname = g_strrstr( ( gchar * )temp_ptr->data , "/" );
-        if ( deckfile_shortname == NULL )
-            //windows path style
-            deckfile_shortname = g_strrstr( ( gchar * )temp_ptr->data , "\\" );
-        //ASCII incompatible character sets may not work
-        deckfile_shortname += 1;
-        gchar * targetdirectory = g_strdup_printf( "%s%s" , config_object.target_root_directory , deckfile_shortname );
-        gsize targetdirectory_len = strnlen( targetdirectory , BUFFSIZE );
-        //****.dck --> ****/$(NUL)"
-        targetdirectory[targetdirectory_len-4] = '/';
-        targetdirectory[targetdirectory_len-3] = '\0';
+        //****.extname --> ****"
+        gchar * deckfile_shortname = stem_name( deckfile_fullname );
+        gchar * targetdirectory = g_strdup_printf( "%s%s/" , config_object.target_root_directory , deckfile_shortname );
         struct DeckObject deck = { deckfile_fullname , targetdirectory };
         if ( remove_directory( deck.targetdirectory ) == FALSE )
             continue;
@@ -169,6 +162,7 @@ int main ( int argc, char * argv[] )
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images \n" , deckfile_fullname , copy_success_count );
         else
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "set to do not copy files,deck:\"%s\"\n" , deckfile_fullname );
+        g_free( deckfile_shortname );
         g_free( targetdirectory );
         temp_ptr = g_slist_next( temp_ptr );
     }
@@ -779,7 +773,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     parse_err:
         g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
         g_error_free( g_error );
-        exit( EXIT_FAILURE );
+        return UNKNOWN_DECK_FORMAT;
 }
 
 static GSList * get_cardlist( const gchar * deckfilename )
@@ -788,28 +782,26 @@ static GSList * get_cardlist( const gchar * deckfilename )
     switch ( deck_type )
     {
         case FORGE_DECK_FORMAT:
+        {
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "FORGE DECK" );
-            break;
-        case MTGA_DECK_FORMAT:
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "MTGA DECK" );
-            break;
-        case GOLDFISH_DECK_FORMAT:
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "GOLDFISH DECK" );
-            break;
-        default:
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "UNKNOWN DECK" );
-    }
-    switch ( deck_type )
-    {
-        case FORGE_DECK_FORMAT:
             return get_cardlist_forge( deckfilename );
+        }
         case MTGA_DECK_FORMAT:
+        {
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "MTGA DECK" );
             return get_cardlist_mtga( deckfilename );
+        }
         //goldfish regex match mtga format deck,so first check mtga format.
         case GOLDFISH_DECK_FORMAT:
+        {
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "GOLDFISH DECK" );
             return get_cardlist_goldfish( deckfilename );
+        }
         default :
+        {
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "UNKNOWN DECK" );
             return NULL;
+        }
     }
 
     return NULL;
@@ -1035,7 +1027,7 @@ static void free_cardobject( struct CardObject * card )
     free( card );
 }
 
-static gchar * cardname_to_imagename( gchar * cardname , enum DeckType deck_type )
+static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType deck_type )
 {
     gchar * new_str = NULL;
 
@@ -1068,7 +1060,65 @@ static gchar * cardname_to_imagename( gchar * cardname , enum DeckType deck_type
     return new_str;
 }
 
-static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_str )
+static char * stem_name( const char * filename )
+{
+    if ( filename == NULL )
+        return NULL;
+
+    const char * stem_name_start_ptr = filename;
+    // "/home/username/doc/file.exp"  pointer to "file.exp"
+    for ( const char * find_ptr = NULL ; ( find_ptr = strchr( stem_name_start_ptr , '/' ) ) != NULL ; )
+        stem_name_start_ptr = find_ptr + 1;
+    
+    // unix file name space '\\' in $(filename) is valid
+    #ifdef G_OS_WIN32
+    // if "/home/user\\name/doc\\file.exp" pointer to "file.exp"
+    for ( const char * find_ptr = NULL ; ( find_ptr = strchr( stem_name_start_ptr , '\\' ) ) != NULL ; )
+        stem_name_start_ptr = find_ptr + 1;
+    #endif
+
+    const char * stem_name_end_ptr = stem_name_start_ptr;
+    // 'file.name.content..sss.format" pointer to "format"
+    for ( const char * find_ptr = NULL ; ( find_ptr = strchr( stem_name_end_ptr , '.' ) ) != NULL ; )
+        stem_name_end_ptr = find_ptr + 1;
+
+
+    size_t stem_name_len = stem_name_end_ptr - stem_name_start_ptr;
+    // ".vimrc" unix hide file name format,the stem name: ".vimrc" or if "filenamecontent"
+    if ( stem_name_len <= 1 )
+    {
+        stem_name_len = strnlen( stem_name_start_ptr , BUFFSIZE );
+        // if ""
+        if ( stem_name_len == 0 )
+        {
+            // avoid malloc zero memory,return ""
+            stem_name_len = 1;
+        }
+    }
+    // "/usr/bin/.."
+    else if ( strncmp( stem_name_start_ptr , ".." , BUFFSIZE ) == 0 )
+    {
+        stem_name_len = 2;
+    }
+    // 'file.name.content..sss.format" pointer to ".format"
+    else
+    {
+        stem_name_len -=1;
+    }
+
+    char * stem_name = ( char * )malloc( ( stem_name_len )*sizeof( char ) );
+    if ( stem_name == NULL )
+    {
+        return NULL;
+    }
+
+    memcpy( stem_name , stem_name_start_ptr , stem_name_len );
+    stem_name[stem_name_len] = '\0';
+
+    return stem_name;
+}
+
+static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str )
 {
     if ( source_str == NULL )
         return NULL;
@@ -1077,9 +1127,9 @@ static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_st
     if ( to_str == NULL )
         return NULL;
     
-    size_t source_len = strnlen( source_str , 2048 );
-    size_t from_len = strnlen( from_str , 2048 );
-    size_t to_len = strnlen( to_str , 2048 );
+    size_t source_len = strnlen( source_str , BUFFSIZE );
+    size_t from_len = strnlen( from_str , BUFFSIZE );
+    size_t to_len = strnlen( to_str , BUFFSIZE );
     size_t replace_count = 0;
     
     if ( ( from_len == 0 ) || ( source_len == 0 ) )
@@ -1091,7 +1141,7 @@ static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_st
         return new_str;
     }
 
-    gchar * temp_ptr = source_str;
+    const gchar * temp_ptr = source_str;
     for ( gchar * find_ptr = NULL ; ( find_ptr = strstr( temp_ptr , from_str ) ) != NULL ; replace_count++ )
         temp_ptr = find_ptr + from_len;
     
@@ -1132,8 +1182,8 @@ static gchar * strreplace( gchar * source_str , gchar * from_str , gchar * to_st
     if ( new_str == NULL )
         return NULL;
 
-    gchar * start_ptr = source_str;
-    gchar * end_ptr = source_str + source_len;
+    const gchar * start_ptr = source_str;
+    const gchar * end_ptr = source_str + source_len;
     gchar * copy_to_ptr = new_str;
     while( replace_count-- > 0 )
     {
