@@ -160,9 +160,9 @@ int main ( int argc, char * argv[] )
             continue;
         gint32 copy_success_count = process_deck( &deck );
         if ( config_object.copy_file == TRUE )
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images \n" , deckfile_fullname , copy_success_count );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images" , deckfile_fullname , copy_success_count );
         else
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "set to do not copy files,deck:\"%s\"\n" , deckfile_fullname );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "set to do not copy files,deck:\"%s\"" , deckfile_fullname );
         g_free( deckfile_shortname );
         g_free( targetdirectory );
         temp_ptr = g_slist_next( temp_ptr );
@@ -183,7 +183,7 @@ void config_inital( void )
 
     if( !root )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d: %s\n", error.line , error.text );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d: %s", error.line , error.text );
         exit( EXIT_FAILURE );
     }
 
@@ -204,7 +204,7 @@ void config_inital( void )
 
     if ( config_object.image_root_directory == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit\n" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit" );
         json_decref( root );
         exit( EXIT_FAILURE );
     }
@@ -407,17 +407,17 @@ static gboolean make_directory( const gchar * dir )
         g_object_unref( targetdirectory );
         if ( g_error_matches( g_error , G_IO_ERROR_EXISTS, G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "directory %s already exists\n" , dir );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "directory %s already exists" , dir );
             return FALSE;
         }
         else if ( g_error_matches( g_error , G_IO_ERROR_NOT_SUPPORTED , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "file system does not support creating directories\n" );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "file system does not support creating directories" );
             return FALSE;
         }
         else
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "create directory %s unknown error\n" , dir );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "create directory %s unknown error" , dir );
             return FALSE;
         }
     }
@@ -430,7 +430,7 @@ static gchar * get_string_node( json_t * root, const gchar * nodename )
     json_t * node = json_object_get( root, nodename );
     if( !json_is_string( node ) )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a string node\n", nodename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a string node", nodename );
         return NULL;
     }
     const gchar * onlyread_string = json_string_value( node );
@@ -443,7 +443,7 @@ static json_int_t get_integer_node( json_t * root , const gchar * nodename )
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_integer( node ) )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a integer node\n" , nodename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a integer node" , nodename );
     }
     //if not integer node json_integer_value return 0
     return json_integer_value( node );
@@ -454,7 +454,7 @@ static gint get_boolean_node( json_t * root , const gchar * nodename )
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_boolean( node ) )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a boolean node\n" , nodename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a boolean node" , nodename );
         //identify get value error
         return -1;
     }
@@ -477,27 +477,27 @@ static gboolean copy_file( const gchar * source_uri , const gchar * destination_
         g_object_unref( destination );
         if ( g_error_matches( g_error , G_IO_ERROR_NOT_FOUND , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not exist\n" , source_uri );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not exist" , source_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_EXISTS , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s exist\n" , destination_uri );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s exist" , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_IS_DIRECTORY , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory\n" , destination_uri );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory" , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_WOULD_MERGE , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s and %s\n" , source_uri , destination_uri );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s and %s" , source_uri , destination_uri );
             return FALSE;
         }
         if ( g_error_matches( g_error , G_IO_ERROR_WOULD_RECURSE , G_IO_ERROR_FAILED ) )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory or \n" , source_uri );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s is directory or " , source_uri );
             return FALSE;
         }
     }
@@ -512,7 +512,7 @@ static void preview_init( struct DeckObject * deck )
 
     GdkPixbuf * icon_pixbuf = gdk_pixbuf_new_from_file( "logo.ico" , NULL );
     if ( icon_pixbuf == NULL )
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , "logo.ico" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , "logo.ico" );
     else
         gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
     g_object_unref( icon_pixbuf );
@@ -586,13 +586,13 @@ static void preview_add_card( struct CardObject * card )
         GtkWidget * image = gtk_image_new_from_file( imagefile_path );
         if ( image == NULL )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefile_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , imagefile_path );
             return ;
         }
         GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
         if ( pixbuf == NULL )
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found\n" , imagefile_path );
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , imagefile_path );
             return ;
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.card_width , config_object.card_height , GDK_INTERP_BILINEAR );
@@ -718,7 +718,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     FILE * deckfile = fopen( deck_filename , "r" );
     if ( deckfile == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deck_filename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deck_filename );
         return UNKNOWN_DECK_FORMAT;
     }
 
@@ -783,7 +783,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     //avoid no-return warning,can't use else
     return UNKNOWN_DECK_FORMAT;
     parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
         g_error_free( g_error );
         return UNKNOWN_DECK_FORMAT;
 }
@@ -825,7 +825,7 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
     FILE * deckfile = fopen( deckfilename , "r" );
     if ( deckfile == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deckfilename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
         return NULL;
     }
 
@@ -873,7 +873,7 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
     return cardlist;
 
     parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
         g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
@@ -885,7 +885,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
     FILE * deckfile = fopen( deckfilename , "r" );
     if ( deckfile == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deckfilename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
         return NULL;
     }
 
@@ -937,7 +937,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
     return cardlist;
 
     parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
         g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
@@ -949,7 +949,7 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
     FILE * deckfile = fopen( deckfilename , "r" );
     if ( deckfile == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure\n" , deckfilename );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
         return NULL;
     }
 
@@ -998,7 +998,7 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
     return cardlist;
 
     parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s\n" , g_error->message );
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
         g_regex_unref( regex );
         g_error_free( g_error );
         exit( EXIT_FAILURE );
@@ -1301,7 +1301,7 @@ static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointe
     GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.window_width , config_object.window_height );
     if ( deckpreview == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get deck preview buff faliure\n" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get deck preview buff faliure" );
     }
     else
     {
