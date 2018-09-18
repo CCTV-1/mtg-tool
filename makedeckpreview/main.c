@@ -131,6 +131,7 @@ static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardse
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
 static void download_file( gpointer data , gpointer user_data );
+static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data );
 static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
@@ -276,7 +277,7 @@ gint32 process_deck( struct DeckObject * deck )
     GSList * cardlist = get_cardlist( deck->deckfullname );
     if ( cardlist == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck \"%s\" format unknown,parsing stop\n" , deck->deckfullname );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck \"%s\" format unknown,parsing stop" , deck->deckfullname );
         return 0;
     }
 
@@ -328,6 +329,11 @@ static GSList * get_deckfile_list( const gchar * deck_path )
 {
     GDir * dir_ptr = g_dir_open( deck_path , 0 , NULL );
     GSList * deck_list = NULL;
+
+    GtkClipboard * clipboard = gtk_clipboard_get( GDK_SELECTION_CLIPBOARD );
+    gtk_clipboard_request_text( clipboard , get_clipboard_content , &deck_list );
+    //do gtk loop get clipboard content;
+    gtk_main();
 
     if ( dir_ptr == NULL )
         return deck_list;
@@ -761,10 +767,16 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     g_regex_unref( mtga_regex );
     g_regex_unref( goldfish_regex );
     fclose( deckfile );
-        
-    if ( ( forge_format_count >= mtga_format_count ) && ( forge_format_count >= goldfish_format_count ) )
+
+    if ( ( forge_format_count >= mtga_format_count ) &&
+         ( forge_format_count >= goldfish_format_count ) &&
+         forge_format_count != 0
+       )
         return FORGE_DECK_FORMAT;
-    else if ( ( mtga_format_count >= forge_format_count ) && ( mtga_format_count >= goldfish_format_count ) )
+    else if ( ( mtga_format_count >= forge_format_count ) &&
+              ( mtga_format_count >= goldfish_format_count ) &&
+              mtga_format_count != 0
+            )
         return MTGA_DECK_FORMAT;
     else if ( goldfish_format_count != 0 )
         return GOLDFISH_DECK_FORMAT;
@@ -1243,6 +1255,43 @@ static gchar * make_targetfile_uri( const char * targetdirectory , const gchar *
         targetfile_uri = g_strdup_printf( "file:///%s%s%"G_GSIZE_FORMAT"%s" ,
             targetdirectory , cardname , retry_count , config_object.image_suffix );
     return targetfile_uri;
+}
+
+static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data )
+{
+    ( void )clipboard;
+    GSList ** deck_list = ( GSList ** )user_data;
+    if ( text == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "content not exist" );
+        goto do_return;
+    }
+    gsize text_len = g_utf8_strlen( text , -1 );
+
+    GFileIOStream * io_stream = NULL;
+    GFile * temp_file_obj = g_file_new_tmp( NULL , &io_stream , NULL );
+    if ( temp_file_obj == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "can not new temp file" );
+       goto do_return;
+    }
+    GOutputStream * output_stream = g_io_stream_get_output_stream( G_IO_STREAM( io_stream ) );
+    gssize write_size = g_output_stream_write( output_stream , text , text_len , NULL , NULL );
+    if ( write_size == -1 )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "write failed" );
+        g_object_unref( temp_file_obj );
+        goto do_return;
+    }
+
+    gchar * temp_filename = g_file_get_parse_name( temp_file_obj );
+    *deck_list = g_slist_append( *deck_list , ( gpointer )temp_filename );
+
+    //delete_deck_list free
+    //g_free( temp_filename );
+    g_object_unref( temp_file_obj );
+    do_return:
+    gtk_main_quit();
 }
 
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data )
