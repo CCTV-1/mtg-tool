@@ -136,7 +136,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
 static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
 
-int main ( int argc, char * argv[] )
+int main ( int argc , char * argv[] )
 {
     gtk_init( &argc, &argv );
     curl_global_init( CURL_GLOBAL_ALL );
@@ -1075,7 +1075,7 @@ static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType dec
     return new_str;
 }
 
-static char * stem_name( const char * filename )
+char * stem_name( const char * filename )
 {
     if ( filename == NULL )
         return NULL;
@@ -1099,16 +1099,10 @@ static char * stem_name( const char * filename )
 
 
     size_t stem_name_len = stem_name_end_ptr - stem_name_start_ptr;
-    // ".vimrc" unix hide file name format,the stem name: ".vimrc" or if "filenamecontent"
+    // ".vimrc" unix hide file name format,the stem name: ".vimrc" or if "filenamecontent" , ""
     if ( stem_name_len <= 1 )
     {
         stem_name_len = strnlen( stem_name_start_ptr , BUFFSIZE );
-        // if ""
-        if ( stem_name_len == 0 )
-        {
-            // avoid malloc zero memory,return ""
-            stem_name_len = 1;
-        }
     }
     // "/usr/bin/.."
     else if ( strncmp( stem_name_start_ptr , ".." , BUFFSIZE ) == 0 )
@@ -1118,10 +1112,10 @@ static char * stem_name( const char * filename )
     // 'file.name.content..sss.format" pointer to ".format"
     else
     {
-        stem_name_len -=1;
+        stem_name_len -= 1;
     }
 
-    char * stem_name = ( char * )malloc( ( stem_name_len )*sizeof( char ) );
+    char * stem_name = ( char * )malloc( ( stem_name_len + 1 )*sizeof( char ) );
     if ( stem_name == NULL )
     {
         return NULL;
@@ -1355,7 +1349,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
 }
 
 static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data )
-{   
+{
     ( void )widget;
     struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
     int x, y;
@@ -1454,7 +1448,7 @@ static void download_file( gpointer data , gpointer user_data )
         url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
     else
         url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&set=%s&format=image" , card->cardname , card->cardseries );
-    g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s" , url );
+
     gchar * source_url = g_uri_escape_string( url , G_URI_RESERVED_CHARS_ALLOWED_IN_PATH"?" , FALSE );
     g_free( url );
     gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
@@ -1493,12 +1487,12 @@ static void download_file( gpointer data , gpointer user_data )
 
 	CURL * curl_handle = curl_easy_init();
 
-	curl_easy_setopt( curl_handle , CURLOPT_URL , source_url );
-	curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
-	curl_easy_setopt( curl_handle , CURLOPT_FOLLOWLOCATION , 1L );
-	curl_easy_setopt( curl_handle , CURLOPT_NOPROGRESS , 1L );
+    curl_easy_setopt( curl_handle , CURLOPT_URL , source_url );
+    curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
+    curl_easy_setopt( curl_handle , CURLOPT_FOLLOWLOCATION , 1L );
+    curl_easy_setopt( curl_handle , CURLOPT_NOPROGRESS , 1L );
     curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , 13L );
-	curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , NULL );
+    curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , NULL );
 
 	FILE * download_file = fopen( destination_path, "wb" );
 	if ( download_file )
