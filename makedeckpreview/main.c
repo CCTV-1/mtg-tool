@@ -522,7 +522,10 @@ static void preview_init( struct DeckObject * deck )
         gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
     }
     else
+    {
+        gtk_window_set_hide_titlebar_when_maximized( GTK_WINDOW( preview_object.window ) , TRUE );
         gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deck->deckfullname );
+    }
 
     gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.window_width , ( gint )config_object.window_height );
     g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event", G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
@@ -1446,7 +1449,12 @@ static void download_file( gpointer data , gpointer user_data )
     struct CardObject * card = ( struct CardObject * )data;
     g_usleep( 1000 );
     
-    gchar * url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
+    gchar * url = NULL;
+    if ( card->cardseries == NULL )
+        url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
+    else
+        url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&set=%s&format=image" , card->cardname , card->cardseries );
+    g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s" , url );
     gchar * source_url = g_uri_escape_string( url , G_URI_RESERVED_CHARS_ALLOWED_IN_PATH"?" , FALSE );
     g_free( url );
     gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
