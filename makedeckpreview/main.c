@@ -11,11 +11,13 @@
 #include <jansson.h>
 
 #define CONFIG_FILE "config.json"
+#define LOGO_FILE "logo.ico"
 #define BUFFSIZE 1024
 
 enum DeckType
 {
     FORGE_DECK_FORMAT = 0,
+    XMAGE_DECK_FORMAT,
     MTGA_DECK_FORMAT,
     GOLDFISH_DECK_FORMAT,
     UNKNOWN_DECK_FORMAT,
@@ -102,9 +104,9 @@ static gboolean remove_directory( const gchar * dir );
 static gboolean make_directory( const gchar * dir );
 
 //do config_inital
-static json_int_t get_integer_node( json_t * root , const gchar * nodename );
+static gboolean get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable );
 static gchar * get_string_node( json_t * root, const gchar * nodename );
-static gint get_boolean_node( json_t * root , const gchar * nodename );
+static gboolean get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable );
 
 //do process_deck
 static void preview_init( struct DeckObject * deck );
@@ -118,6 +120,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename );
 
 static GSList * get_cardlist( const gchar * deckfilename );
 static GSList * get_cardlist_forge( const gchar * deckfilename );
+static GSList * get_cardlist_xmage( const gchar * deckfilename );
 static GSList * get_cardlist_mtga( const gchar * deckfilename );
 static GSList * get_cardlist_goldfish( const gchar * deckfilename );
 
@@ -145,7 +148,7 @@ int main ( int argc , char * argv[] )
     GSList * decklist = get_deckfile_list( config_object.deck_file_directory );
     if ( decklist == NULL )
         return EXIT_FAILURE;
-    
+
     GSList * temp_ptr = decklist;
     while ( temp_ptr != NULL )
     {
@@ -181,78 +184,94 @@ void config_inital( void )
 
     root = json_load_file( CONFIG_FILE , 0 , &error );
 
-    if( !root )
+    if( root == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d: %s", error.line , error.text );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d : %s", error.line , error.text );
         exit( EXIT_FAILURE );
     }
 
-    config_object.image_name_format = get_integer_node( root , "ImageNameFormat" );
-    config_object.image_root_directory = get_string_node( root, "ImageRootDirectory" );
-    config_object.image_suffix = get_string_node( root, "ImageSuffix" );
-    config_object.deck_file_directory = get_string_node( root, "DeckFileDirectory" );
-    config_object.target_root_directory = get_string_node( root , "TargetRootDirectory" );
-    config_object.window_width = get_integer_node( root , "WindowWidth" );
-    config_object.window_height = get_integer_node( root , "WindowHeight" );
-    config_object.card_width = get_integer_node( root , "CardWidth" );
-    config_object.card_height = get_integer_node( root , "CardHeight" );
-    config_object.line_card_number = get_integer_node( root , "LineCardNumber" );
-    config_object.title_font_size = get_integer_node( root , "TitleFontSize" );
-    config_object.hide_title_bar = get_boolean_node( root , "HideTitleBar" );
-    config_object.copy_file = get_boolean_node( root , "CopyFile" );
-    config_object.use_network_image = get_boolean_node( root , "UseNetworkImage" );
+    gboolean status = FALSE;
 
+    status = get_integer_node( root , "ImageNameFormat" , ( json_int_t * )( &config_object.image_name_format ) );
+    if ( status == FALSE )
+    {
+        config_object.image_name_format = FORGE_NAME_FORMAT;
+    }
+
+    status = get_integer_node( root , "WindowWidth" , &config_object.window_width );
+    if ( status == FALSE )
+    {
+        config_object.window_width = 1050;
+    }
+
+    status = get_integer_node( root , "WindowHeight" , &config_object.window_height );
+    if ( status == FALSE )
+    {
+        config_object.window_height = 600;
+    }
+
+    status = get_integer_node( root , "CardWidth" , &config_object.card_width );
+    if ( status == FALSE )
+    {
+        config_object.card_width = 70;
+    }
+
+    status = get_integer_node( root , "CardHeight" , &config_object.card_height );
+    if ( status == FALSE )
+    {
+        config_object.card_height = 100;
+    }
+
+    status = get_integer_node( root , "LineCardNumber" , &config_object.line_card_number );
+    if ( status == FALSE )
+    {
+        config_object.line_card_number = 15;
+    }
+
+    status = get_integer_node( root , "TitleFontSize" , &config_object.title_font_size );
+    if ( status == FALSE )
+    {
+        config_object.title_font_size = 20;
+    }
+
+    config_object.image_root_directory = get_string_node( root, "ImageRootDirectory" );
     if ( config_object.image_root_directory == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get configuration:ImageRootDirectory faliure,no exitst default configuration,programs exit" );
-        json_decref( root );
-        exit( EXIT_FAILURE );
+        config_object.image_root_directory = g_get_current_dir();
     }
+
+    config_object.image_suffix = get_string_node( root, "ImageSuffix" );
     if ( config_object.image_suffix == NULL )
     {
         config_object.image_suffix = g_strdup_printf( "%s" , ".jpg" );
     }
+
+    config_object.deck_file_directory = get_string_node( root, "DeckFileDirectory" );
     if ( config_object.deck_file_directory == NULL )
     {
-        config_object.deck_file_directory = g_strdup_printf( "%s" , "./");
+        config_object.deck_file_directory = g_strdup_printf( "%s" , "./" );
     }
+
+    config_object.target_root_directory = get_string_node( root , "TargetRootDirectory" );
     if ( config_object.target_root_directory == NULL )
     {
-        config_object.target_root_directory = g_strdup_printf( "%s" , "./");
+        config_object.target_root_directory = g_strdup_printf( "%s" , "./" );
     }
-    if ( config_object.window_width == 0 ) 
-    {
-        config_object.window_width = 1050;
-    }
-    if ( config_object.window_height == 0 )
-    {
-        config_object.window_height = 600;
-    }
-    if ( config_object.card_width == 0 )
-    {
-        config_object.card_width = 70;
-    }
-    if ( config_object.card_height == 0 )
-    {
-        config_object.card_height = 100;
-    }
-    if ( config_object.line_card_number == 0 )
-    {
-        config_object.line_card_number = 15;
-    }
-    if ( config_object.title_font_size == 0 )
-    {
-        config_object.title_font_size = 20;
-    }
-    if ( config_object.hide_title_bar == -1 )
+ 
+    status = get_boolean_node( root , "HideTitleBar" , &config_object.hide_title_bar );
+    if ( status == FALSE )
     {
         config_object.hide_title_bar = FALSE;
     }
-    if ( config_object.copy_file == -1 )
+    
+    status = get_boolean_node( root , "CopyFile" , &config_object.copy_file );
+    if ( status == FALSE )
     {
         config_object.copy_file = FALSE;
     }
-    if ( config_object.use_network_image == -1 )
+
+    status = get_boolean_node( root , "UseNetworkImage" , &config_object.use_network_image );
+    if ( status == FALSE )
     {
         config_object.use_network_image = FALSE;
     }
@@ -294,6 +313,7 @@ gint32 process_deck( struct DeckObject * deck )
         }
         g_thread_pool_free( thr_pool , FALSE , TRUE );
     }
+
     temp = cardlist;
     while( temp != NULL )
     {
@@ -391,7 +411,7 @@ static gboolean remove_directory( const gchar * dir )
         g_free( dir_name );
     }
     g_dir_close( dir_ptr );
-    g_rmdir( dir ); 
+    g_rmdir( dir );
     return TRUE;
 }
 
@@ -438,28 +458,31 @@ static gchar * get_string_node( json_t * root, const gchar * nodename )
     return return_string;
 }
 
-static json_int_t get_integer_node( json_t * root , const gchar * nodename )
+static gboolean get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable )
 {
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_integer( node ) )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a integer node" , nodename );
+        return FALSE;
     }
-    //if not integer node json_integer_value return 0
-    return json_integer_value( node );
+    *variable = json_integer_value( node );
+    
+    return TRUE;
 }
 
-static gint get_boolean_node( json_t * root , const gchar * nodename )
+static gboolean get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable )
 {
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_boolean( node ) )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a boolean node" , nodename );
         //identify get value error
-        return -1;
+        return FALSE;
     }
-    //consistent with the standard boolean behavior
-    return json_boolean_value( node );
+
+    *variable = json_boolean_value( node );
+    return TRUE;
 }
 
 static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri )
@@ -510,9 +533,9 @@ static void preview_init( struct DeckObject * deck )
 {
     preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
-    GdkPixbuf * icon_pixbuf = gdk_pixbuf_new_from_file( "logo.ico" , NULL );
+    GdkPixbuf * icon_pixbuf = gdk_pixbuf_new_from_file( LOGO_FILE , NULL );
     if ( icon_pixbuf == NULL )
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , "logo.ico" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , LOGO_FILE );
     else
         gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
     g_object_unref( icon_pixbuf );
@@ -550,7 +573,7 @@ static void preview_init( struct DeckObject * deck )
     preview_object.sideboard_layout.select_target = FALSE;
     preview_object.sideboard_layout.width = 0;
     preview_object.sideboard_layout.height = 0;
-    
+
     preview_object.layout = gtk_layout_new( NULL , NULL );
     preview_object.layout_height = 0;
     gtk_container_add( GTK_CONTAINER( scrolled ) , preview_object.layout );
@@ -572,7 +595,7 @@ static void preview_add_title( enum CardLocal card_local )
     GtkWidget * title_box = gtk_event_box_new();
     gtk_widget_set_size_request( GTK_WIDGET( title_box ) , config_object.window_width , config_object.title_font_size );
     gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
-    
+
     gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , title_box , 0 , preview_object.layout_height );
     preview_object.layout_height += 2*config_object.title_font_size;
     g_free( title_label_buff );
@@ -601,12 +624,12 @@ static void preview_add_card( struct CardObject * card )
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.card_width , config_object.card_height , GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
         g_object_unref( pixbuf );
-        
+
         switch ( card->card_local )
         {
             case COMMAND_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.command_layout.layout ) , image , 
+                gtk_layout_put( GTK_LAYOUT( preview_object.command_layout.layout ) , image ,
                     preview_object.command_layout.width , preview_object.command_layout.height );
                 g_array_append_val( preview_object.command_layout.images , image );
                 preview_object.command_layout.width += config_object.card_width;
@@ -619,7 +642,7 @@ static void preview_add_card( struct CardObject * card )
             }
             case MAIN_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.main_layout.layout ) , image , 
+                gtk_layout_put( GTK_LAYOUT( preview_object.main_layout.layout ) , image ,
                     preview_object.main_layout.width , preview_object.main_layout.height );
                 g_array_append_val( preview_object.main_layout.images , image );
                 preview_object.main_layout.width += config_object.card_width;
@@ -632,7 +655,7 @@ static void preview_add_card( struct CardObject * card )
             }
             case SIDEBOARD_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.sideboard_layout.layout ) , image , 
+                gtk_layout_put( GTK_LAYOUT( preview_object.sideboard_layout.layout ) , image ,
                     preview_object.sideboard_layout.width , preview_object.sideboard_layout.height );
                 g_array_append_val( preview_object.sideboard_layout.images , image );
                 preview_object.sideboard_layout.width += config_object.card_width;
@@ -661,18 +684,18 @@ static void preview_display( void )
         preview_object.layout_height += preview_object.command_layout.height;
     }
 
-    if ( preview_object.main_layout.images->len != 0 ) 
+    if ( preview_object.main_layout.images->len != 0 )
     {
-        preview_add_title( MAIN_LOCAL );              
+        preview_add_title( MAIN_LOCAL );
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.main_layout.layout , 0 , preview_object.layout_height );
         if ( ( preview_object.main_layout.images->len ) % config_object.line_card_number != 0 )
             preview_object.main_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.main_layout.height;
     }
-    
+
     if ( preview_object.sideboard_layout.images->len != 0 )
     {
-        preview_add_title( SIDEBOARD_LOCAL );         
+        preview_add_title( SIDEBOARD_LOCAL );
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.sideboard_layout.layout , 0 , preview_object.layout_height );
         if ( ( preview_object.sideboard_layout.images->len ) % config_object.line_card_number != 0 )
             preview_object.sideboard_layout.height += config_object.card_height;
@@ -688,7 +711,7 @@ static void preview_display( void )
     g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "motion-notify-event" , G_CALLBACK( motion_notify_handle ) , &preview_object.sideboard_layout );
     g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "button-press-event" , G_CALLBACK( button_press_handle ) , &preview_object.sideboard_layout );
     g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "button-release-event" , G_CALLBACK( button_release_handle ) , &preview_object.sideboard_layout );
-    
+
     gtk_widget_set_events( preview_object.command_layout.layout , gtk_widget_get_events( preview_object.layout )
         | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
         | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
@@ -699,11 +722,11 @@ static void preview_display( void )
         | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
         | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
 
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.command_layout.layout ) , 
+    gtk_widget_set_size_request( GTK_WIDGET( preview_object.command_layout.layout ) ,
         config_object.line_card_number*config_object.card_width , preview_object.command_layout.height );
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.main_layout.layout ) , 
+    gtk_widget_set_size_request( GTK_WIDGET( preview_object.main_layout.layout ) ,
         config_object.line_card_number*config_object.card_width , preview_object.main_layout.height );
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.sideboard_layout.layout ) , 
+    gtk_widget_set_size_request( GTK_WIDGET( preview_object.sideboard_layout.layout ) ,
         config_object.line_card_number*config_object.card_width , preview_object.sideboard_layout.height );
     gtk_layout_set_size( GTK_LAYOUT( preview_object.layout ) , config_object.line_card_number*config_object.card_width , preview_object.layout_height );
     gtk_widget_show_all( GTK_WIDGET( preview_object.window ) );
@@ -729,15 +752,22 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     GRegex * forge_regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( forge_regex == NULL )
         goto parse_err;
-    GRegex * mtga_regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , 
+
+    GRegex * xmage_regex = g_regex_new( "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( xmage_regex == NULL )
+        goto parse_err;
+
+    GRegex * mtga_regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" ,
                         G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( mtga_regex == NULL )
         goto parse_err;
+
     GRegex * goldfish_regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( goldfish_regex == NULL )
         goto parse_err;
 
     size_t forge_format_count = 0;
+    size_t xmage_format_count = 0;
     size_t mtga_format_count = 0;
     size_t goldfish_format_count = 0;
 
@@ -746,6 +776,15 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         if ( g_regex_match( forge_regex , line_buff , 0 , NULL ) == TRUE )
         {
             forge_format_count++;
+            continue;
+        }
+        if ( g_error != NULL )
+            goto parse_err;
+
+        if ( g_regex_match( xmage_regex , line_buff , 0 , NULL ) == TRUE )
+        {
+            xmage_format_count++;
+            continue;
         }
         if ( g_error != NULL )
             goto parse_err;
@@ -753,6 +792,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         if ( g_regex_match( mtga_regex , line_buff , 0 , NULL ) == TRUE )
         {
             mtga_format_count++;
+            continue;
         }
         if ( g_error != NULL )
             goto parse_err;
@@ -761,6 +801,7 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
         if ( g_regex_match( goldfish_regex , line_buff , 0 , NULL ) == TRUE )
         {
             goldfish_format_count++;
+            continue;
         }
         if ( g_error != NULL )
             goto parse_err;
@@ -771,12 +812,20 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     g_regex_unref( goldfish_regex );
     fclose( deckfile );
 
-    if ( ( forge_format_count >= mtga_format_count ) &&
+    if ( ( forge_format_count >= mtga_format_count )     &&
+         ( forge_format_count >= xmage_format_count )    &&
          ( forge_format_count >= goldfish_format_count ) &&
          forge_format_count != 0
        )
         return FORGE_DECK_FORMAT;
-    else if ( ( mtga_format_count >= forge_format_count ) &&
+    else if ( ( xmage_format_count >= forge_format_count )     &&
+              ( xmage_format_count >= mtga_format_count )      &&
+              ( xmage_format_count >= goldfish_format_count )  &&
+              xmage_format_count != 0
+            )
+        return XMAGE_DECK_FORMAT;
+    else if ( ( mtga_format_count >= forge_format_count )    &&
+              ( mtga_format_count >= xmage_format_count )    &&
               ( mtga_format_count >= goldfish_format_count ) &&
               mtga_format_count != 0
             )
@@ -800,6 +849,11 @@ static GSList * get_cardlist( const gchar * deckfilename )
         {
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "FORGE DECK" );
             return get_cardlist_forge( deckfilename );
+        }
+        case XMAGE_DECK_FORMAT:
+        {
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "XMAGE DECK" );
+            return get_cardlist_xmage( deckfilename );
         }
         case MTGA_DECK_FORMAT:
         {
@@ -882,6 +936,67 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
         exit( EXIT_FAILURE );
 }
 
+GSList * get_cardlist_xmage( const gchar * deckfilename )
+{
+    gchar line_buff[BUFFSIZE];
+    FILE * deckfile = fopen( deckfilename , "r" );
+    if ( deckfile == NULL )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
+        return NULL;
+    }
+
+    GSList * cardlist = NULL;
+    GError * g_error = NULL;
+    GMatchInfo * match_info;
+    GRegex * regex = g_regex_new( "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    if ( regex == NULL )
+        goto parse_err;
+    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
+    {
+        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
+        {
+            struct CardObject * card = allocate_cardobject();
+            gchar ** words = g_regex_split( regex , line_buff , 0 );
+            
+            if ( strnlen( words[1] , BUFFSIZE ) == 0 )
+            {
+                card->card_local = MAIN_LOCAL;
+            }
+            else
+            {
+                card->card_local = SIDEBOARD_LOCAL;
+            }
+
+            card->cardnumber = g_ascii_strtoll( words[2] , NULL , 10 );
+            g_strlcat( card->cardseries , words[3] , BUFFSIZE );
+            card->cardid = g_ascii_strtoll( words[4] , NULL , 10 );;
+            g_strlcat( card->cardname , words[5] , BUFFSIZE );
+
+            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            free( card->cardname );
+            card->cardname = image_name;
+
+            cardlist = g_slist_append( cardlist , ( gpointer )card );
+            //if match succee,continue other test
+            g_strfreev( ( gchar ** )words );
+            g_regex_unref( regex );
+            continue;
+        }
+        if ( g_error != NULL )
+            goto parse_err;
+    }
+
+    g_regex_unref( regex );
+    return cardlist;
+
+    parse_err:
+        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
+        g_regex_unref( regex );
+        g_error_free( g_error );
+        exit( EXIT_FAILURE );
+}
+
 static GSList * get_cardlist_mtga( const gchar * deckfilename )
 {
     gchar line_buff[BUFFSIZE];
@@ -921,11 +1036,11 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
             else
                 g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             card->cardid = cardid;
-            
+
             gchar * image_name = cardname_to_imagename( card->cardname , MTGA_DECK_FORMAT );
             free( card->cardname );
             card->cardname = image_name;
-            
+
             cardlist = g_slist_append( cardlist , ( gpointer )card );
             //if match succee,continue other test
             g_strfreev( ( gchar ** )words );
@@ -935,7 +1050,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
         if ( g_error != NULL )
             goto parse_err;
     }
-    
+
     g_regex_unref( regex );
     return cardlist;
 
@@ -1065,7 +1180,7 @@ static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType dec
             new_str = strreplace( cardname , " /// " , "" );
         else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
             new_str = strreplace( cardname , "///" , "-" );
-    
+
         if ( new_str == NULL )
             return NULL;
     }
@@ -1084,7 +1199,7 @@ char * stem_name( const char * filename )
     // "/home/username/doc/file.exp"  pointer to "file.exp"
     for ( const char * find_ptr = NULL ; ( find_ptr = strchr( stem_name_start_ptr , '/' ) ) != NULL ; )
         stem_name_start_ptr = find_ptr + 1;
-    
+
     // unix file name space '\\' in $(filename) is valid
     #ifdef G_OS_WIN32
     // if "/home/user\\name/doc\\file.exp" pointer to "file.exp"
@@ -1135,12 +1250,12 @@ static gchar * strreplace( const gchar * source_str , const gchar * from_str , c
         return NULL;
     if ( to_str == NULL )
         return NULL;
-    
+
     size_t source_len = strnlen( source_str , BUFFSIZE );
     size_t from_len = strnlen( from_str , BUFFSIZE );
     size_t to_len = strnlen( to_str , BUFFSIZE );
     size_t replace_count = 0;
-    
+
     if ( ( from_len == 0 ) || ( source_len == 0 ) )
     {
         gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
@@ -1153,7 +1268,7 @@ static gchar * strreplace( const gchar * source_str , const gchar * from_str , c
     const gchar * temp_ptr = source_str;
     for ( gchar * find_ptr = NULL ; ( find_ptr = strstr( temp_ptr , from_str ) ) != NULL ; replace_count++ )
         temp_ptr = find_ptr + from_len;
-    
+
     if ( replace_count == 0 )
     {
         gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
@@ -1175,11 +1290,11 @@ static gchar * strreplace( const gchar * source_str , const gchar * from_str , c
         chane_len = from_len - to_len;
         len_up = FALSE;
     }
-    
+
     //replace to overflow
     if ( chane_len > ( SIZE_MAX - source_len )/replace_count )
         return NULL;
-    
+
     size_t new_str_len = 0;
     if ( len_up == TRUE )
         new_str_len = source_len + replace_count*chane_len;
@@ -1217,13 +1332,13 @@ static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardse
     if ( cardname == NULL )
         return imagefile_uri;
 
-    const gchar * forgeimagesuffix = ".full"; 
-    const gchar * basiclandnamelist[] = 
+    const gchar * forgeimagesuffix = ".full";
+    const gchar * basiclandnamelist[] =
     {
-        "Plains","Island","Swamp","Mountain","Forest",
-        "Snow-Covered Plains","Snow-Covered Island",
-        "Snow-Covered Swamp","Snow-Covered Mountain",
-        "Snow-Covered Forest","Wastes" , NULL
+        "Plains" , "Island" , "Swamp" , "Mountain" , "Forest" ,
+        "Snow-Covered Plains" , "Snow-Covered Island" ,
+        "Snow-Covered Swamp" , "Snow-Covered Mountain" ,
+        "Snow-Covered Forest" , "Wastes" , NULL
     };
 
     for ( gsize i = 0 ; basiclandnamelist[i] != NULL ; i++ )
@@ -1231,10 +1346,10 @@ static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardse
             forgeimagesuffix = "1.full";
 
     if ( cardseries != NULL )
-        imagefile_uri = g_strdup_printf( "file:///%s%s/%s%s%s" , 
+        imagefile_uri = g_strdup_printf( "file:///%s%s/%s%s%s" ,
             config_object.image_root_directory , cardseries , cardname , forgeimagesuffix , config_object.image_suffix );
     else
-        imagefile_uri = g_strdup_printf( "file:///%s%s%s%s" , 
+        imagefile_uri = g_strdup_printf( "file:///%s%s%s%s" ,
             config_object.image_root_directory , cardname , forgeimagesuffix , config_object.image_suffix );
 
     return imagefile_uri;
@@ -1317,7 +1432,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
     if ( widget_layout == NULL )
         return TRUE;
     int x, y;
-    GdkModifierType state;  
+    GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
     if ( widget_layout->select_target == TRUE && event->type == GDK_MOTION_NOTIFY )
     {
@@ -1332,7 +1447,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
         if ( y < 0 )
         {
             y = widget_layout->dy;
-        } 
+        }
         if ( x > config_object.card_width*config_object.line_card_number )
         {
             x = config_object.card_width*config_object.line_card_number;
@@ -1341,7 +1456,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
         {
             y = config_object.card_height*widget_layout->height;
         }
-        
+
         gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , x - widget_layout->dx , y - widget_layout->dy );
     }
 
@@ -1353,7 +1468,7 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     ( void )widget;
     struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
     int x, y;
-    GdkModifierType state;  
+    GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
 
     //avoid underflow overflow
@@ -1364,7 +1479,7 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
     if ( y < 0 )
     {
         y = widget_layout->dy;
-    } 
+    }
     if ( x > config_object.card_width*config_object.line_card_number )
     {
         x = config_object.card_width*config_object.line_card_number;
@@ -1396,7 +1511,7 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
             for ( guint i = start_index ; i > end_index ; i-- )
             {
                 GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i - 1 );
-                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , 
+                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image ,
                     i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
                 g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
             }
@@ -1406,12 +1521,12 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
             for ( guint i = start_index ; i < end_index ; i++ )
             {
                 GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i + 1 );
-                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , 
+                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image ,
                     i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
                 g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
             }
         }
-        gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , start_image , 
+        gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , start_image ,
                 end_index%( config_object.line_card_number )*config_object.card_width , end_index/( config_object.line_card_number )*config_object.card_height );
         g_array_index( widget_layout->images , GtkWidget * , end_index ) = start_image;
         widget_layout->select_target = FALSE;
@@ -1435,14 +1550,14 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
     widget_layout->select_target = TRUE;
 
     return TRUE;
-}   
+}
 
 static void download_file( gpointer data , gpointer user_data )
 {
     ( void )user_data;
     struct CardObject * card = ( struct CardObject * )data;
     g_usleep( 1000 );
-    
+
     gchar * url = NULL;
     if ( card->cardseries == NULL )
         url = g_strdup_printf( "https://api.scryfall.com/cards/named?exact=%s&format=image" , card->cardname );
@@ -1454,7 +1569,7 @@ static void download_file( gpointer data , gpointer user_data )
     gchar * destination_uri = make_imagefile_uri( card->cardname , card->cardseries );
     gchar * destination_path = g_filename_from_uri( destination_uri , NULL , NULL );
     g_free( destination_uri );
-    
+
     if ( g_file_test( destination_path , G_FILE_TEST_EXISTS ) == TRUE )
     {
         GdkPixbuf * image_pixbuf = gdk_pixbuf_new_from_file( destination_path , NULL );
@@ -1469,7 +1584,7 @@ static void download_file( gpointer data , gpointer user_data )
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "'%s' don't is image file,delete and redownload" , destination_path );
         g_remove( destination_path );
     }
-    
+
     if ( card->cardseries != NULL )
     {
         gchar * download_dir = g_strdup_printf( "%s%s" , config_object.image_root_directory , card->cardseries );
@@ -1485,7 +1600,7 @@ static void download_file( gpointer data , gpointer user_data )
         g_free( download_dir );
     }
 
-	CURL * curl_handle = curl_easy_init();
+    CURL * curl_handle = curl_easy_init();
 
     curl_easy_setopt( curl_handle , CURLOPT_URL , source_url );
     curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
@@ -1494,15 +1609,15 @@ static void download_file( gpointer data , gpointer user_data )
     curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , 13L );
     curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , NULL );
 
-	FILE * download_file = fopen( destination_path, "wb" );
-	if ( download_file )
-	{
-		curl_easy_setopt( curl_handle , CURLOPT_WRITEDATA , download_file );
-		curl_easy_perform( curl_handle );
-		fclose( download_file );
-	}
+    FILE * download_file = fopen( destination_path, "wb" );
+    if ( download_file )
+    {
+        curl_easy_setopt( curl_handle , CURLOPT_WRITEDATA , download_file );
+        curl_easy_perform( curl_handle );
+        fclose( download_file );
+    }
 
-	curl_easy_cleanup( curl_handle );
+    curl_easy_cleanup( curl_handle );
 
     g_free( destination_path );
     g_free( source_url );
