@@ -17,18 +17,19 @@ import requests
 def helps():
     """get help information"""
     print(
-        '--getsetlist get Scryfall.com supported setlist and each set shortname\n'
+        '--getsetlist get scryfall.com supported setlist and each set shortname\n'
         '--getsetinfo=[set shortname] get set cards list\n'
+        '--getcardinfo=[cardname] get card info(usage english name is best)\n'
+        '--downloadformat=[format name] download format all card image\n'
         '--downloadset=[set shortname] download set all card image\n'
         '--downloaddeck=[deckname] download deck content all card image\n'
-        '--getcardinfo=[cardname] get card info(usage english name is best)\n'
         '--downloadcard=[cardname] download card image\
 ,but not support download reprint card history image'
     )
 
 
 def getsetlist():
-    """get Scryfall.com supported series list and each set shortname"""
+    """get scryfall.com supported series list and each set shortname"""
     try:
         resp = requests.get(
             'https://api.scryfall.com/sets', timeout=13)
@@ -37,7 +38,7 @@ def getsetlist():
         serieslist = resp.json()['data']
         return serieslist
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info('Get setlist time out\n')
+        logging.info('get setlist time out\n')
     except (AttributeError, KeyError):
         logging.info('can\'t get setlist\n')
 
@@ -55,9 +56,35 @@ def getcardlist(deckname):
                 continue
     return cardnamelist
 
+def getformatinfo(formatname, lang='en'):
+    """Get format information"""
+    try:
+        resp = requests.get(
+            'https://api.scryfall.com/cards/search?q=format:{0}'.format(formatname), timeout=13)
+        if resp.status_code != 200:
+            return None
+        info_content = resp.json()
+        cardsinfo = []
+        for cardinfo in info_content['data']:
+            cardsinfo.append(cardinfo)
+        has_more = info_content['has_more']
+
+        while has_more != False:
+            resp = requests.get(
+                info_content.get('next_page'), timeout=13)
+            info_content = resp.json()
+            for cardinfo in info_content['data']:
+                cardsinfo.append(cardinfo)
+            has_more = info_content['has_more']
+
+        return cardsinfo
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+        logging.info("get set:'%s' card list time out", formatname)
+    except (AttributeError, TypeError, KeyError):
+        logging.info("set:'%s' information obtained is wrong\n", formatname)
 
 def getsetinfo(setshortname, lang='en'):
-    """Get Series information"""
+    """Get series information"""
     try:
         resp = requests.get(
             'https://api.scryfall.com/cards/search?q=s:{0}'.format(setshortname), timeout=13)
@@ -116,6 +143,18 @@ def getcardinfo_fromname(cardname):
     except (AttributeError, TypeError, KeyError):
         logging.info("Get Card:'%s' Info Failure\n", cardname)
 
+def downloadformat(formatname, lang='en'):
+    cardsinfo = getformatinfo(formatname, lang)
+    if os.path.exists('./' + formatname) is False:
+        os.mkdir('./' + formatname)
+    os.chdir('./' + formatname)
+    P = Pool(processes=8)
+    for cardobj in cardsinfo:
+        P.apply_async(downloadcard, args=(
+            cardobj, ))
+    P.close()
+    P.join()
+    os.chdir('../')
 
 def downloadset(setname, lang='en'):
     cardsinfo = getsetinfo(setname, lang)
@@ -209,7 +248,7 @@ def main():
                         filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
-            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
+            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadformat=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
             if name == '--help':
@@ -255,6 +294,11 @@ def main():
                             'card type', face['type_line']))
                         print("{0}:\n\'{1}\'".format(
                             'card text', face['oracle_text']))
+                continue
+
+            if name == '--downloadformat':
+                formatname = value
+                downloadformat(formatname)
                 continue
 
             if name == '--downloadset':
