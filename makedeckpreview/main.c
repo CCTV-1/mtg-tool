@@ -123,15 +123,16 @@ static GSList * get_cardlist_forge( const gchar * deckfilename );
 static GSList * get_cardlist_xmage( const gchar * deckfilename );
 static GSList * get_cardlist_mtga( const gchar * deckfilename );
 static GSList * get_cardlist_goldfish( const gchar * deckfilename );
-
 static void delete_cardlist( GSList * cardlist );
 static struct CardObject * allocate_cardobject( void );
 static void free_cardobject( struct CardObject * card );
+
 static char * stem_name( const char * filename );
 static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str );
 static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType deck_type );
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
+
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
 static void download_file( gpointer data , gpointer user_data );
 static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data );
@@ -162,10 +163,7 @@ int main ( int argc , char * argv[] )
         if ( make_directory( deck.targetdirectory ) == FALSE )
             continue;
         gint32 copy_success_count = process_deck( &deck );
-        if ( config_object.copy_file == TRUE )
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck:\"%s\" successfully copied %"G_GINT32_FORMAT" card images" , deckfile_fullname , copy_success_count );
-        else
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "set to do not copy files,deck:\"%s\"" , deckfile_fullname );
+
         g_free( deckfile_shortname );
         g_free( targetdirectory );
         temp_ptr = g_slist_next( temp_ptr );
@@ -445,7 +443,7 @@ static gboolean make_directory( const gchar * dir )
     return TRUE;
 }
 
-static gchar * get_string_node( json_t * root, const gchar * nodename )
+static gchar * get_string_node( json_t * root , const gchar * nodename )
 {
     json_t * node = json_object_get( root, nodename );
     if( !json_is_string( node ) )
@@ -847,28 +845,22 @@ static GSList * get_cardlist( const gchar * deckfilename )
     {
         case FORGE_DECK_FORMAT:
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "FORGE DECK" );
             return get_cardlist_forge( deckfilename );
         }
         case XMAGE_DECK_FORMAT:
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "XMAGE DECK" );
             return get_cardlist_xmage( deckfilename );
         }
         case MTGA_DECK_FORMAT:
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "MTGA DECK" );
             return get_cardlist_mtga( deckfilename );
         }
-        //goldfish regex match mtga format deck,so first check mtga format.
         case GOLDFISH_DECK_FORMAT:
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "GOLDFISH DECK" );
             return get_cardlist_goldfish( deckfilename );
         }
         default :
         {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck type:%s" , "UNKNOWN DECK" );
             return NULL;
         }
     }
@@ -1375,7 +1367,7 @@ static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text
     GSList ** deck_list = ( GSList ** )user_data;
     if ( text == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "content not exist" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "clipboard text content is empty" );
         goto do_return;
     }
     gsize text_len = g_utf8_strlen( text , -1 );
@@ -1391,7 +1383,7 @@ static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text
     gssize write_size = g_output_stream_write( output_stream , text , text_len , NULL , NULL );
     if ( write_size == -1 )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "write failed" );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "can not write clipboard text content to temp file" );
         g_object_unref( temp_file_obj );
         goto do_return;
     }
