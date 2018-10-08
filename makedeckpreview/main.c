@@ -1590,19 +1590,33 @@ static void download_file( gpointer data , gpointer user_data )
     }
 
     CURL * curl_handle = curl_easy_init();
+    long default_timeout = 30L;
 
     curl_easy_setopt( curl_handle , CURLOPT_URL , source_url );
     curl_easy_setopt( curl_handle , CURLOPT_VERBOSE , 0L );
     curl_easy_setopt( curl_handle , CURLOPT_FOLLOWLOCATION , 1L );
     curl_easy_setopt( curl_handle , CURLOPT_NOPROGRESS , 1L );
-    curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , 13L );
+    curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , default_timeout );
     curl_easy_setopt( curl_handle , CURLOPT_WRITEFUNCTION , NULL );
 
     FILE * download_file = fopen( destination_path, "wb" );
     if ( download_file )
     {
+        char error_buff[BUFFSIZE];
+        curl_easy_setopt( curl_handle , CURLOPT_ERRORBUFFER , error_buff );
         curl_easy_setopt( curl_handle , CURLOPT_WRITEDATA , download_file );
-        curl_easy_perform( curl_handle );
+        CURLcode res = curl_easy_perform( curl_handle );
+        int re_try = 4;
+        while ( res != CURLE_OK )
+        {
+            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "url:\'%s\',error type:\'%s\',error message:\'%s\'" , 
+                    source_url , curl_easy_strerror( res ) , error_buff );
+            if ( re_try == 0 )
+                break;
+            default_timeout *= 1.5;
+            curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , default_timeout );
+            res = curl_easy_perform( curl_handle );
+        }
         fclose( download_file );
     }
 
