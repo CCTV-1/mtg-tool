@@ -1616,6 +1616,7 @@ static void download_file( gpointer data , gpointer user_data )
             default_timeout *= 1.5;
             curl_easy_setopt( curl_handle , CURLOPT_TIMEOUT , default_timeout );
             res = curl_easy_perform( curl_handle );
+            re_try--;
         }
         fclose( download_file );
     }
