@@ -162,7 +162,7 @@ int main ( int argc , char * argv[] )
             continue;
         if ( make_directory( deck.targetdirectory ) == FALSE )
             continue;
-        gint32 copy_success_count = process_deck( &deck );
+        process_deck( &deck );
 
         g_free( deckfile_shortname );
         g_free( targetdirectory );
@@ -607,16 +607,13 @@ static void preview_add_card( struct CardObject * card )
     gint32 cardnumber = card->cardnumber;
     while ( cardnumber-- )
     {
+        //gtk_image_new_from_file never returns NULL
         GtkWidget * image = gtk_image_new_from_file( imagefile_path );
-        if ( image == NULL )
-        {
-            g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , imagefile_path );
-            return ;
-        }
         GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
         if ( pixbuf == NULL )
         {
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , imagefile_path );
+            gtk_widget_destroy( image );
             return ;
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.card_width , config_object.card_height , GDK_INTERP_BILINEAR );
@@ -1564,17 +1561,17 @@ static void download_file( gpointer data , gpointer user_data )
 
     if ( g_file_test( destination_path , G_FILE_TEST_EXISTS ) == TRUE )
     {
-        GdkPixbuf * image_pixbuf = gdk_pixbuf_new_from_file( destination_path , NULL );
-
-        //image format check
-        if ( image_pixbuf != NULL )
+        GtkWidget * image = gtk_image_new_from_file( destination_path );
+        GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
+        if ( pixbuf != NULL )
         {
-            g_object_unref( image_pixbuf );
+            gtk_widget_destroy( image );
             return ;
         }
 
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "'%s' don't is image file,delete and redownload" , destination_path );
         g_remove( destination_path );
+        gtk_widget_destroy( image );
     }
 
     if ( card->cardseries != NULL )
