@@ -1150,8 +1150,13 @@ static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType 
 {
     gchar * new_str = NULL;
 
+    if ( config_object.image_name_format == FORGE_NAME_FORMAT )
+        new_str = strreplace( cardname , " // " , "" );
+    else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
+        new_str = strreplace( cardname , "//" , "-" );
+
     //forge double-faced,cookies,fusion card name:"Name1 // Name2"
-    if ( ( deck_type == FORGE_DECK_FORMAT ) || ( deck_type == GOLDFISH_DECK_FORMAT ) )
+    /* if ( ( deck_type == FORGE_DECK_FORMAT ) || ( deck_type == GOLDFISH_DECK_FORMAT ) )
     {
         if ( config_object.image_name_format == FORGE_NAME_FORMAT )
             new_str = strreplace( cardname , " // " , "" );
@@ -1160,7 +1165,7 @@ static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType 
 
         if ( new_str == NULL )
             return NULL;
-    }
+    } */
 
     //mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
     /* if ( deck_type == MTGA_DECK_FORMAT )
