@@ -129,7 +129,7 @@ static void free_cardobject( struct CardObject * card );
 
 static char * stem_name( const char * filename );
 static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str );
-static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType deck_type );
+static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType deck_type */ );
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 
@@ -901,7 +901,7 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
             //G_MAXINT32 is unknown id
             card->cardid = G_MAXINT32;
 
-            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            gchar * image_name = cardname_to_imagename( card->cardname/*  , FORGE_DECK_FORMAT */ );
             free( card->cardname );
             card->cardname = image_name;
 
@@ -962,7 +962,7 @@ GSList * get_cardlist_xmage( const gchar * deckfilename )
             card->cardid = g_ascii_strtoll( words[4] , NULL , 10 );;
             g_strlcat( card->cardname , words[5] , BUFFSIZE );
 
-            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            gchar * image_name = cardname_to_imagename( card->cardname /* , FORGE_DECK_FORMAT  */);
             free( card->cardname );
             card->cardname = image_name;
 
@@ -1026,7 +1026,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
                 g_strlcat( card->cardseries , words[3] , BUFFSIZE );
             card->cardid = cardid;
 
-            gchar * image_name = cardname_to_imagename( card->cardname , MTGA_DECK_FORMAT );
+            gchar * image_name = cardname_to_imagename( card->cardname /* , MTGA_DECK_FORMAT  */);
             free( card->cardname );
             card->cardname = image_name;
 
@@ -1087,7 +1087,7 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
             //G_MAXINT32 is unknown id
             card->cardid = G_MAXINT32;
             //double face card format goldfish equal forge
-            gchar * image_name = cardname_to_imagename( card->cardname , FORGE_DECK_FORMAT );
+            gchar * image_name = cardname_to_imagename( card->cardname /* , FORGE_DECK_FORMAT  */);
             free( card->cardname );
             card->cardname = image_name;
 
@@ -1146,7 +1146,7 @@ static void free_cardobject( struct CardObject * card )
     free( card );
 }
 
-static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType deck_type )
+static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType deck_type */ )
 {
     gchar * new_str = NULL;
 
@@ -1163,7 +1163,7 @@ static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType dec
     }
 
     //mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
-    if ( deck_type == MTGA_DECK_FORMAT )
+    /* if ( deck_type == MTGA_DECK_FORMAT )
     {
         if ( config_object.image_name_format == FORGE_NAME_FORMAT )
             new_str = strreplace( cardname , " /// " , "" );
@@ -1172,7 +1172,7 @@ static gchar * cardname_to_imagename( const gchar * cardname , enum DeckType dec
 
         if ( new_str == NULL )
             return NULL;
-    }
+    } */
 
     //file system name limmit replace:"\/:*?"<>|"
 
