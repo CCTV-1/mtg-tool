@@ -14,6 +14,11 @@
 #define LOGO_FILE "logo.ico"
 #define BUFFSIZE 1024
 
+#define MTGA_REGEX "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9A-Z^\\r^\\n]+)"
+#define XMAGE_REGEX "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)"
+#define FORGE_REGEX "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)"
+#define GOLDFISH_REGEX "^([0-9]+)\\ ([^|\\r\\n]+)"
+
 enum DeckType
 {
     FORGE_DECK_FORMAT = 0,
@@ -744,20 +749,20 @@ static enum DeckType get_deck_type( const gchar * deck_filename )
     }
 
     GError * g_error = NULL;
-    GRegex * forge_regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * forge_regex = g_regex_new( FORGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( forge_regex == NULL )
         goto parse_err;
 
-    GRegex * xmage_regex = g_regex_new( "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * xmage_regex = g_regex_new( XMAGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( xmage_regex == NULL )
         goto parse_err;
 
-    GRegex * mtga_regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" ,
+    GRegex * mtga_regex = g_regex_new( MTGA_REGEX ,
                         G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( mtga_regex == NULL )
         goto parse_err;
 
-    GRegex * goldfish_regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * goldfish_regex = g_regex_new( GOLDFISH_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( goldfish_regex == NULL )
         goto parse_err;
 
@@ -879,7 +884,7 @@ static GSList * get_cardlist_forge( const gchar * deckfilename )
     gint32 card_local = COMMAND_LOCAL;
     GError * g_error = NULL;
     GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * regex = g_regex_new( FORGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( regex == NULL )
         goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
@@ -938,7 +943,7 @@ GSList * get_cardlist_xmage( const gchar * deckfilename )
     GSList * cardlist = NULL;
     GError * g_error = NULL;
     GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * regex = g_regex_new( XMAGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( regex == NULL )
         goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
@@ -1001,7 +1006,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
     gint32 card_local = MAIN_LOCAL;
     GError * g_error = NULL;
     GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9^\\r^\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * regex = g_regex_new( MTGA_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( regex == NULL )
         goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
@@ -1064,7 +1069,7 @@ static GSList * get_cardlist_goldfish( const gchar * deckfilename )
     gint32 card_local = COMMAND_LOCAL;
     GError * g_error = NULL;
     GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( "^([0-9]+)\\ ([^|\\r\\n]+)" , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
+    GRegex * regex = g_regex_new( GOLDFISH_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
     if ( regex == NULL )
         goto parse_err;
     while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
