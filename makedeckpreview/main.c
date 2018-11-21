@@ -109,9 +109,9 @@ static gboolean remove_directory( const gchar * dir );
 static gboolean make_directory( const gchar * dir );
 
 //do config_inital
-static gboolean get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable );
-static gchar * get_string_node( json_t * root, const gchar * nodename );
-static gboolean get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable );
+static void get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable , json_int_t default_value );
+static void get_string_node( json_t * root , const gchar * nodename , gchar ** variable , const gchar * default_value );
+static void get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable , gboolean default_value );
 
 //do process_deck
 static void preview_init( struct DeckObject * deck );
@@ -147,7 +147,7 @@ static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event
 
 int main ( int argc , char * argv[] )
 {
-    gtk_init( &argc, &argv );
+    gtk_init( &argc , &argv );
     curl_global_init( CURL_GLOBAL_ALL );
     config_inital();
 
@@ -189,95 +189,28 @@ void config_inital( void )
 
     if( root == NULL )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d : %s", error.line , error.text );
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d : %s" , error.line , error.text );
         exit( EXIT_FAILURE );
     }
 
-    gboolean status = FALSE;
+    get_integer_node( root , "ImageNameFormat" , ( json_int_t * )( &config_object.image_name_format ) , FORGE_NAME_FORMAT );
+    get_integer_node( root , "WindowWidth" , &config_object.window_width , 1050 );
+    get_integer_node( root , "WindowHeight" , &config_object.window_height , 600 );
+    get_integer_node( root , "CardWidth" , &config_object.card_width , 70 );
+    get_integer_node( root , "CardHeight" , &config_object.card_height , 100 );
+    get_integer_node( root , "LineCardNumber" , &config_object.line_card_number , 15 );
+    get_integer_node( root , "TitleFontSize" , &config_object.title_font_size , 20 );
 
-    status = get_integer_node( root , "ImageNameFormat" , ( json_int_t * )( &config_object.image_name_format ) );
-    if ( status == FALSE )
-    {
-        config_object.image_name_format = FORGE_NAME_FORMAT;
-    }
-
-    status = get_integer_node( root , "WindowWidth" , &config_object.window_width );
-    if ( status == FALSE )
-    {
-        config_object.window_width = 1050;
-    }
-
-    status = get_integer_node( root , "WindowHeight" , &config_object.window_height );
-    if ( status == FALSE )
-    {
-        config_object.window_height = 600;
-    }
-
-    status = get_integer_node( root , "CardWidth" , &config_object.card_width );
-    if ( status == FALSE )
-    {
-        config_object.card_width = 70;
-    }
-
-    status = get_integer_node( root , "CardHeight" , &config_object.card_height );
-    if ( status == FALSE )
-    {
-        config_object.card_height = 100;
-    }
-
-    status = get_integer_node( root , "LineCardNumber" , &config_object.line_card_number );
-    if ( status == FALSE )
-    {
-        config_object.line_card_number = 15;
-    }
-
-    status = get_integer_node( root , "TitleFontSize" , &config_object.title_font_size );
-    if ( status == FALSE )
-    {
-        config_object.title_font_size = 20;
-    }
-
-    config_object.image_root_directory = get_string_node( root, "ImageRootDirectory" );
-    if ( config_object.image_root_directory == NULL )
-    {
-        config_object.image_root_directory = g_get_current_dir();
-    }
-
-    config_object.image_suffix = get_string_node( root, "ImageSuffix" );
-    if ( config_object.image_suffix == NULL )
-    {
-        config_object.image_suffix = g_strdup_printf( "%s" , ".jpg" );
-    }
-
-    config_object.deck_file_directory = get_string_node( root, "DeckFileDirectory" );
-    if ( config_object.deck_file_directory == NULL )
-    {
-        config_object.deck_file_directory = g_strdup_printf( "%s" , "./" );
-    }
-
-    config_object.target_root_directory = get_string_node( root , "TargetRootDirectory" );
-    if ( config_object.target_root_directory == NULL )
-    {
-        config_object.target_root_directory = g_strdup_printf( "%s" , "./" );
-    }
+    gchar * default_path = g_get_current_dir();
+    get_string_node( root , "ImageRootDirectory" , &config_object.image_root_directory , default_path );
+    get_string_node( root , "ImageSuffix" , &config_object.image_suffix , ".jpg" );
+    get_string_node( root , "DeckFileDirectory" , &config_object.deck_file_directory , "./" );
+    get_string_node( root , "TargetRootDirectory" , &config_object.target_root_directory , "./" );
+    g_free( default_path );
  
-    status = get_boolean_node( root , "HideTitleBar" , &config_object.hide_title_bar );
-    if ( status == FALSE )
-    {
-        config_object.hide_title_bar = FALSE;
-    }
-    
-    status = get_boolean_node( root , "CopyFile" , &config_object.copy_file );
-    if ( status == FALSE )
-    {
-        config_object.copy_file = FALSE;
-    }
-
-    status = get_boolean_node( root , "UseNetworkImage" , &config_object.use_network_image );
-    if ( status == FALSE )
-    {
-        config_object.use_network_image = FALSE;
-    }
+    get_boolean_node( root , "HideTitleBar" , &config_object.hide_title_bar , FALSE );
+    get_boolean_node( root , "CopyFile" , &config_object.copy_file , FALSE );
+    get_boolean_node( root , "UseNetworkImage" , &config_object.use_network_image , FALSE );
 
     json_decref( root );
 }
@@ -324,7 +257,7 @@ gint32 process_deck( struct DeckObject * deck )
         preview_add_card( card );
         if ( config_object.copy_file == TRUE )
         {
-            gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );;
+            gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );
             gchar * targetfile_uri = make_targetfile_uri( deck->targetdirectory , card->cardname , card->cardseries , card->cardnumber );
             gsize rename_count = 1;
             while ( g_file_test( targetfile_uri , G_FILE_TEST_EXISTS ) == TRUE )
@@ -428,7 +361,7 @@ static gboolean make_directory( const gchar * dir )
     if ( g_file_make_directory_with_parents( targetdirectory , NULL , &g_error ) == FALSE )
     {
         g_object_unref( targetdirectory );
-        if ( g_error_matches( g_error , G_IO_ERROR_EXISTS, G_IO_ERROR_FAILED ) )
+        if ( g_error_matches( g_error , G_IO_ERROR_EXISTS , G_IO_ERROR_FAILED ) )
         {
             g_log( __func__ , G_LOG_LEVEL_MESSAGE , "directory %s already exists" , dir );
             return FALSE;
@@ -448,44 +381,67 @@ static gboolean make_directory( const gchar * dir )
     return TRUE;
 }
 
-static gchar * get_string_node( json_t * root , const gchar * nodename )
+static void get_string_node( json_t * root , const gchar * nodename , gchar ** variable , const gchar * default_value )
 {
-    json_t * node = json_object_get( root, nodename );
+    if ( root == NULL )
+        return ;
+    if ( nodename == NULL )
+        return ;
+    if ( variable == NULL )
+        return ;
+    if ( default_value == NULL )
+        return ;
+
+    json_t * node = json_object_get( root , nodename );
     if( !json_is_string( node ) )
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a string node", nodename );
-        return NULL;
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a string node" , nodename );
+        *variable = g_strdup_printf( "%s" , default_value );
+        return ;
     }
-    const gchar * onlyread_string = json_string_value( node );
-    gchar * return_string = g_strdup_printf( "%s" , onlyread_string );
-    return return_string;
+    *variable = g_strdup_printf( "%s" , json_string_value( node ) );
 }
 
-static gboolean get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable )
+static void get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable , json_int_t default_value )
 {
+    if ( root == NULL )
+        return ;
+    if ( nodename == NULL )
+        return ;
+    if ( variable == NULL )
+        return ;
+    if ( default_value == NULL )
+        return ;
+
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_integer( node ) )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a integer node" , nodename );
-        return FALSE;
+        *variable = default_value;
+        return ;
     }
     *variable = json_integer_value( node );
-    
-    return TRUE;
 }
 
-static gboolean get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable )
+static void get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable , gboolean default_value )
 {
+    if ( root == NULL )
+        return ;
+    if ( nodename == NULL )
+        return ;
+    if ( variable == NULL )
+        return ;
+    if ( default_value == NULL )
+        return ;
+
     json_t * node = json_object_get( root , nodename );
     if ( !json_is_boolean( node ) )
     {
         g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a boolean node" , nodename );
-        //identify get value error
-        return FALSE;
+        *variable = default_value;
+        return ;
     }
-
     *variable = json_boolean_value( node );
-    return TRUE;
 }
 
 static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri )
@@ -494,6 +450,7 @@ static gboolean copy_file( const gchar * source_uri , const gchar * destination_
         return FALSE;
     if ( destination_uri == NULL )
         return FALSE;
+
     GFile * source = g_file_new_for_uri( source_uri );
     GFile * destination = g_file_new_for_uri( destination_uri );
     GError * g_error;
@@ -554,7 +511,7 @@ static void preview_init( struct DeckObject * deck )
     }
 
     gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.window_width , ( gint )config_object.window_height );
-    g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event", G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
+    g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event" , G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
 
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL , NULL );
     gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ) , GTK_POLICY_AUTOMATIC , GTK_POLICY_AUTOMATIC );
@@ -861,7 +818,7 @@ static GSList * get_cardlist( const gchar * deckfilename )
         {
             return get_cardlist_goldfish( deckfilename );
         }
-        default :
+        default:
         {
             return NULL;
         }
@@ -964,7 +921,7 @@ GSList * get_cardlist_xmage( const gchar * deckfilename )
 
             card->cardnumber = g_ascii_strtoll( words[2] , NULL , 10 );
             g_strlcat( card->cardseries , words[3] , BUFFSIZE );
-            card->cardid = g_ascii_strtoll( words[4] , NULL , 10 );;
+            card->cardid = g_ascii_strtoll( words[4] , NULL , 10 );
             g_strlcat( card->cardname , words[5] , BUFFSIZE );
 
             gchar * image_name = cardname_to_imagename( card->cardname /* , FORGE_DECK_FORMAT  */);
@@ -1020,7 +977,7 @@ static GSList * get_cardlist_mtga( const gchar * deckfilename )
             struct CardObject * card = allocate_cardobject();
             gchar ** words = g_regex_split( regex , line_buff , 0 );
             gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
-            gint32 cardid = g_ascii_strtoll( words[4] , NULL , 10 );;
+            gint32 cardid = g_ascii_strtoll( words[4] , NULL , 10 );
             card->card_local = card_local;
             card->cardnumber = cardnumber;
             g_strlcat( card->cardname , words[2] , BUFFSIZE );
@@ -1430,7 +1387,7 @@ static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * even
     struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
     if ( widget_layout == NULL )
         return TRUE;
-    int x, y;
+    int x , y;
     GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
     if ( widget_layout->select_target == TRUE && event->type == GDK_MOTION_NOTIFY )
@@ -1466,7 +1423,7 @@ static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * eve
 {
     ( void )widget;
     struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
-    int x, y;
+    int x , y;
     GdkModifierType state;
     gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
 
