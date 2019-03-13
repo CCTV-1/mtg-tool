@@ -13,7 +13,6 @@ from multiprocessing import Pool
 
 import requests
 
-
 def helps():
     """get help information"""
     print(
@@ -22,11 +21,11 @@ def helps():
         '--getcardinfo=[cardname] get card info(usage english name is best)\n'
         '--downloadformat=[format name] download format all card image\n'
         '--downloadset=[set shortname] download set all card image\n'
+        '--downloadcube=[cube name] download cube all card image\n'
         '--downloaddeck=[deckname] download deck content all card image\n'
         '--downloadcard=[cardname] download card image\
 ,but not support download reprint card history image'
     )
-
 
 def getsetlist():
     """get scryfall.com supported series list and each set shortname"""
@@ -41,7 +40,6 @@ def getsetlist():
         logging.info('get setlist time out\n')
     except (AttributeError, KeyError):
         logging.info('can\'t get setlist\n')
-
 
 def getcardlist(deckname):
     """read deck file,get card list"""
@@ -110,6 +108,32 @@ def getsetinfo(setshortname, lang='en'):
     except (AttributeError, TypeError, KeyError):
         logging.info("Set:'%s' information obtained is wrong\n", setshortname)
 
+def getcubeinfo(setshortname, lang='en'):
+    """Get cube information"""
+    try:
+        resp = requests.get(
+            'https://api.scryfall.com/cards/search?q=cube:{0}'.format(setshortname), timeout=13)
+        if resp.status_code != 200:
+            return None
+        info_content = resp.json()
+        cardsinfo = []
+        for cardinfo in info_content['data']:
+            cardsinfo.append(cardinfo)
+        has_more = info_content['has_more']
+
+        while has_more != False:
+            resp = requests.get(
+                info_content.get('next_page'), timeout=13)
+            info_content = resp.json()
+            for cardinfo in info_content['data']:
+                cardsinfo.append(cardinfo)
+            has_more = info_content['has_more']
+
+        return cardsinfo
+    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
+        logging.info("Get set:'%s' card list time out", setshortname)
+    except (AttributeError, TypeError, KeyError):
+        logging.info("Set:'%s' information obtained is wrong\n", setshortname)
 
 def getcardinfo_fromid(cardobj):
     try:
@@ -128,7 +152,6 @@ def getcardinfo_fromid(cardobj):
                      cardobj[0], cardobj[1])
     except (IndexError):
         logging.info("cardobj:'%s' content format faliure\n", str(cardobj))
-
 
 def getcardinfo_fromname(cardname):
     try:
@@ -169,6 +192,18 @@ def downloadset(setname, lang='en'):
     P.join()
     os.chdir('../')
 
+def downloadcube(cubename, lang='en'):
+    cardsinfo = getcubeinfo(cubename, lang)
+    if os.path.exists('./' + cubename) is False:
+        os.mkdir('./' + cubename)
+    os.chdir('./' + cubename)
+    P = Pool(processes=8)
+    for cardobj in cardsinfo:
+        P.apply_async(downloadcard, args=(
+            cardobj, ))
+    P.close()
+    P.join()
+    os.chdir('../')
 
 def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
@@ -185,7 +220,6 @@ def downloaddeck(deckname, lang='en'):
     P.close()
     P.join()
     os.chdir('../')
-
 
 def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format='xmage'):
     download_descptions = []
@@ -242,13 +276,12 @@ def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format
             logging.info(
                 "The card:'%s' information obtained is wrong\n", cardname)
 
-
 def main():
     logging.basicConfig(filename='GetImage.log',
                         filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
-            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadformat=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
+            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadformat=', 'downloadcube=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
             if name == '--help':
@@ -306,6 +339,11 @@ def main():
                 downloadset(setshortname)
                 continue
 
+            if name == '--downloadcube':
+                setshortname = value
+                downloadcube(setshortname)
+                continue
+
             if name == '--downloaddeck':
                 deckname = value
                 downloaddeck(deckname)
@@ -321,7 +359,6 @@ def main():
         helps()
     except (AttributeError, TypeError, KeyError):
         print('get series or card information format failure')
-
 
 if __name__ == '__main__':
     main()
