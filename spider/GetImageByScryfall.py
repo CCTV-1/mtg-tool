@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
 
-"""Get card image in https://scryfall.com"""
+"""get card image in https://scryfall.com"""
 
 import getopt
 import logging
@@ -54,11 +54,11 @@ def getcardlist(deckname):
                 continue
     return cardnamelist
 
-def getformatinfo(formatname, lang='en'):
-    """Get format information"""
+def get_queue_cardlist(queue_type, queue_content):
+    """get a queue result cards information"""
     try:
         resp = requests.get(
-            'https://api.scryfall.com/cards/search?q=format:{0}'.format(formatname), timeout=13)
+            'https://api.scryfall.com/cards/search?q={0}:{1}'.format(queue_type, queue_content), timeout=13)
         if resp.status_code != 200:
             return None
         info_content = resp.json()
@@ -77,63 +77,21 @@ def getformatinfo(formatname, lang='en'):
 
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("get set:'%s' card list time out", formatname)
+        logging.info("queue %s:'%s' card list time out", queue_type, queue_content)
     except (AttributeError, TypeError, KeyError):
-        logging.info("set:'%s' information obtained is wrong\n", formatname)
+        logging.info("queue %s:'%s' list format is wrong\n", queue_type, queue_content)
+
+def getformatinfo(formatname, lang='en'):
+    """get format information"""
+    return get_queue_cardlist("format", formatname)
 
 def getsetinfo(setshortname, lang='en'):
-    """Get series information"""
-    try:
-        resp = requests.get(
-            'https://api.scryfall.com/cards/search?q=s:{0}'.format(setshortname), timeout=13)
-        if resp.status_code != 200:
-            return None
-        info_content = resp.json()
-        cardsinfo = []
-        for cardinfo in info_content['data']:
-            cardsinfo.append(cardinfo)
-        has_more = info_content['has_more']
-
-        while has_more != False:
-            resp = requests.get(
-                info_content.get('next_page'), timeout=13)
-            info_content = resp.json()
-            for cardinfo in info_content['data']:
-                cardsinfo.append(cardinfo)
-            has_more = info_content['has_more']
-
-        return cardsinfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get set:'%s' card list time out", setshortname)
-    except (AttributeError, TypeError, KeyError):
-        logging.info("Set:'%s' information obtained is wrong\n", setshortname)
+    """get series information"""
+    return get_queue_cardlist("s", setshortname)
 
 def getcubeinfo(setshortname, lang='en'):
-    """Get cube information"""
-    try:
-        resp = requests.get(
-            'https://api.scryfall.com/cards/search?q=cube:{0}'.format(setshortname), timeout=13)
-        if resp.status_code != 200:
-            return None
-        info_content = resp.json()
-        cardsinfo = []
-        for cardinfo in info_content['data']:
-            cardsinfo.append(cardinfo)
-        has_more = info_content['has_more']
-
-        while has_more != False:
-            resp = requests.get(
-                info_content.get('next_page'), timeout=13)
-            info_content = resp.json()
-            for cardinfo in info_content['data']:
-                cardsinfo.append(cardinfo)
-            has_more = info_content['has_more']
-
-        return cardsinfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get set:'%s' card list time out", setshortname)
-    except (AttributeError, TypeError, KeyError):
-        logging.info("Set:'%s' information obtained is wrong\n", setshortname)
+    """get cube information"""
+    return get_queue_cardlist("cube", setshortname)
 
 def getcardinfo_fromid(cardobj):
     try:
@@ -166,60 +124,36 @@ def getcardinfo_fromname(cardname):
     except (AttributeError, TypeError, KeyError):
         logging.info("Get Card:'%s' Info Failure\n", cardname)
 
-def downloadformat(formatname, lang='en'):
-    cardsinfo = getformatinfo(formatname, lang)
-    if os.path.exists('./' + formatname) is False:
-        os.mkdir('./' + formatname)
-    os.chdir('./' + formatname)
+def donwload_cardlist(dir_name, cardlist):
+    if os.path.exists('./' + dir_name) is False:
+        os.mkdir('./' + dir_name)
+    os.chdir('./' + dir_name)
     P = Pool(processes=8)
-    for cardobj in cardsinfo:
+    for cardobj in cardlist:
         P.apply_async(downloadcard, args=(
             cardobj, ))
     P.close()
     P.join()
     os.chdir('../')
+
+def downloadformat(formatname, lang='en'):
+    cardsinfo = getformatinfo(formatname, lang)
+    donwload_cardlist(formatname, cardsinfo)
 
 def downloadset(setname, lang='en'):
     cardsinfo = getsetinfo(setname, lang)
-    if os.path.exists('./' + setname) is False:
-        os.mkdir('./' + setname)
-    os.chdir('./' + setname)
-    P = Pool(processes=8)
-    for cardobj in cardsinfo:
-        P.apply_async(downloadcard, args=(
-            cardobj, ))
-    P.close()
-    P.join()
-    os.chdir('../')
+    donwload_cardlist(setname, cardsinfo)
 
 def downloadcube(cubename, lang='en'):
     cardsinfo = getcubeinfo(cubename, lang)
-    if os.path.exists('./' + cubename) is False:
-        os.mkdir('./' + cubename)
-    os.chdir('./' + cubename)
-    P = Pool(processes=8)
-    for cardobj in cardsinfo:
-        P.apply_async(downloadcard, args=(
-            cardobj, ))
-    P.close()
-    P.join()
-    os.chdir('../')
+    donwload_cardlist(cubename, cardsinfo)
 
 def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
     with Pool(processes=8) as P:
         cardsinfo = P.map(getcardinfo_fromname, cardlist)
 
-    if os.path.exists('./images') is False:
-        os.mkdir('./images')
-    os.chdir('./images')
-    P = Pool(processes=8)
-    for cardobj in cardsinfo:
-        P.apply_async(downloadcard, args=(
-            cardobj, False))
-    P.close()
-    P.join()
-    os.chdir('../')
+    donwload_cardlist("{0}_images".format(deckname), cardsinfo)
 
 def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format='xmage'):
     download_descptions = []
