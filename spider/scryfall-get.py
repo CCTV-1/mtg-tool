@@ -13,6 +13,7 @@ from multiprocessing import Pool
 
 import requests
 
+
 def helps():
     """get help information"""
     print(
@@ -26,6 +27,7 @@ def helps():
         '--downloadcard=[cardname] download card image\
 ,but not support download reprint card history image'
     )
+
 
 def getsetlist():
     """get scryfall.com supported series list and each set shortname"""
@@ -41,6 +43,7 @@ def getsetlist():
     except (AttributeError, KeyError):
         logging.info('can\'t get setlist\n')
 
+
 def getcardlist(deckname):
     """read deck file,get card list"""
     cardnamelist = []
@@ -53,6 +56,7 @@ def getcardlist(deckname):
             except (IndexError, AttributeError):
                 continue
     return cardnamelist
+
 
 def get_queue_cardlist(queue_type, queue_content):
     """get a queue result cards information"""
@@ -77,21 +81,27 @@ def get_queue_cardlist(queue_type, queue_content):
 
         return cardsinfo
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("queue %s:'%s' card list time out", queue_type, queue_content)
+        logging.info("queue %s:'%s' card list time out",
+                     queue_type, queue_content)
     except (AttributeError, TypeError, KeyError):
-        logging.info("queue %s:'%s' list format is wrong\n", queue_type, queue_content)
+        logging.info("queue %s:'%s' list format is wrong\n",
+                     queue_type, queue_content)
+
 
 def getformatinfo(formatname, lang='en'):
     """get format information"""
     return get_queue_cardlist("format", formatname)
 
+
 def getsetinfo(setshortname, lang='en'):
     """get series information"""
     return get_queue_cardlist("s", setshortname)
 
+
 def getcubeinfo(setshortname, lang='en'):
     """get cube information"""
     return get_queue_cardlist("cube", setshortname)
+
 
 def getcardinfo_fromid(cardobj):
     try:
@@ -111,6 +121,7 @@ def getcardinfo_fromid(cardobj):
     except (IndexError):
         logging.info("cardobj:'%s' content format faliure\n", str(cardobj))
 
+
 def getcardinfo_fromname(cardname):
     try:
         resp = requests.get(
@@ -124,6 +135,7 @@ def getcardinfo_fromname(cardname):
     except (AttributeError, TypeError, KeyError):
         logging.info("Get Card:'%s' Info Failure\n", cardname)
 
+
 def donwload_cardlist(dir_name, cardlist):
     if os.path.exists('./' + dir_name) is False:
         os.mkdir('./' + dir_name)
@@ -136,17 +148,21 @@ def donwload_cardlist(dir_name, cardlist):
     P.join()
     os.chdir('../')
 
+
 def downloadformat(formatname, lang='en'):
     cardsinfo = getformatinfo(formatname, lang)
     donwload_cardlist(formatname, cardsinfo)
+
 
 def downloadset(setname, lang='en'):
     cardsinfo = getsetinfo(setname, lang)
     donwload_cardlist(setname, cardsinfo)
 
+
 def downloadcube(cubename, lang='en'):
     cardsinfo = getcubeinfo(cubename, lang)
     donwload_cardlist(cubename, cardsinfo)
+
 
 def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
@@ -154,6 +170,7 @@ def downloaddeck(deckname, lang='en'):
         cardsinfo = P.map(getcardinfo_fromname, cardlist)
 
     donwload_cardlist("{0}_images".format(deckname), cardsinfo)
+
 
 def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format='xmage'):
     download_descptions = []
@@ -209,6 +226,7 @@ def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format
         except (AttributeError, TypeError, KeyError):
             logging.info(
                 "The card:'%s' information obtained is wrong\n", cardname)
+
 
 def main():
     logging.basicConfig(filename='GetImage.log',
@@ -293,6 +311,7 @@ def main():
         helps()
     except (AttributeError, TypeError, KeyError):
         print('get series or card information format failure')
+
 
 if __name__ == '__main__':
     main()
