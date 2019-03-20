@@ -5,7 +5,7 @@
 
 import logging
 import os
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from bs4 import BeautifulSoup
@@ -50,6 +50,18 @@ def getcardsinfo(setlongname, localcode='en'):
     except (AttributeError, TypeError, KeyError):
         logging.info('Set info not find\n')
         exit(False)
+
+
+def donwload_cardlist(dir_name, cardlist):
+    if os.path.exists('./' + dir_name) is False:
+        os.mkdir('./' + dir_name)
+    os.chdir('./' + dir_name)
+    with ThreadPoolExecutor(max_workers=8) as P:
+        futures = {P.submit(
+            downloadimage, (cardobj[0], cardobj[1])): cardobj for cardobj in cardlist}
+        for future in futures:
+            future.result()
+    os.chdir('../')
 
 
 def downloadimage(cardname, cardurl, filename_format='forge'):
@@ -100,20 +112,11 @@ def main():
     setlongname = input('You plan download setlongname:')
     # Aether Revolt to Aether-Revolt
     setlongname = setlongname.replace(' ', '-')
-    if os.path.exists('./' + setshortname) is False:
-        os.mkdir('./' + setshortname)
-    os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
-    processpool = Pool(processes=4)
     print("Download set:{0} start,Card total {1}".format(
         setshortname, len(cardsinfo)))
-    for cardobj in cardsinfo:
-        processpool.apply_async(
-            downloadimage, args=(cardobj[0], cardobj[1], ))
-    processpool.close()
-    processpool.join()
+    donwload_cardlist(setshortname, cardsinfo)
     print('Set {0} all card image download end'.format(setshortname))
-    os.chdir('./..')
 
 
 if __name__ == '__main__':

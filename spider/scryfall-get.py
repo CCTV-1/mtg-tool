@@ -9,7 +9,7 @@ import math
 import os
 import re
 import sys
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -140,12 +140,10 @@ def donwload_cardlist(dir_name, cardlist):
     if os.path.exists('./' + dir_name) is False:
         os.mkdir('./' + dir_name)
     os.chdir('./' + dir_name)
-    P = Pool(processes=8)
-    for cardobj in cardlist:
-        P.apply_async(downloadcard, args=(
-            cardobj, ))
-    P.close()
-    P.join()
+    with ThreadPoolExecutor(max_workers=8) as P:
+        futures = { P.submit( downloadcard , cardobj ) : cardobj for cardobj in cardlist }
+        for future in futures:
+            future.result()
     os.chdir('../')
 
 
@@ -166,8 +164,11 @@ def downloadcube(cubename, lang='en'):
 
 def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
-    with Pool(processes=8) as P:
-        cardsinfo = P.map(getcardinfo_fromname, cardlist)
+    cardsinfo = []
+    with ThreadPoolExecutor(max_workers=8) as P:
+        futures = { P.submit( getcardinfo_fromname , card ) : card for card in cardlist }
+        for future in futures:
+            cardsinfo.append(future.result())
 
     donwload_cardlist("{0}_images".format(deckname), cardsinfo)
 

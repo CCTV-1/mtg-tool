@@ -8,7 +8,7 @@ import logging
 import math
 import os
 import sys
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -103,6 +103,17 @@ def getcardinfo(cardname):
         logging.info("Get Card:%s Info Failure\n", cardname)
 
 
+def donwload_cardlist(dir_name, cardlist):
+    if os.path.exists('./' + dir_name) is False:
+        os.mkdir('./' + dir_name)
+    os.chdir('./' + dir_name)
+    with ThreadPoolExecutor(max_workers=8) as P:
+        futures = {P.submit(downloadimage, cardobj): cardobj for cardobj in cardlist}
+        for future in futures:
+            future.result()
+    os.chdir('../')
+
+
 def downloadimage(cardobj_parameters, filename_format='xmage'):
     """Download the card image represented by cardobj_parameters"""
     renamecount = 0
@@ -191,21 +202,12 @@ def main():
                         break
                     else:
                         pass
-                if os.path.exists('./' + setshortname) is False:
-                    os.mkdir('./' + setshortname)
-                os.chdir('./' + setshortname)
-                P = Pool(processes=4)
+
                 print("Download set:{0} start,Card total {1}".format(
                     setshortname, setsize))
-                for cardobj in cardsinfo:
-                    P.apply_async(downloadimage, args=(
-                        cardobj, ))
-                    # downloadimage(cardobj)
-                P.close()
-                P.join()
+                donwload_cardlist(setshortname, cardsinfo)
                 print('Set {0} all card image download end'.format(
                     setshortname))
-                os.chdir('../')
                 continue
 
             if name == '--downloadcard':

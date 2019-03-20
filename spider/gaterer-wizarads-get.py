@@ -6,7 +6,7 @@
 import logging
 import os
 #import re
-from multiprocessing import Pool
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from bs4 import BeautifulSoup
@@ -41,6 +41,18 @@ def getcardsinfo(setlongname):
     except (AttributeError, TypeError):
         logging.info("Set:%s info not find\n", setlongname)
         exit(False)
+
+
+def donwload_cardlist(dir_name, cardlist):
+    if os.path.exists('./' + dir_name) is False:
+        os.mkdir('./' + dir_name)
+    os.chdir('./' + dir_name)
+    with ThreadPoolExecutor(max_workers=8) as P:
+        futures = {P.submit(
+            downloadimage, (cardobj[0], cardobj[1], )): cardobj for cardobj in cardlist}
+        for future in futures:
+            future.result()
+    os.chdir('../')
 
 
 def downloadimage(cardname, cardid, filename_format='forge'):
@@ -91,18 +103,10 @@ def main():
                         filemode='w', level=logging.INFO)
     setshortname = input('You plan download setshortname:')
     setlongname = input('You plan download setlongname:')
-    if os.path.exists('./' + setshortname) is False:
-        os.mkdir('./' + setshortname)
-    os.chdir('./' + setshortname)
     cardsinfo = getcardsinfo(setlongname)
-    P = Pool(processes=4)
     print("Download set:{0} start,Card total {1}".format(
         setshortname, len(cardsinfo)))
-    for cardobj in cardsinfo:
-        P.apply_async(downloadimage, args=(cardobj[0], cardobj[1], ))
-        #downloadimage( cardobj )
-    P.close()
-    P.join()
+    donwload_cardlist(setshortname, cardsinfo)
     print('Set {0} all card image download end'.format(setshortname))
     os.chdir('./..')
 
