@@ -18,7 +18,7 @@ def helps():
     """get help information"""
     print(
         '--getsetlist get scryfall.com supported setlist and each set shortname\n'
-        '--getsetinfo=[set shortname] get set cards list\n'
+        '--getsetcards=[set shortname] get set cards list\n'
         '--getcardinfo=[cardname] get card info(usage english name is best)\n'
         '--downloadformat=[format name] download format all card image\n'
         '--downloadset=[set shortname] download set all card image\n'
@@ -93,12 +93,12 @@ def getformatinfo(formatname, lang='en'):
     return get_queue_cardlist("format", formatname)
 
 
-def getsetinfo(setshortname, lang='en'):
+def getsetcards(setshortname, lang='en'):
     """get series information"""
     return get_queue_cardlist("s", setshortname)
 
 
-def getcubeinfo(setshortname, lang='en'):
+def getcubecards(setshortname, lang='en'):
     """get cube information"""
     return get_queue_cardlist("cube", setshortname)
 
@@ -153,12 +153,12 @@ def downloadformat(formatname, lang='en'):
 
 
 def downloadset(setname, lang='en'):
-    cardsinfo = getsetinfo(setname, lang)
+    cardsinfo = getsetcards(setname, lang)
     donwload_cardlist(setname, cardsinfo)
 
 
 def downloadcube(cubename, lang='en'):
-    cardsinfo = getcubeinfo(cubename, lang)
+    cardsinfo = getcubecards(cubename, lang)
     donwload_cardlist(cubename, cardsinfo)
 
 
@@ -234,7 +234,7 @@ def main():
                         filemode='w', level=logging.INFO)
     try:
         options, args = getopt.getopt(sys.argv[1:], '', longopts=[
-            'help', 'getsetlist', 'getsetinfo=', 'getcardinfo=', 'downloadformat=', 'downloadcube=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
+            'help', 'getsetlist', 'getsetcards=', 'getcardinfo=', 'downloadformat=', 'downloadcube=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
         args = args  # wipe off unused warning
         for name, value in options:
             if name == '--help':
@@ -248,9 +248,9 @@ def main():
                     print("{0}({1})".format(setobj['name'], setobj['code']))
                 continue
 
-            if name == '--getsetinfo':
+            if name == '--getsetcards':
                 setshortname = value  # 'akh
-                cardsinfo = getsetinfo(setshortname)
+                cardsinfo = getsetcards(setshortname)
                 for cardobj in cardsinfo:
                     try:
                         print("{0}\t{1}".format(
