@@ -8,57 +8,12 @@
 #include <curl/curl.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
-#include <jansson.h>
 
-#define CONFIG_FILE "config.json"
+#include "deckprase.h"
+#include "previewconfig.h"
+
 #define LOGO_FILE "logo.ico"
 #define BUFFSIZE 1024
-
-#define MTGA_REGEX "^([0-9]+)\\ ([^\\(^\\)]+)\\ \\(([^\\ ]+)\\)\\ ([0-9A-Z^\\r^\\n]+)"
-#define XMAGE_REGEX "^(SB:\\ )?(\\d+)\\ \\[([^:\\]]*):(\\d+)\\]\\ ([^\\r\\n]+)"
-#define FORGE_REGEX "^([0-9]+)\\ ([^|]+)\\|([^|^\\r^\\n]+)"
-#define GOLDFISH_REGEX "^([0-9]+)\\ ([^|\\r\\n]+)"
-
-enum DeckType
-{
-    FORGE_DECK_FORMAT = 0,
-    XMAGE_DECK_FORMAT,
-    MTGA_DECK_FORMAT,
-    GOLDFISH_DECK_FORMAT,
-    UNKNOWN_DECK_FORMAT,
-};
-
-enum CardLocal
-{
-    COMMAND_LOCAL = 0,
-    MAIN_LOCAL,
-    SIDEBOARD_LOCAL,
-};
-
-enum ImageNameFormat
-{
-    FORGE_NAME_FORMAT = 0,
-    XMAGE_NAME_FORMAT,
-    UNKNOWN_NAME_FORMAT
-};
-
-struct ConfigObject
-{
-    enum ImageNameFormat image_name_format;
-    gchar * target_root_directory;
-    gchar * image_root_directory;
-    gchar * image_suffix;
-    gchar * deck_file_directory;
-    json_int_t window_width;
-    json_int_t window_height;
-    json_int_t card_width;
-    json_int_t card_height;
-    json_int_t line_card_number;
-    json_int_t title_font_size;
-    gint hide_title_bar;
-    gint copy_file;
-    gint use_network_image;
-}config_object;
 
 struct DeckObject
 {
@@ -69,14 +24,8 @@ struct DeckObject
 struct ImagesLayout
 {
     GtkWidget * layout;
-    GArray * images;
     gint32 width;
     gint32 height;
-    gboolean select_target;
-    gint32 dx;
-    gint32 dy;
-    gint32 select_x;
-    gint32 select_y;
 };
 
 struct PreviewObject
@@ -89,17 +38,6 @@ struct PreviewObject
     struct ImagesLayout sideboard_layout;
 }preview_object;
 
-struct CardObject
-{
-    enum CardLocal card_local;
-    gchar * cardname;
-    gchar * cardseries;
-    gint32 cardid;
-    gint32 cardnumber;
-};
-
-void config_inital( void );
-void config_destroy( void );
 gint32 process_deck( struct DeckObject * );
 
 //do main
@@ -108,42 +46,23 @@ static void delete_deck_list( GSList * deck_list );
 static gboolean remove_directory( const gchar * dir );
 static gboolean make_directory( const gchar * dir );
 
-//do config_inital
-static void get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable , json_int_t default_value );
-static void get_string_node( json_t * root , const gchar * nodename , gchar ** variable , const gchar * default_value );
-static void get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable , gboolean default_value );
-
 //do process_deck
-static void preview_init( struct DeckObject * deck );
 static void preview_add_title( enum CardLocal card_local );
 static void preview_add_card( struct CardObject * card );
 static void preview_display( void );
 static void preview_destroy( void );
 
 static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri );
-static enum DeckType get_deck_type( const gchar * deck_filename );
-
-static GSList * get_cardlist( const gchar * deckfilename );
-static GSList * get_cardlist_forge( const gchar * deckfilename );
-static GSList * get_cardlist_xmage( const gchar * deckfilename );
-static GSList * get_cardlist_mtga( const gchar * deckfilename );
-static GSList * get_cardlist_goldfish( const gchar * deckfilename );
-static void delete_cardlist( GSList * cardlist );
-static struct CardObject * allocate_cardobject( void );
-static void free_cardobject( struct CardObject * card );
-
 static char * stem_name( const char * filename );
-static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str );
-static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType deck_type */ );
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries );
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
 static void download_file( gpointer data , gpointer user_data );
 static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data );
-static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
-static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
-static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data );
+static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , gpointer data );
+static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data );
+static void darg_data_received_handler( GtkWidget * widget , GdkDragContext * context , gint x , gint y , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data );
 
 int main ( int argc , char * argv[] )
 {
@@ -180,53 +99,50 @@ int main ( int argc , char * argv[] )
     return EXIT_SUCCESS;
 }
 
-void config_inital( void )
-{
-    json_t * root;
-    json_error_t error;
-
-    root = json_load_file( CONFIG_FILE , 0 , &error );
-
-    if( root == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: on line %d : %s" , error.line , error.text );
-        exit( EXIT_FAILURE );
-    }
-
-    get_integer_node( root , "ImageNameFormat" , ( json_int_t * )( &config_object.image_name_format ) , FORGE_NAME_FORMAT );
-    get_integer_node( root , "WindowWidth" , &config_object.window_width , 1050 );
-    get_integer_node( root , "WindowHeight" , &config_object.window_height , 600 );
-    get_integer_node( root , "CardWidth" , &config_object.card_width , 70 );
-    get_integer_node( root , "CardHeight" , &config_object.card_height , 100 );
-    get_integer_node( root , "LineCardNumber" , &config_object.line_card_number , 15 );
-    get_integer_node( root , "TitleFontSize" , &config_object.title_font_size , 20 );
-
-    gchar * default_path = g_get_current_dir();
-    get_string_node( root , "ImageRootDirectory" , &config_object.image_root_directory , default_path );
-    get_string_node( root , "ImageSuffix" , &config_object.image_suffix , ".jpg" );
-    get_string_node( root , "DeckFileDirectory" , &config_object.deck_file_directory , "./" );
-    get_string_node( root , "TargetRootDirectory" , &config_object.target_root_directory , "./" );
-    g_free( default_path );
- 
-    get_boolean_node( root , "HideTitleBar" , &config_object.hide_title_bar , FALSE );
-    get_boolean_node( root , "CopyFile" , &config_object.copy_file , FALSE );
-    get_boolean_node( root , "UseNetworkImage" , &config_object.use_network_image , FALSE );
-
-    json_decref( root );
-}
-
-void config_destroy( void )
-{
-    g_free( config_object.image_root_directory );
-    g_free( config_object.image_suffix );
-    g_free( config_object.deck_file_directory );
-    g_free( config_object.target_root_directory );
-}
-
 gint32 process_deck( struct DeckObject * deck )
 {
     gint32 copy_success_count = 0;
-    preview_init( deck );
+    preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
+
+    GdkPixbuf * icon_pixbuf = gdk_pixbuf_new_from_file( LOGO_FILE , NULL );
+    if ( icon_pixbuf == NULL )
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , LOGO_FILE );
+    else
+        gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
+    g_object_unref( icon_pixbuf );
+
+    if ( config_object.hide_title_bar )
+    {
+        gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
+    }
+    else
+    {
+        gtk_window_set_hide_titlebar_when_maximized( GTK_WINDOW( preview_object.window ) , TRUE );
+        gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deck->deckfullname );
+    }
+
+    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.window_width , ( gint )config_object.window_height );
+    g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event" , G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
+
+    GtkWidget * scrolled = gtk_scrolled_window_new( NULL , NULL );
+    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ) , GTK_POLICY_AUTOMATIC , GTK_POLICY_AUTOMATIC );
+
+    preview_object.command_layout.layout = gtk_layout_new( NULL , NULL );
+    preview_object.command_layout.width = 0;
+    preview_object.command_layout.height = 0;
+
+    preview_object.main_layout.layout = gtk_layout_new( NULL , NULL );
+    preview_object.main_layout.width = 0;
+    preview_object.main_layout.height = 0;
+
+    preview_object.sideboard_layout.layout = gtk_layout_new( NULL , NULL );
+    preview_object.sideboard_layout.width = 0;
+    preview_object.sideboard_layout.height = 0;
+
+    preview_object.layout = gtk_layout_new( NULL , NULL );
+    preview_object.layout_height = 0;
+    gtk_container_add( GTK_CONTAINER( scrolled ) , preview_object.layout );
+    gtk_container_add( GTK_CONTAINER( preview_object.window ) , scrolled );
 
     //NULL is empty GSList
     GSList * cardlist = get_cardlist( deck->deckfullname );
@@ -381,69 +297,6 @@ static gboolean make_directory( const gchar * dir )
     return TRUE;
 }
 
-static void get_string_node( json_t * root , const gchar * nodename , gchar ** variable , const gchar * default_value )
-{
-    if ( root == NULL )
-        return ;
-    if ( nodename == NULL )
-        return ;
-    if ( variable == NULL )
-        return ;
-    if ( default_value == NULL )
-        return ;
-
-    json_t * node = json_object_get( root , nodename );
-    if( !json_is_string( node ) )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a string node" , nodename );
-        *variable = g_strdup_printf( "%s" , default_value );
-        return ;
-    }
-    *variable = g_strdup_printf( "%s" , json_string_value( node ) );
-}
-
-static void get_integer_node( json_t * root , const gchar * nodename , json_int_t * variable , json_int_t default_value )
-{
-    if ( root == NULL )
-        return ;
-    if ( nodename == NULL )
-        return ;
-    if ( variable == NULL )
-        return ;
-    if ( default_value == NULL )
-        return ;
-
-    json_t * node = json_object_get( root , nodename );
-    if ( !json_is_integer( node ) )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a integer node" , nodename );
-        *variable = default_value;
-        return ;
-    }
-    *variable = json_integer_value( node );
-}
-
-static void get_boolean_node( json_t * root , const gchar * nodename , gboolean * variable , gboolean default_value )
-{
-    if ( root == NULL )
-        return ;
-    if ( nodename == NULL )
-        return ;
-    if ( variable == NULL )
-        return ;
-    if ( default_value == NULL )
-        return ;
-
-    json_t * node = json_object_get( root , nodename );
-    if ( !json_is_boolean( node ) )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "error: %s is not a boolean node" , nodename );
-        *variable = default_value;
-        return ;
-    }
-    *variable = json_boolean_value( node );
-}
-
 static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri )
 {
     if ( source_uri == NULL )
@@ -489,57 +342,6 @@ static gboolean copy_file( const gchar * source_uri , const gchar * destination_
     return TRUE;
 }
 
-static void preview_init( struct DeckObject * deck )
-{
-    preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
-
-    GdkPixbuf * icon_pixbuf = gdk_pixbuf_new_from_file( LOGO_FILE , NULL );
-    if ( icon_pixbuf == NULL )
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "%s not is image file or not found" , LOGO_FILE );
-    else
-        gtk_window_set_icon( GTK_WINDOW( preview_object.window ) , icon_pixbuf );
-    g_object_unref( icon_pixbuf );
-
-    if ( config_object.hide_title_bar )
-    {
-        gtk_window_set_decorated( GTK_WINDOW( preview_object.window ) , FALSE );
-    }
-    else
-    {
-        gtk_window_set_hide_titlebar_when_maximized( GTK_WINDOW( preview_object.window ) , TRUE );
-        gtk_window_set_title( GTK_WINDOW( preview_object.window ) , deck->deckfullname );
-    }
-
-    gtk_window_set_default_size( GTK_WINDOW( preview_object.window ) , ( gint )config_object.window_width , ( gint )config_object.window_height );
-    g_signal_connect( G_OBJECT( preview_object.window ) , "delete-event" , G_CALLBACK( get_deckpreview ) , deck->targetdirectory );
-
-    GtkWidget * scrolled = gtk_scrolled_window_new( NULL , NULL );
-    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ) , GTK_POLICY_AUTOMATIC , GTK_POLICY_AUTOMATIC );
-
-    preview_object.command_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.command_layout.images = g_array_new( FALSE , FALSE , sizeof( GtkWidget * ) );
-    preview_object.command_layout.select_target = FALSE;
-    preview_object.command_layout.width = 0;
-    preview_object.command_layout.height = 0;
-
-    preview_object.main_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.main_layout.images = g_array_new( FALSE , FALSE , sizeof( GtkWidget * ) );
-    preview_object.main_layout.select_target = FALSE;
-    preview_object.main_layout.width = 0;
-    preview_object.main_layout.height = 0;
-
-    preview_object.sideboard_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.sideboard_layout.images = g_array_new( FALSE , FALSE , sizeof( GtkWidget * ) );
-    preview_object.sideboard_layout.select_target = FALSE;
-    preview_object.sideboard_layout.width = 0;
-    preview_object.sideboard_layout.height = 0;
-
-    preview_object.layout = gtk_layout_new( NULL , NULL );
-    preview_object.layout_height = 0;
-    gtk_container_add( GTK_CONTAINER( scrolled ) , preview_object.layout );
-    gtk_container_add( GTK_CONTAINER( preview_object.window ) , scrolled );
-}
-
 static void preview_add_title( enum CardLocal card_local )
 {
     gchar * title_label_buff = NULL;
@@ -567,8 +369,10 @@ static void preview_add_card( struct CardObject * card )
     gchar * imagefile_path = g_filename_from_uri( imagefile_uri , NULL , NULL );
     g_free( imagefile_uri );
     gint32 cardnumber = card->cardnumber;
+    GtkTargetEntry * entries = gtk_target_entry_new( "image/jpeg" , GTK_TARGET_SAME_APP , 0 );
     while ( cardnumber-- )
     {
+        GtkWidget * button = gtk_event_box_new();
         //gtk_image_new_from_file never returns NULL
         GtkWidget * image = gtk_image_new_from_file( imagefile_path );
         GdkPixbuf * pixbuf = gtk_image_get_pixbuf( GTK_IMAGE( image ) );
@@ -580,104 +384,85 @@ static void preview_add_card( struct CardObject * card )
         }
         pixbuf = gdk_pixbuf_scale_simple( GDK_PIXBUF( pixbuf ) , config_object.card_width , config_object.card_height , GDK_INTERP_BILINEAR );
         gtk_image_set_from_pixbuf( GTK_IMAGE( image ) , pixbuf );
+        gtk_container_add( GTK_CONTAINER( button ) , image );
+        gtk_drag_source_set( button , GDK_BUTTON1_MASK , entries , 1 , GDK_ACTION_MOVE );
+        gtk_drag_dest_set( button , GTK_DEST_DEFAULT_ALL , entries , 1 , GDK_ACTION_MOVE );
+        g_signal_connect_after( G_OBJECT( button ) , "drag-begin" , G_CALLBACK( drag_begin_handler ) , NULL );
+        g_signal_connect( G_OBJECT( button ) , "drag-data-get" , G_CALLBACK( darg_data_get_handler ) , NULL );
+        g_signal_connect( G_OBJECT( button ) , "drag-data-received" , G_CALLBACK( darg_data_received_handler ) , NULL );
         g_object_unref( pixbuf );
 
+        struct ImagesLayout * target_layout = NULL;
         switch ( card->card_local )
         {
+            //if you simply break default,decode nullptr(e.g target_layout->layout)
+            default:
             case COMMAND_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.command_layout.layout ) , image ,
-                    preview_object.command_layout.width , preview_object.command_layout.height );
-                g_array_append_val( preview_object.command_layout.images , image );
-                preview_object.command_layout.width += config_object.card_width;
-                if ( preview_object.command_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
-                {
-                    preview_object.command_layout.width = 0;
-                    preview_object.command_layout.height += config_object.card_height;
-                }
+                target_layout = &preview_object.command_layout;
                 break;
             }
             case MAIN_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.main_layout.layout ) , image ,
-                    preview_object.main_layout.width , preview_object.main_layout.height );
-                g_array_append_val( preview_object.main_layout.images , image );
-                preview_object.main_layout.width += config_object.card_width;
-                if ( preview_object.main_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
-                {
-                    preview_object.main_layout.width = 0;
-                    preview_object.main_layout.height += config_object.card_height;
-                }
+                target_layout = &preview_object.main_layout;
                 break;
             }
             case SIDEBOARD_LOCAL:
             {
-                gtk_layout_put( GTK_LAYOUT( preview_object.sideboard_layout.layout ) , image ,
-                    preview_object.sideboard_layout.width , preview_object.sideboard_layout.height );
-                g_array_append_val( preview_object.sideboard_layout.images , image );
-                preview_object.sideboard_layout.width += config_object.card_width;
-                if ( preview_object.sideboard_layout.width == ( config_object.line_card_number )*( config_object.card_width ) )
-                {
-                    preview_object.sideboard_layout.width = 0;
-                    preview_object.sideboard_layout.height += config_object.card_height;
-                }
+                target_layout = &preview_object.sideboard_layout;
                 break;
             }
-            default:
-                break;
+        }
+
+        gtk_layout_put( GTK_LAYOUT( target_layout->layout ) , button , target_layout->width , target_layout->height );
+        target_layout->width += config_object.card_width;
+        if ( target_layout->width == ( config_object.line_card_number )*( config_object.card_width ) )
+        {
+            target_layout->width = 0;
+            target_layout->height += config_object.card_height;
         }
 
     }
+    gtk_target_entry_free( entries );
     g_free( imagefile_path );
 }
 
 static void preview_display( void )
 {
-    if ( preview_object.command_layout.images->len != 0 )
+    GList * children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.command_layout.layout ) );
+    guint command_layout_len = g_list_length( children_list );
+    g_list_free( children_list );
+    if ( command_layout_len != 0 )
     {
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.command_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.command_layout.images->len ) % config_object.line_card_number != 0 )
+        if ( ( command_layout_len % config_object.line_card_number ) != 0 )
             preview_object.command_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.command_layout.height;
     }
 
-    if ( preview_object.main_layout.images->len != 0 )
+    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.main_layout.layout ) );
+    guint main_layout_len = g_list_length( children_list );
+    g_list_free( children_list );
+    if ( main_layout_len != 0 )
     {
         preview_add_title( MAIN_LOCAL );
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.main_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.main_layout.images->len ) % config_object.line_card_number != 0 )
+        if ( ( main_layout_len % config_object.line_card_number ) != 0 )
             preview_object.main_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.main_layout.height;
     }
 
-    if ( preview_object.sideboard_layout.images->len != 0 )
+    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.sideboard_layout.layout ) );
+    guint sideboard_layout_len = g_list_length( children_list );
+    g_list_free( children_list );
+    if ( sideboard_layout_len != 0 )
     {
         preview_add_title( SIDEBOARD_LOCAL );
         gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.sideboard_layout.layout , 0 , preview_object.layout_height );
-        if ( ( preview_object.sideboard_layout.images->len ) % config_object.line_card_number != 0 )
+        if ( ( sideboard_layout_len % config_object.line_card_number ) != 0 )
             preview_object.sideboard_layout.height += config_object.card_height;
         preview_object.layout_height += preview_object.sideboard_layout.height;
     }
-
-    g_signal_connect( G_OBJECT( preview_object.command_layout.layout ) , "motion-notify-event" , G_CALLBACK( motion_notify_handle ) , &preview_object.command_layout );
-    g_signal_connect( G_OBJECT( preview_object.command_layout.layout ) , "button-press-event" , G_CALLBACK( button_press_handle ) , &preview_object.command_layout );
-    g_signal_connect( G_OBJECT( preview_object.command_layout.layout ) , "button-release-event" , G_CALLBACK( button_release_handle ) , &preview_object.command_layout );
-    g_signal_connect( G_OBJECT( preview_object.main_layout.layout ) , "motion-notify-event" , G_CALLBACK( motion_notify_handle ) , &preview_object.main_layout );
-    g_signal_connect( G_OBJECT( preview_object.main_layout.layout ) , "button-press-event" , G_CALLBACK( button_press_handle ) , &preview_object.main_layout );
-    g_signal_connect( G_OBJECT( preview_object.main_layout.layout ) , "button-release-event" , G_CALLBACK( button_release_handle ) , &preview_object.main_layout );
-    g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "motion-notify-event" , G_CALLBACK( motion_notify_handle ) , &preview_object.sideboard_layout );
-    g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "button-press-event" , G_CALLBACK( button_press_handle ) , &preview_object.sideboard_layout );
-    g_signal_connect( G_OBJECT( preview_object.sideboard_layout.layout ) , "button-release-event" , G_CALLBACK( button_release_handle ) , &preview_object.sideboard_layout );
-
-    gtk_widget_set_events( preview_object.command_layout.layout , gtk_widget_get_events( preview_object.layout )
-        | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
-        | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
-    gtk_widget_set_events( preview_object.main_layout.layout , gtk_widget_get_events( preview_object.layout )
-        | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
-        | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
-    gtk_widget_set_events( preview_object.sideboard_layout.layout , gtk_widget_get_events( preview_object.layout )
-        | GDK_LEAVE_NOTIFY_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK
-        | GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK );
 
     gtk_widget_set_size_request( GTK_WIDGET( preview_object.command_layout.layout ) ,
         config_object.line_card_number*config_object.card_width , preview_object.command_layout.height );
@@ -693,457 +478,6 @@ static void preview_display( void )
 static void preview_destroy( void )
 {
     gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
-}
-
-static enum DeckType get_deck_type( const gchar * deck_filename )
-{
-    gchar line_buff[BUFFSIZE];
-    FILE * deckfile = fopen( deck_filename , "r" );
-    if ( deckfile == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deck_filename );
-        return UNKNOWN_DECK_FORMAT;
-    }
-
-    GError * g_error = NULL;
-    GRegex * forge_regex = g_regex_new( FORGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( forge_regex == NULL )
-        goto parse_err;
-
-    GRegex * xmage_regex = g_regex_new( XMAGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( xmage_regex == NULL )
-        goto parse_err;
-
-    GRegex * mtga_regex = g_regex_new( MTGA_REGEX ,
-                        G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( mtga_regex == NULL )
-        goto parse_err;
-
-    GRegex * goldfish_regex = g_regex_new( GOLDFISH_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( goldfish_regex == NULL )
-        goto parse_err;
-
-    size_t forge_format_count = 0;
-    size_t xmage_format_count = 0;
-    size_t mtga_format_count = 0;
-    size_t goldfish_format_count = 0;
-
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        if ( g_regex_match( forge_regex , line_buff , 0 , NULL ) == TRUE )
-        {
-            forge_format_count++;
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-
-        if ( g_regex_match( xmage_regex , line_buff , 0 , NULL ) == TRUE )
-        {
-            xmage_format_count++;
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-
-        if ( g_regex_match( mtga_regex , line_buff , 0 , NULL ) == TRUE )
-        {
-            mtga_format_count++;
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-
-        //goldfish regex match mtga format deck,so first check mtga format.
-        if ( g_regex_match( goldfish_regex , line_buff , 0 , NULL ) == TRUE )
-        {
-            goldfish_format_count++;
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-    }
-
-    g_regex_unref( forge_regex );
-    g_regex_unref( mtga_regex );
-    g_regex_unref( goldfish_regex );
-    fclose( deckfile );
-
-    if ( ( forge_format_count >= mtga_format_count )     &&
-         ( forge_format_count >= xmage_format_count )    &&
-         ( forge_format_count >= goldfish_format_count ) &&
-         forge_format_count != 0
-       )
-        return FORGE_DECK_FORMAT;
-    else if ( ( xmage_format_count >= forge_format_count )     &&
-              ( xmage_format_count >= mtga_format_count )      &&
-              ( xmage_format_count >= goldfish_format_count )  &&
-              xmage_format_count != 0
-            )
-        return XMAGE_DECK_FORMAT;
-    else if ( ( mtga_format_count >= forge_format_count )    &&
-              ( mtga_format_count >= xmage_format_count )    &&
-              ( mtga_format_count >= goldfish_format_count ) &&
-              mtga_format_count != 0
-            )
-        return MTGA_DECK_FORMAT;
-    else if ( goldfish_format_count != 0 )
-        return GOLDFISH_DECK_FORMAT;
-    //avoid no-return warning,can't use else
-    return UNKNOWN_DECK_FORMAT;
-    parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
-        g_error_free( g_error );
-        return UNKNOWN_DECK_FORMAT;
-}
-
-static GSList * get_cardlist( const gchar * deckfilename )
-{
-    enum DeckType deck_type = get_deck_type( deckfilename );
-    switch ( deck_type )
-    {
-        case FORGE_DECK_FORMAT:
-        {
-            return get_cardlist_forge( deckfilename );
-        }
-        case XMAGE_DECK_FORMAT:
-        {
-            return get_cardlist_xmage( deckfilename );
-        }
-        case MTGA_DECK_FORMAT:
-        {
-            return get_cardlist_mtga( deckfilename );
-        }
-        case GOLDFISH_DECK_FORMAT:
-        {
-            return get_cardlist_goldfish( deckfilename );
-        }
-        default:
-        {
-            return NULL;
-        }
-    }
-
-    return NULL;
-}
-
-static GSList * get_cardlist_forge( const gchar * deckfilename )
-{
-    gchar line_buff[BUFFSIZE];
-    FILE * deckfile = fopen( deckfilename , "r" );
-    if ( deckfile == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
-        return NULL;
-    }
-
-    GSList * cardlist = NULL;
-    gint32 card_local = COMMAND_LOCAL;
-    GError * g_error = NULL;
-    GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( FORGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-        goto parse_err;
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        if ( ( strncmp( line_buff , "[Main]" , 6 ) == 0 ) || ( strncmp( line_buff , "[main]" , 6 ) == 0 ) )
-            card_local = MAIN_LOCAL;
-        if ( ( strncmp( line_buff , "[Sideboard]" , 11 ) == 0 ) || ( strncmp( line_buff , "[sideboard]" , 11 ) == 0 ) )
-            card_local = SIDEBOARD_LOCAL;
-
-        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
-        {
-            struct CardObject * card = allocate_cardobject();
-            gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
-            card->card_local = card_local;
-            card->cardnumber = cardnumber;
-            g_strlcat( card->cardname , words[2] , BUFFSIZE );
-            g_strlcat( card->cardseries , words[3] , BUFFSIZE );
-            //G_MAXINT32 is unknown id
-            card->cardid = G_MAXINT32;
-
-            gchar * image_name = cardname_to_imagename( card->cardname/*  , FORGE_DECK_FORMAT */ );
-            free( card->cardname );
-            card->cardname = image_name;
-
-            cardlist = g_slist_append( cardlist , ( gpointer )card );
-            //if match succee,continue other test
-            g_strfreev( ( gchar ** )words );
-            g_regex_unref( regex );
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-    }
-
-    g_regex_unref( regex );
-    return cardlist;
-
-    parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
-        g_regex_unref( regex );
-        g_error_free( g_error );
-        exit( EXIT_FAILURE );
-}
-
-GSList * get_cardlist_xmage( const gchar * deckfilename )
-{
-    gchar line_buff[BUFFSIZE];
-    FILE * deckfile = fopen( deckfilename , "r" );
-    if ( deckfile == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
-        return NULL;
-    }
-
-    GSList * cardlist = NULL;
-    GError * g_error = NULL;
-    GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( XMAGE_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-        goto parse_err;
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
-        {
-            struct CardObject * card = allocate_cardobject();
-            gchar ** words = g_regex_split( regex , line_buff , 0 );
-            
-            if ( strnlen( words[1] , BUFFSIZE ) == 0 )
-            {
-                card->card_local = MAIN_LOCAL;
-            }
-            else
-            {
-                card->card_local = SIDEBOARD_LOCAL;
-            }
-
-            card->cardnumber = g_ascii_strtoll( words[2] , NULL , 10 );
-            g_strlcat( card->cardseries , words[3] , BUFFSIZE );
-            card->cardid = g_ascii_strtoll( words[4] , NULL , 10 );
-            g_strlcat( card->cardname , words[5] , BUFFSIZE );
-
-            gchar * image_name = cardname_to_imagename( card->cardname /* , FORGE_DECK_FORMAT  */);
-            free( card->cardname );
-            card->cardname = image_name;
-
-            cardlist = g_slist_append( cardlist , ( gpointer )card );
-            //if match succee,continue other test
-            g_strfreev( ( gchar ** )words );
-            g_regex_unref( regex );
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-    }
-
-    g_regex_unref( regex );
-    return cardlist;
-
-    parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
-        g_regex_unref( regex );
-        g_error_free( g_error );
-        exit( EXIT_FAILURE );
-}
-
-static GSList * get_cardlist_mtga( const gchar * deckfilename )
-{
-    gchar line_buff[BUFFSIZE];
-    FILE * deckfile = fopen( deckfilename , "r" );
-    if ( deckfile == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
-        return NULL;
-    }
-
-    GSList * cardlist = NULL;
-    //mtga now only support limit and standard constructor,no command.
-    gint32 card_local = MAIN_LOCAL;
-    GError * g_error = NULL;
-    GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( MTGA_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-        goto parse_err;
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        //to next local
-        if ( ( strncmp( line_buff , "\r\n" , 4 ) == 0 ) || ( strncmp( line_buff , "\n" , 2 ) == 0 ) )
-            card_local += 1;
-
-        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
-        {
-            struct CardObject * card = allocate_cardobject();
-            gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
-            gint32 cardid = g_ascii_strtoll( words[4] , NULL , 10 );
-            card->card_local = card_local;
-            card->cardnumber = cardnumber;
-            g_strlcat( card->cardname , words[2] , BUFFSIZE );
-            //mtga format set "DOM" name is "DAR"
-            if ( ( strncmp( "DAR" , words[3] , 4 ) == 0 ) || ( strncmp( "dar" , words[3] , 4 ) == 0 ) )
-                g_strlcat( card->cardseries , "DOM" , BUFFSIZE );
-            else
-                g_strlcat( card->cardseries , words[3] , BUFFSIZE );
-            card->cardid = cardid;
-
-            gchar * image_name = cardname_to_imagename( card->cardname /* , MTGA_DECK_FORMAT  */);
-            free( card->cardname );
-            card->cardname = image_name;
-
-            cardlist = g_slist_append( cardlist , ( gpointer )card );
-            //if match succee,continue other test
-            g_strfreev( ( gchar ** )words );
-            g_regex_unref( regex );
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-    }
-
-    g_regex_unref( regex );
-    return cardlist;
-
-    parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
-        g_regex_unref( regex );
-        g_error_free( g_error );
-        exit( EXIT_FAILURE );
-}
-
-static GSList * get_cardlist_goldfish( const gchar * deckfilename )
-{
-    gchar line_buff[BUFFSIZE];
-    FILE * deckfile = fopen( deckfilename , "r" );
-    if ( deckfile == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "open deck:\"%s\" faliure" , deckfilename );
-        return NULL;
-    }
-
-    GSList * cardlist = NULL;
-    gint32 card_local = COMMAND_LOCAL;
-    GError * g_error = NULL;
-    GMatchInfo * match_info;
-    GRegex * regex = g_regex_new( GOLDFISH_REGEX , G_REGEX_EXTENDED | G_REGEX_NEWLINE_ANYCRLF , 0 , &g_error );
-    if ( regex == NULL )
-        goto parse_err;
-    while ( fgets( line_buff , BUFFSIZE , deckfile ) != NULL )
-    {
-        if ( line_buff == NULL )
-            continue;
-        //to next local
-        if ( ( strncmp( line_buff , "\r\n" , 4 ) == 0 ) || ( strncmp( line_buff , "\n" , 2 ) == 0 ) )
-            card_local += 1;
-
-        if ( g_regex_match( regex , line_buff , 0 , &match_info ) == TRUE )
-        {
-            struct CardObject * card = allocate_cardobject();
-            gchar ** words = g_regex_split( regex , line_buff , 0 );
-            gint32 cardnumber = g_ascii_strtoll( words[1] , NULL , 10 );
-            card->card_local = card_local;
-            card->cardnumber = cardnumber;
-            g_strlcat( card->cardname , words[2] , BUFFSIZE );
-            card->cardseries = NULL;
-            //G_MAXINT32 is unknown id
-            card->cardid = G_MAXINT32;
-            //double face card format goldfish equal forge
-            gchar * image_name = cardname_to_imagename( card->cardname /* , FORGE_DECK_FORMAT  */);
-            free( card->cardname );
-            card->cardname = image_name;
-
-            cardlist = g_slist_append( cardlist , ( gpointer )card );
-            //if match succee,continue other test
-            g_strfreev( ( gchar ** )words );
-            g_regex_unref( regex );
-            continue;
-        }
-        if ( g_error != NULL )
-            goto parse_err;
-    }
-
-    g_regex_unref( regex );
-    return cardlist;
-
-    parse_err:
-        g_log( __func__ , G_LOG_LEVEL_ERROR , "Error while matching: %s" , g_error->message );
-        g_regex_unref( regex );
-        g_error_free( g_error );
-        exit( EXIT_FAILURE );
-}
-
-static void delete_cardlist( GSList * cardlist )
-{
-    g_slist_free_full( cardlist , ( GDestroyNotify )free_cardobject );
-}
-
-static struct CardObject * allocate_cardobject( void )
-{
-    struct CardObject * card = ( struct CardObject * )calloc( 1 , sizeof( struct CardObject ) );
-    if ( card == NULL )
-        return card;
-    card->cardname = calloc( 1 , BUFFSIZE*sizeof( gchar ) );
-    if ( card->cardname == NULL )
-    {
-        free( card );
-        return NULL;
-    }
-    card->cardseries = calloc( 1 , BUFFSIZE*sizeof( gchar ) );
-    if ( card->cardseries == NULL )
-    {
-        free( card->cardname );
-        free( card );
-        return NULL;
-    }
-    return card;
-}
-
-static void free_cardobject( struct CardObject * card )
-{
-    if ( card == NULL )
-        return ;
-    free( card->cardseries );
-    free( card->cardname );
-    free( card );
-}
-
-static gchar * cardname_to_imagename( const gchar * cardname /* , enum DeckType deck_type */ )
-{
-    gchar * new_str = NULL;
-
-    if ( config_object.image_name_format == FORGE_NAME_FORMAT )
-        new_str = strreplace( cardname , " // " , "" );
-    else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
-        new_str = strreplace( cardname , "//" , "-" );
-
-    //forge double-faced,cookies,fusion card name:"Name1 // Name2"
-    /* if ( ( deck_type == FORGE_DECK_FORMAT ) || ( deck_type == GOLDFISH_DECK_FORMAT ) )
-    {
-        if ( config_object.image_name_format == FORGE_NAME_FORMAT )
-            new_str = strreplace( cardname , " // " , "" );
-        else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
-            new_str = strreplace( cardname , "//" , "-" );
-
-        if ( new_str == NULL )
-            return NULL;
-    } */
-
-    //mtga double-faced,cookies,fusion card name:"Name1 /// Name2"
-    /* if ( deck_type == MTGA_DECK_FORMAT )
-    {
-        if ( config_object.image_name_format == FORGE_NAME_FORMAT )
-            new_str = strreplace( cardname , " /// " , "" );
-        else if ( config_object.image_name_format == XMAGE_NAME_FORMAT )
-            new_str = strreplace( cardname , "///" , "-" );
-
-        if ( new_str == NULL )
-            return NULL;
-    } */
-
-    //file system name limmit replace:"\/:*?"<>|"
-
-    return new_str;
 }
 
 char * stem_name( const char * filename )
@@ -1196,90 +530,6 @@ char * stem_name( const char * filename )
     stem_name[stem_name_len] = '\0';
 
     return stem_name;
-}
-
-static gchar * strreplace( const gchar * source_str , const gchar * from_str , const gchar * to_str )
-{
-    if ( source_str == NULL )
-        return NULL;
-    if ( from_str == NULL )
-        return NULL;
-    if ( to_str == NULL )
-        return NULL;
-
-    size_t source_len = strnlen( source_str , BUFFSIZE );
-    size_t from_len = strnlen( from_str , BUFFSIZE );
-    size_t to_len = strnlen( to_str , BUFFSIZE );
-    size_t replace_count = 0;
-
-    if ( ( from_len == 0 ) || ( source_len == 0 ) )
-    {
-        gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
-        if ( new_str == NULL )
-            return NULL;
-        memcpy( new_str , source_str , source_len + 1 );
-        return new_str;
-    }
-
-    const gchar * temp_ptr = source_str;
-    for ( gchar * find_ptr = NULL ; ( find_ptr = strstr( temp_ptr , from_str ) ) != NULL ; replace_count++ )
-        temp_ptr = find_ptr + from_len;
-
-    if ( replace_count == 0 )
-    {
-        gchar * new_str = ( gchar * )malloc( ( source_len + 1 ) * sizeof( gchar ) );
-        if ( new_str == NULL )
-            return NULL;
-        memcpy( new_str , source_str , source_len + 1 );
-        return new_str;
-    }
-
-    gboolean len_up = FALSE;
-    size_t chane_len = 0;
-    if ( to_len > from_len )
-    {
-        chane_len = to_len - from_len;
-        len_up = TRUE;
-    }
-    else
-    {
-        chane_len = from_len - to_len;
-        len_up = FALSE;
-    }
-
-    //replace to overflow
-    if ( chane_len > ( SIZE_MAX - source_len )/replace_count )
-        return NULL;
-
-    size_t new_str_len = 0;
-    if ( len_up == TRUE )
-        new_str_len = source_len + replace_count*chane_len;
-    else
-        new_str_len = source_len - replace_count*chane_len;
-
-    //NUL in end
-    gchar * new_str = ( gchar * )malloc( ( new_str_len + 1 ) * sizeof( gchar ) );
-    if ( new_str == NULL )
-        return NULL;
-
-    const gchar * start_ptr = source_str;
-    const gchar * end_ptr = source_str + source_len;
-    gchar * copy_to_ptr = new_str;
-    while( replace_count-- > 0 )
-    {
-        gchar *  offset_ptr = strstr( start_ptr , from_str );
-        if ( offset_ptr == NULL )
-            break;
-        gchar * next_ptr = offset_ptr + from_len;
-        memcpy( copy_to_ptr , start_ptr , offset_ptr - start_ptr );
-        copy_to_ptr += ( offset_ptr - start_ptr );
-        memcpy( copy_to_ptr , to_str , to_len );
-        copy_to_ptr += to_len;
-        start_ptr = next_ptr;
-    }
-    memcpy( copy_to_ptr , start_ptr , end_ptr - start_ptr + 1 );
-
-    return new_str;
 }
 
 static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardseries )
@@ -1381,131 +631,76 @@ static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointe
     return TRUE;
 }
 
-static gboolean motion_notify_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data )
+static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , gpointer data )
 {
-    ( void )widget;
-    struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
-    if ( widget_layout == NULL )
-        return TRUE;
-    int x , y;
-    GdkModifierType state;
-    gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
-    if ( widget_layout->select_target == TRUE && event->type == GDK_MOTION_NOTIFY )
-    {
-        guint select_index = widget_layout->select_x/config_object.card_width + widget_layout->select_y/config_object.card_height*config_object.line_card_number;
-        GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , select_index );
+    ( void )data;
+    ( void )context;
+    GtkAllocation alloc;
+    gtk_widget_get_allocation( widget , &alloc );
+    cairo_surface_t * surface = cairo_image_surface_create( CAIRO_FORMAT_ARGB32 , alloc.width , alloc.height );
+    cairo_t * cairo = cairo_create( surface );
+    gtk_widget_draw( widget , cairo );
+    gtk_drag_set_icon_surface( context , surface );
 
-        //avoid underflow overflow
-        if ( x < 0 )
-        {
-            x = widget_layout->dx;
-        }
-        if ( y < 0 )
-        {
-            y = widget_layout->dy;
-        }
-        if ( x > config_object.card_width*config_object.line_card_number )
-        {
-            x = config_object.card_width*config_object.line_card_number;
-        }
-        if ( y > config_object.card_height*widget_layout->height )
-        {
-            y = config_object.card_height*widget_layout->height;
-        }
-
-        gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image , x - widget_layout->dx , y - widget_layout->dy );
-    }
-
-    return TRUE;
+    cairo_destroy( cairo );
+    cairo_surface_destroy( surface );
 }
 
-static gboolean button_release_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data )
+static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
 {
-    ( void )widget;
-    struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
-    int x , y;
-    GdkModifierType state;
-    gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
-
-    //avoid underflow overflow
-    if ( x < 0 )
-    {
-        x = widget_layout->dx;
-    }
-    if ( y < 0 )
-    {
-        y = widget_layout->dy;
-    }
-    if ( x > config_object.card_width*config_object.line_card_number )
-    {
-        x = config_object.card_width*config_object.line_card_number;
-    }
-    if ( y > config_object.card_height*widget_layout->height )
-    {
-        y = config_object.card_height*widget_layout->height;
-    }
-
-    if ( ( x == widget_layout->select_x ) && ( y == widget_layout->select_y ) )
-    {
-        widget_layout->select_target = FALSE;
-        return TRUE;
-    }
-    if ( widget_layout->select_target == TRUE )
-    {
-        guint start_index = widget_layout->select_x/config_object.card_width + widget_layout->select_y/config_object.card_height*config_object.line_card_number;
-        guint end_index = x/config_object.card_width + y/config_object.card_height*config_object.line_card_number;
-
-        //avoid underflow overflow
-        if ( start_index >= widget_layout->images->len )
-            start_index = widget_layout->images->len - 1;
-        if ( end_index >= widget_layout->images->len )
-            end_index = widget_layout->images->len - 1;
-
-        GtkWidget * start_image = g_array_index( widget_layout->images , GtkWidget * , start_index );
-        if ( start_index > end_index )
-        {
-            for ( guint i = start_index ; i > end_index ; i-- )
-            {
-                GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i - 1 );
-                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image ,
-                    i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
-                g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
-            }
-        }
-        else
-        {
-            for ( guint i = start_index ; i < end_index ; i++ )
-            {
-                GtkWidget * select_image = g_array_index( widget_layout->images , GtkWidget * , i + 1 );
-                gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , select_image ,
-                    i%( config_object.line_card_number )*config_object.card_width , i/( config_object.line_card_number )*config_object.card_height );
-                g_array_index( widget_layout->images , GtkWidget * , i ) = select_image;
-            }
-        }
-        gtk_layout_move( GTK_LAYOUT( widget_layout->layout ) , start_image ,
-                end_index%( config_object.line_card_number )*config_object.card_width , end_index/( config_object.line_card_number )*config_object.card_height );
-        g_array_index( widget_layout->images , GtkWidget * , end_index ) = start_image;
-        widget_layout->select_target = FALSE;
-    }
-    return TRUE;
+    ( void )context;
+    ( void )info;
+    ( void )timestamp;
+    ( void )user_data;
+    gtk_selection_data_set( data , gdk_atom_intern_static_string( "SOURCE_WIDGET" ) , 32 , ( const guchar * )&widget , sizeof( gpointer ) );
 }
 
-static gboolean button_press_handle( GtkWidget * widget , GdkEventMotion * event , gpointer data )
+static void darg_data_received_handler( GtkWidget * widget , GdkDragContext * context , gint x , gint y , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
 {
-    ( void )widget;
-    struct ImagesLayout * widget_layout = ( struct ImagesLayout * )data;
-    int x , y;
-    GdkModifierType state;
-    gdk_window_get_device_position( event->window , event->device , &x , &y , &state );
-    if ( x > config_object.card_width*config_object.line_card_number || y > config_object.card_height*widget_layout->height )
-        return TRUE;
-    widget_layout->select_x = x;
-    widget_layout->select_y = y;
-    widget_layout->dx = widget_layout->select_x - x/config_object.card_width*config_object.card_width;
-    widget_layout->dy = widget_layout->select_y - y/config_object.card_width*config_object.card_width;
-    widget_layout->select_target = TRUE;
+    ( void )x;
+    ( void )y;
+    ( void )info;
+    ( void )timestamp;
+    ( void )user_data;
+    GtkWidget * source_widget = *( gpointer * )gtk_selection_data_get_data( data );
+    GtkWidget * target_widget = widget;
+    if ( source_widget == target_widget )
+        return ;
+    
+    GtkWidget * source_parent = gtk_widget_get_ancestor( source_widget , GTK_TYPE_LAYOUT );
+    GtkWidget * target_parent = gtk_widget_get_ancestor( target_widget , GTK_TYPE_LAYOUT );
+    if ( ( GTK_IS_LAYOUT( source_parent ) == FALSE ) || ( GTK_IS_LAYOUT( target_parent ) == FALSE ) )
+    {
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "drag target not support swap image" );
+        return ;
+    }
 
-    return TRUE;
+    g_object_ref( source_widget );
+    g_object_ref( target_widget );
+
+    GValue source_x = G_VALUE_INIT;
+    g_value_init( &source_x , G_TYPE_INT );
+    GValue source_y = G_VALUE_INIT;
+    g_value_init( &source_y , G_TYPE_INT );
+    gtk_container_child_get_property( GTK_CONTAINER( source_parent ) , source_widget , "x" , &source_x );
+    gtk_container_child_get_property( GTK_CONTAINER( source_parent ) , source_widget , "y" , &source_y );
+
+    GValue target_x = G_VALUE_INIT;
+    g_value_init( &target_x , G_TYPE_INT );
+    GValue target_y = G_VALUE_INIT;
+    g_value_init( &target_y , G_TYPE_INT );
+    gtk_container_child_get_property( GTK_CONTAINER( target_parent ) , target_widget , "x" , &target_x );
+    gtk_container_child_get_property( GTK_CONTAINER( target_parent ) , target_widget , "y" , &target_y );
+
+    gtk_container_remove( GTK_CONTAINER( source_parent ) , source_widget );
+    gtk_container_remove( GTK_CONTAINER( target_parent ) , target_widget );
+    gtk_layout_put( GTK_LAYOUT( source_parent ) , target_widget , g_value_get_int( &source_x ) , g_value_get_int( &source_y ) );
+    gtk_layout_put( GTK_LAYOUT( target_parent ) , source_widget , g_value_get_int( &target_x ) , g_value_get_int( &target_y ) );
+
+    g_object_unref( source_widget );
+    g_object_unref( target_widget );
+
+    gtk_drag_finish( context , TRUE , TRUE , timestamp );
 }
 
 static void download_file( gpointer data , gpointer user_data )
