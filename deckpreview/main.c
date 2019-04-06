@@ -8,7 +8,7 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 
-#include "deckprase.h"
+#include "deckparsing.h"
 #include "previewconfig.h"
 
 #define LOGO_FILE "logo.ico"

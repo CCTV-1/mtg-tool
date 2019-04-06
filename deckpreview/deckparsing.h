@@ -1,6 +1,6 @@
 #pragma once
-#ifndef DECKPRASE_H
-#define DECKPRASE_H
+#ifndef DECKPARSING_H
+#define DECKPARSING_H
 
 #include <glib.h>
 

@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "previewconfig.h"
-#include "deckprase.h"
+#include "deckparsing.h"
 
 #define BUFFSIZE 1024
 
