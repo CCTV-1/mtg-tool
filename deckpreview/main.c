@@ -1,9 +1,8 @@
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include <unistd.h>
+//#include <unistd.h>
 
 #include <curl/curl.h>
 #include <glib/gstdio.h>
@@ -258,7 +257,7 @@ static gboolean remove_directory( const gchar * dir )
     const gchar * filename;
     while ( ( filename = g_dir_read_name( dir_ptr ) ) != NULL )
     {
-        gchar * dir_name = g_strdup_printf ( "%s/%s" , dir , filename );
+        gchar * dir_name = g_strdup_printf( "%s/%s" , dir , filename );
         remove_directory( dir_name );
         g_free( dir_name );
     }
