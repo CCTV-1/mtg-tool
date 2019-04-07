@@ -1,8 +1,8 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-//#include <unistd.h>
 
 #include <curl/curl.h>
 #include <glib/gstdio.h>
@@ -18,6 +18,12 @@ struct DeckObject
 {
     gchar * deckfullname;
     gchar * targetdirectory;
+};
+
+struct ScrollDescription
+{
+    GtkWidget * scrollwindow;
+    guint scroll_handler_id;
 };
 
 struct ImagesLayout
@@ -47,7 +53,7 @@ static gboolean make_directory( const gchar * dir );
 
 //do process_deck
 static void preview_add_title( enum CardLocal card_local );
-static void preview_add_card( struct CardObject * card );
+static void preview_add_card( struct CardObject * card , struct ScrollDescription * desc );
 static void preview_display( void );
 static void preview_destroy( void );
 
@@ -60,6 +66,7 @@ static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointe
 static void download_file( gpointer data , gpointer user_data );
 static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data );
 static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , gpointer data );
+static void drag_end_handler( GtkWidget * widget , GdkDragContext * context , gpointer data );
 static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data );
 static void darg_data_received_handler( GtkWidget * widget , GdkDragContext * context , gint x , gint y , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data );
 
@@ -165,11 +172,15 @@ gint32 process_deck( struct DeckObject * deck )
         g_thread_pool_free( thr_pool , FALSE , TRUE );
     }
 
+    struct ScrollDescription desc = 
+    {
+        scrolled , 0
+    };
     temp = cardlist;
     while( temp != NULL )
     {
         struct CardObject * card = ( struct CardObject * )temp->data;
-        preview_add_card( card );
+        preview_add_card( card , &desc );
         if ( config_object.copy_file == TRUE )
         {
             gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );
@@ -362,7 +373,7 @@ static void preview_add_title( enum CardLocal card_local )
     g_free( title_label_buff );
 }
 
-static void preview_add_card( struct CardObject * card )
+static void preview_add_card( struct CardObject * card , struct ScrollDescription * desc )
 {
     gchar * imagefile_uri = make_imagefile_uri( card->cardname , card->cardseries );
     gchar * imagefile_path = g_filename_from_uri( imagefile_uri , NULL , NULL );
@@ -386,7 +397,10 @@ static void preview_add_card( struct CardObject * card )
         gtk_container_add( GTK_CONTAINER( button ) , image );
         gtk_drag_source_set( button , GDK_BUTTON1_MASK , entries , 1 , GDK_ACTION_MOVE );
         gtk_drag_dest_set( button , GTK_DEST_DEFAULT_ALL , entries , 1 , GDK_ACTION_MOVE );
-        g_signal_connect_after( G_OBJECT( button ) , "drag-begin" , G_CALLBACK( drag_begin_handler ) , NULL );
+        g_signal_connect_after( G_OBJECT( button ) , "drag-begin" , G_CALLBACK( drag_begin_handler ) , desc );
+        g_signal_connect( G_OBJECT( button ) , "drag-end" , G_CALLBACK( drag_end_handler ) , desc );
+        //call default drag-failed signal handler,if don't do this,drag failed drag-end signal handler not call.
+        g_signal_connect( G_OBJECT( button ) , "drag-failed" , G_CALLBACK( gtk_false ) , NULL );
         g_signal_connect( G_OBJECT( button ) , "drag-data-get" , G_CALLBACK( darg_data_get_handler ) , NULL );
         g_signal_connect( G_OBJECT( button ) , "drag-data-received" , G_CALLBACK( darg_data_received_handler ) , NULL );
         g_object_unref( pixbuf );
@@ -630,10 +644,70 @@ static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointe
     return TRUE;
 }
 
+static gboolean automatic_scroll( gpointer data )
+{
+    struct ScrollDescription * desc = ( struct ScrollDescription * )data;
+    double x = 0.0 , y = 0.0;
+    gdk_window_get_device_position_double( gtk_widget_get_window( desc->scrollwindow ) , gdk_seat_get_pointer(
+        gdk_display_get_default_seat( gdk_window_get_display( gtk_widget_get_window( desc->scrollwindow ) ) )
+    ) , &x , &y , NULL );
+
+    GtkAllocation allocation;
+    gtk_widget_get_allocation( desc->scrollwindow , &allocation );
+
+    GtkAdjustment * hadjustment = gtk_scrolled_window_get_hadjustment( GTK_SCROLLED_WINDOW( desc->scrollwindow ) );
+    GtkAdjustment * vadjustment = gtk_scrolled_window_get_vadjustment( GTK_SCROLLED_WINDOW( desc->scrollwindow ) );
+
+    //horizontal rollbar exist
+    if ( hadjustment != NULL )
+    {
+        double value = gtk_adjustment_get_value( hadjustment );
+        double lower = gtk_adjustment_get_lower( hadjustment );
+        double upper = gtk_adjustment_get_upper( hadjustment );
+        double setp = gtk_adjustment_get_step_increment( hadjustment );
+        if ( x < 0.1 * allocation.width )
+        {
+            value = ( ( value - setp > lower ) ? ( value - setp ) : lower );
+            gtk_adjustment_set_value( hadjustment , value );
+        }
+        else if ( x > 0.9 * allocation.width )
+        {
+            value = ( ( value + setp > upper ) ? upper : ( value + setp ) );
+            gtk_adjustment_set_value( hadjustment , value );
+        }
+    }
+    //vertical rollbar exist
+    if ( vadjustment != NULL )
+    {
+        double value = gtk_adjustment_get_value( vadjustment );
+        double lower = gtk_adjustment_get_lower( vadjustment );
+        double upper = gtk_adjustment_get_upper( vadjustment );
+        double setp = gtk_adjustment_get_step_increment( vadjustment );
+        if ( y < 0.1 * allocation.height )
+        {
+            value = ( ( value - setp > lower ) ? ( value - setp ) : lower );
+            gtk_adjustment_set_value( vadjustment , value );
+        }
+        else if ( y > 0.9 * allocation.height )
+        {
+            value = ( ( value + setp > upper ) ? upper : ( value + setp ) );
+            gtk_adjustment_set_value( vadjustment , value );
+        }
+    }
+
+    return TRUE;
+}
+
 static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , gpointer data )
 {
     ( void )data;
     ( void )context;
+    struct ScrollDescription * desc = ( struct ScrollDescription * )data;
+    if ( desc->scroll_handler_id == 0 )
+    {
+        desc->scroll_handler_id = g_timeout_add( 100 , automatic_scroll , desc );
+    }
+
     GtkAllocation alloc;
     gtk_widget_get_allocation( widget , &alloc );
     cairo_surface_t * surface = cairo_image_surface_create( CAIRO_FORMAT_ARGB32 , alloc.width , alloc.height );
@@ -643,6 +717,18 @@ static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , 
 
     cairo_destroy( cairo );
     cairo_surface_destroy( surface );
+}
+
+static void drag_end_handler( GtkWidget * widget , GdkDragContext * context , gpointer data )
+{
+    ( void )widget;
+    ( void )context;
+    struct ScrollDescription * desc = ( struct ScrollDescription * )data;
+    if ( desc->scroll_handler_id != 0 )
+    {
+        g_source_remove( desc->scroll_handler_id );
+        desc->scroll_handler_id = 0;
+    }
 }
 
 static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
