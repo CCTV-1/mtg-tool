@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-
 #include <curl/curl.h>
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
@@ -26,21 +25,13 @@ struct ScrollDescription
     guint scroll_handler_id;
 };
 
-struct ImagesLayout
-{
-    GtkWidget * layout;
-    gint32 width;
-    gint32 height;
-};
-
 struct PreviewObject
 {
     GtkWidget * window;
     GtkWidget * layout;
-    gint32 layout_height;
-    struct ImagesLayout command_layout;
-    struct ImagesLayout main_layout;
-    struct ImagesLayout sideboard_layout;
+    GtkWidget * command_layout;
+    GtkWidget * main_layout;
+    GtkWidget * sideboard_layout;
 }preview_object;
 
 gint32 process_deck( struct DeckObject * );
@@ -55,7 +46,6 @@ static gboolean make_directory( const gchar * dir );
 static void preview_add_title( enum CardLocal card_local );
 static void preview_add_card( struct CardObject * card , struct ScrollDescription * desc );
 static void preview_display( void );
-static void preview_destroy( void );
 
 static gboolean copy_file( const gchar * source_uri , const gchar * destination_uri );
 static char * stem_name( const char * filename );
@@ -63,6 +53,7 @@ static gchar * make_imagefile_uri( const gchar * cardname , const gchar * cardse
 static gchar * make_targetfile_uri( const char * targetdirectory , const gchar * cardname , const gchar * cardseries , gsize retry_count );
 
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data );
+static gboolean unselect( GtkWidget * widget , GdkEvent * event , gpointer data );
 static void download_file( gpointer data , gpointer user_data );
 static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text , gpointer user_data );
 static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , gpointer data );
@@ -107,6 +98,15 @@ int main ( int argc , char * argv[] )
 
 gint32 process_deck( struct DeckObject * deck )
 {
+    //NULL is empty GSList
+    GSList * cardlist = get_cardlist( deck->deckfullname );
+    if ( cardlist == NULL )
+    {
+        //if exist cardlist,then new window,avoid memory leak.
+        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck \"%s\" format unknown,parsing stop" , deck->deckfullname );
+        return 0;
+    }
+
     gint32 copy_success_count = 0;
     preview_object.window = gtk_window_new( GTK_WINDOW_TOPLEVEL );
 
@@ -133,30 +133,25 @@ gint32 process_deck( struct DeckObject * deck )
     GtkWidget * scrolled = gtk_scrolled_window_new( NULL , NULL );
     gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW( scrolled ) , GTK_POLICY_AUTOMATIC , GTK_POLICY_AUTOMATIC );
 
-    preview_object.command_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.command_layout.width = 0;
-    preview_object.command_layout.height = 0;
+    preview_object.command_layout = gtk_flow_box_new();
+    gtk_flow_box_set_homogeneous( GTK_FLOW_BOX( preview_object.command_layout ) , TRUE );
+    gtk_flow_box_set_selection_mode( GTK_FLOW_BOX( preview_object.command_layout ) , GTK_SELECTION_MULTIPLE );
+    gtk_flow_box_set_max_children_per_line( GTK_FLOW_BOX( preview_object.command_layout ) , config_object.line_card_number );
 
-    preview_object.main_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.main_layout.width = 0;
-    preview_object.main_layout.height = 0;
+    preview_object.main_layout = gtk_flow_box_new();
+    gtk_flow_box_set_homogeneous( GTK_FLOW_BOX( preview_object.main_layout ) , TRUE );
+    gtk_flow_box_set_selection_mode( GTK_FLOW_BOX( preview_object.main_layout ) , GTK_SELECTION_MULTIPLE );
+    gtk_flow_box_set_max_children_per_line( GTK_FLOW_BOX( preview_object.main_layout ) , config_object.line_card_number );
 
-    preview_object.sideboard_layout.layout = gtk_layout_new( NULL , NULL );
-    preview_object.sideboard_layout.width = 0;
-    preview_object.sideboard_layout.height = 0;
+    preview_object.sideboard_layout = gtk_flow_box_new();
+    gtk_flow_box_set_homogeneous( GTK_FLOW_BOX( preview_object.sideboard_layout ) , TRUE );
+    gtk_flow_box_set_selection_mode( GTK_FLOW_BOX( preview_object.sideboard_layout ) , GTK_SELECTION_MULTIPLE );
+    gtk_flow_box_set_max_children_per_line( GTK_FLOW_BOX( preview_object.sideboard_layout ) , config_object.line_card_number );
 
-    preview_object.layout = gtk_layout_new( NULL , NULL );
-    preview_object.layout_height = 0;
+    preview_object.layout = gtk_grid_new();
+    gtk_orientable_set_orientation( GTK_ORIENTABLE( preview_object.layout ) , GTK_ORIENTATION_VERTICAL );
     gtk_container_add( GTK_CONTAINER( scrolled ) , preview_object.layout );
     gtk_container_add( GTK_CONTAINER( preview_object.window ) , scrolled );
-
-    //NULL is empty GSList
-    GSList * cardlist = get_cardlist( deck->deckfullname );
-    if ( cardlist == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "deck \"%s\" format unknown,parsing stop" , deck->deckfullname );
-        return 0;
-    }
 
     GSList * temp = cardlist;
     //Download Image
@@ -201,7 +196,7 @@ gint32 process_deck( struct DeckObject * deck )
     }
 
     preview_display();
-    preview_destroy();
+    gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
     delete_cardlist( cardlist );
 
     return copy_success_count;
@@ -365,11 +360,10 @@ static void preview_add_title( enum CardLocal card_local )
     gtk_label_set_markup( GTK_LABEL( title_label ) , title_label_buff );
 
     GtkWidget * title_box = gtk_event_box_new();
-    gtk_widget_set_size_request( GTK_WIDGET( title_box ) , config_object.window_width , config_object.title_font_size );
+    //gtk_widget_set_size_request( GTK_WIDGET( title_box ) , config_object.window_width , config_object.title_font_size );
     gtk_container_add( GTK_CONTAINER( title_box ) , title_label );
 
-    gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , title_box , 0 , preview_object.layout_height );
-    preview_object.layout_height += 2*config_object.title_font_size;
+    gtk_container_add( GTK_CONTAINER( preview_object.layout ) , title_box );
     g_free( title_label_buff );
 }
 
@@ -403,37 +397,32 @@ static void preview_add_card( struct CardObject * card , struct ScrollDescriptio
         g_signal_connect( G_OBJECT( button ) , "drag-failed" , G_CALLBACK( gtk_false ) , NULL );
         g_signal_connect( G_OBJECT( button ) , "drag-data-get" , G_CALLBACK( darg_data_get_handler ) , NULL );
         g_signal_connect( G_OBJECT( button ) , "drag-data-received" , G_CALLBACK( darg_data_received_handler ) , NULL );
+        g_signal_connect( G_OBJECT( button ) , "button-press-event" , G_CALLBACK( unselect ) , NULL );
         g_object_unref( pixbuf );
 
-        struct ImagesLayout * target_layout = NULL;
+        GtkWidget * target_layout = NULL;
         switch ( card->card_local )
         {
             //if you simply break default,decode nullptr(e.g target_layout->layout)
             default:
             case COMMAND_LOCAL:
             {
-                target_layout = &preview_object.command_layout;
+                target_layout = preview_object.command_layout;
                 break;
             }
             case MAIN_LOCAL:
             {
-                target_layout = &preview_object.main_layout;
+                target_layout = preview_object.main_layout;
                 break;
             }
             case SIDEBOARD_LOCAL:
             {
-                target_layout = &preview_object.sideboard_layout;
+                target_layout = preview_object.sideboard_layout;
                 break;
             }
         }
 
-        gtk_layout_put( GTK_LAYOUT( target_layout->layout ) , button , target_layout->width , target_layout->height );
-        target_layout->width += config_object.card_width;
-        if ( target_layout->width == ( config_object.line_card_number )*( config_object.card_width ) )
-        {
-            target_layout->width = 0;
-            target_layout->height += config_object.card_height;
-        }
+        gtk_container_add( GTK_CONTAINER( target_layout ) , button );
 
     }
     gtk_target_entry_free( entries );
@@ -442,55 +431,34 @@ static void preview_add_card( struct CardObject * card , struct ScrollDescriptio
 
 static void preview_display( void )
 {
-    GList * children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.command_layout.layout ) );
+    GList * children_list = gtk_container_get_children( GTK_CONTAINER( GTK_FLOW_BOX( preview_object.command_layout ) ) );
     guint command_layout_len = g_list_length( children_list );
     g_list_free( children_list );
     if ( command_layout_len != 0 )
     {
-        gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.command_layout.layout , 0 , preview_object.layout_height );
-        if ( ( command_layout_len % config_object.line_card_number ) != 0 )
-            preview_object.command_layout.height += config_object.card_height;
-        preview_object.layout_height += preview_object.command_layout.height;
+        gtk_container_add( GTK_CONTAINER( preview_object.layout ) , preview_object.command_layout );
     }
 
-    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.main_layout.layout ) );
+    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.main_layout ) );
     guint main_layout_len = g_list_length( children_list );
     g_list_free( children_list );
     if ( main_layout_len != 0 )
     {
         preview_add_title( MAIN_LOCAL );
-        gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.main_layout.layout , 0 , preview_object.layout_height );
-        if ( ( main_layout_len % config_object.line_card_number ) != 0 )
-            preview_object.main_layout.height += config_object.card_height;
-        preview_object.layout_height += preview_object.main_layout.height;
+        gtk_container_add( GTK_CONTAINER( preview_object.layout ) , preview_object.main_layout );
     }
 
-    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.sideboard_layout.layout ) );
+    children_list = gtk_container_get_children( GTK_CONTAINER( preview_object.sideboard_layout ) );
     guint sideboard_layout_len = g_list_length( children_list );
     g_list_free( children_list );
     if ( sideboard_layout_len != 0 )
     {
         preview_add_title( SIDEBOARD_LOCAL );
-        gtk_layout_put( GTK_LAYOUT( preview_object.layout ) , preview_object.sideboard_layout.layout , 0 , preview_object.layout_height );
-        if ( ( sideboard_layout_len % config_object.line_card_number ) != 0 )
-            preview_object.sideboard_layout.height += config_object.card_height;
-        preview_object.layout_height += preview_object.sideboard_layout.height;
+        gtk_container_add( GTK_CONTAINER( preview_object.layout ) , preview_object.sideboard_layout );
     }
 
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.command_layout.layout ) ,
-        config_object.line_card_number*config_object.card_width , preview_object.command_layout.height );
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.main_layout.layout ) ,
-        config_object.line_card_number*config_object.card_width , preview_object.main_layout.height );
-    gtk_widget_set_size_request( GTK_WIDGET( preview_object.sideboard_layout.layout ) ,
-        config_object.line_card_number*config_object.card_width , preview_object.sideboard_layout.height );
-    gtk_layout_set_size( GTK_LAYOUT( preview_object.layout ) , config_object.line_card_number*config_object.card_width , preview_object.layout_height );
     gtk_widget_show_all( GTK_WIDGET( preview_object.window ) );
     gtk_main();
-}
-
-static void preview_destroy( void )
-{
-    gtk_widget_destroy( GTK_WIDGET( preview_object.window ) );
 }
 
 char * stem_name( const char * filename )
@@ -628,18 +596,17 @@ static void get_clipboard_content( GtkClipboard * clipboard , const gchar * text
 static gboolean get_deckpreview( GtkWidget * window , GdkEvent * event , gpointer data )
 {
     ( void )event;
-    GdkWindow * gdk_window = gtk_widget_get_window( GTK_WIDGET( window ) );
-    GdkPixbuf * deckpreview = gdk_pixbuf_get_from_window( GDK_WINDOW( gdk_window ) , 0 , 0 , config_object.window_width , config_object.window_height );
-    if ( deckpreview == NULL )
-    {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "get deck preview buff faliure" );
-    }
-    else
-    {
-        gchar * previewname = g_strdup_printf( "%sdeckpreview.jpg" , ( const gchar * )data );
-        gdk_pixbuf_save( deckpreview , previewname , "jpeg" , NULL , "quality" , "100" , NULL );
-        g_free( previewname );
-    }
+    GtkAllocation alloc;
+    gtk_widget_get_allocation( window , &alloc );
+    cairo_surface_t * surface = cairo_image_surface_create( CAIRO_FORMAT_ARGB32 , alloc.width , alloc.height );
+    cairo_t * cairo = cairo_create( surface );
+    gtk_widget_draw( window , cairo );
+    gchar * previewname = g_strdup_printf( "%sdeckpreview.jpg" , ( const gchar * )data );
+    cairo_surface_write_to_png( surface ,previewname  );
+    g_free( previewname );
+
+    cairo_destroy( cairo );
+    cairo_surface_destroy( surface );
     gtk_main_quit();
     return TRUE;
 }
@@ -710,6 +677,7 @@ static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , 
 
     GtkAllocation alloc;
     gtk_widget_get_allocation( widget , &alloc );
+    g_log( __func__ , G_LOG_LEVEL_MESSAGE , "alloc size:(%u,%u)" , alloc.width , alloc.height );
     cairo_surface_t * surface = cairo_image_surface_create( CAIRO_FORMAT_ARGB32 , alloc.width , alloc.height );
     cairo_t * cairo = cairo_create( surface );
     gtk_widget_draw( widget , cairo );
@@ -717,6 +685,56 @@ static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , 
 
     cairo_destroy( cairo );
     cairo_surface_destroy( surface );
+}
+
+static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
+{
+    ( void )context;
+    ( void )info;
+    ( void )timestamp;
+    ( void )user_data;
+
+    GtkWidget * box = gtk_widget_get_ancestor( widget , GTK_TYPE_FLOW_BOX );
+    GList * select_widgets = gtk_flow_box_get_selected_children( GTK_FLOW_BOX( box ) );
+    if ( select_widgets == NULL )
+    {
+        select_widgets = g_list_append( select_widgets , widget );
+    }
+    gtk_selection_data_set( data , gdk_atom_intern_static_string( "SOURCE_WIDGET" ) , 32 , ( const guchar * )&select_widgets , sizeof( gpointer ) );
+}
+
+static void darg_data_received_handler( GtkWidget * widget , GdkDragContext * context , gint x , gint y , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
+{
+    ( void )x;
+    ( void )y;
+    ( void )info;
+    ( void )timestamp;
+    ( void )user_data;
+
+    GList * select_widgets = *( gpointer * )gtk_selection_data_get_data( data );
+    for ( GList * temp = select_widgets ; temp != NULL ; temp = g_list_next( temp ) )
+    {
+        GtkWidget * source_widget = ( GtkWidget * )( temp->data );
+        GtkWidget * target_widget = widget;
+        if ( source_widget == target_widget )
+            continue ;
+
+        //flow_box -> flow_box_child -> container widget
+        GtkWidget * source_parent = gtk_widget_get_ancestor( source_widget , GTK_TYPE_FLOW_BOX_CHILD );
+        GtkWidget * source_container = gtk_widget_get_ancestor( source_widget , GTK_TYPE_FLOW_BOX );
+
+        GtkWidget * target_parent = gtk_widget_get_ancestor( target_widget , GTK_TYPE_FLOW_BOX_CHILD );
+        gint target_index = gtk_flow_box_child_get_index( GTK_FLOW_BOX_CHILD( target_parent ) );
+        GtkWidget * target_container = gtk_widget_get_ancestor( target_widget , GTK_TYPE_FLOW_BOX );
+
+        g_object_ref( source_parent );
+        gtk_container_remove( GTK_CONTAINER( source_container ) , source_parent );
+        gtk_flow_box_insert( GTK_FLOW_BOX( target_container ) , source_parent , target_index );
+        g_object_unref( source_parent );
+    }
+
+    g_list_free( select_widgets );
+    gtk_drag_finish( context , TRUE , TRUE , timestamp );
 }
 
 static void drag_end_handler( GtkWidget * widget , GdkDragContext * context , gpointer data )
@@ -729,63 +747,30 @@ static void drag_end_handler( GtkWidget * widget , GdkDragContext * context , gp
         g_source_remove( desc->scroll_handler_id );
         desc->scroll_handler_id = 0;
     }
+
+    GtkWidget * box = gtk_widget_get_ancestor( widget , GTK_TYPE_FLOW_BOX );
+    gtk_flow_box_unselect_all( GTK_FLOW_BOX( box ) );
 }
 
-static void darg_data_get_handler( GtkWidget * widget , GdkDragContext * context , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
+static gboolean unselect( GtkWidget * widget , GdkEvent * event , gpointer data )
 {
-    ( void )context;
-    ( void )info;
-    ( void )timestamp;
-    ( void )user_data;
-    gtk_selection_data_set( data , gdk_atom_intern_static_string( "SOURCE_WIDGET" ) , 32 , ( const guchar * )&widget , sizeof( gpointer ) );
-}
+    ( void )data;
 
-static void darg_data_received_handler( GtkWidget * widget , GdkDragContext * context , gint x , gint y , GtkSelectionData * data , guint info , guint timestamp , gpointer user_data )
-{
-    ( void )x;
-    ( void )y;
-    ( void )info;
-    ( void )timestamp;
-    ( void )user_data;
-    GtkWidget * source_widget = *( gpointer * )gtk_selection_data_get_data( data );
-    GtkWidget * target_widget = widget;
-    if ( source_widget == target_widget )
-        return ;
-    
-    GtkWidget * source_parent = gtk_widget_get_ancestor( source_widget , GTK_TYPE_LAYOUT );
-    GtkWidget * target_parent = gtk_widget_get_ancestor( target_widget , GTK_TYPE_LAYOUT );
-    if ( ( GTK_IS_LAYOUT( source_parent ) == FALSE ) || ( GTK_IS_LAYOUT( target_parent ) == FALSE ) )
+    guint click_count = 0;
+    gdk_event_get_click_count( event , &click_count );
+    if ( click_count > 1 )
+        return TRUE;
+
+    GtkFlowBoxChild * box_child = GTK_FLOW_BOX_CHILD( gtk_widget_get_ancestor( widget , GTK_TYPE_FLOW_BOX_CHILD ) );
+    GtkFlowBox * box = GTK_FLOW_BOX( gtk_widget_get_ancestor( widget , GTK_TYPE_FLOW_BOX ) );
+    if ( gtk_flow_box_child_is_selected( box_child ) )
+        gtk_flow_box_unselect_child( box , box_child );
+    else
     {
-        g_log( __func__ , G_LOG_LEVEL_MESSAGE , "drag target not support swap image" );
-        return ;
+        //if just return FALSE,only left button(default) trigger gtkflowbox select widget
+        gtk_flow_box_select_child( box , box_child );
     }
-
-    g_object_ref( source_widget );
-    g_object_ref( target_widget );
-
-    GValue source_x = G_VALUE_INIT;
-    g_value_init( &source_x , G_TYPE_INT );
-    GValue source_y = G_VALUE_INIT;
-    g_value_init( &source_y , G_TYPE_INT );
-    gtk_container_child_get_property( GTK_CONTAINER( source_parent ) , source_widget , "x" , &source_x );
-    gtk_container_child_get_property( GTK_CONTAINER( source_parent ) , source_widget , "y" , &source_y );
-
-    GValue target_x = G_VALUE_INIT;
-    g_value_init( &target_x , G_TYPE_INT );
-    GValue target_y = G_VALUE_INIT;
-    g_value_init( &target_y , G_TYPE_INT );
-    gtk_container_child_get_property( GTK_CONTAINER( target_parent ) , target_widget , "x" , &target_x );
-    gtk_container_child_get_property( GTK_CONTAINER( target_parent ) , target_widget , "y" , &target_y );
-
-    gtk_container_remove( GTK_CONTAINER( source_parent ) , source_widget );
-    gtk_container_remove( GTK_CONTAINER( target_parent ) , target_widget );
-    gtk_layout_put( GTK_LAYOUT( source_parent ) , target_widget , g_value_get_int( &source_x ) , g_value_get_int( &source_y ) );
-    gtk_layout_put( GTK_LAYOUT( target_parent ) , source_widget , g_value_get_int( &target_x ) , g_value_get_int( &target_y ) );
-
-    g_object_unref( source_widget );
-    g_object_unref( target_widget );
-
-    gtk_drag_finish( context , TRUE , TRUE , timestamp );
+    return TRUE;
 }
 
 static void download_file( gpointer data , gpointer user_data )
