@@ -58,7 +58,7 @@ def donwload_cardlist(dir_name, cardlist):
     os.chdir('./' + dir_name)
     with ThreadPoolExecutor(max_workers=8) as P:
         futures = {P.submit(
-            downloadimage, (cardobj[0], cardobj[1])): cardobj for cardobj in cardlist}
+            downloadimage, cardobj[0], cardobj[1]): cardobj for cardobj in cardlist}
         for future in futures:
             future.result()
     os.chdir('../')
