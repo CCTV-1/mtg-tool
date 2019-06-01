@@ -141,7 +141,7 @@ def donwload_cardlist(dir_name, cardlist):
         os.mkdir('./' + dir_name)
     os.chdir('./' + dir_name)
     with ThreadPoolExecutor(max_workers=8) as P:
-        futures = { P.submit( downloadcard , cardobj ) : cardobj for cardobj in cardlist }
+        futures = {P.submit(downloadcard, cardobj): cardobj for cardobj in cardlist}
         for future in futures:
             future.result()
     os.chdir('../')
@@ -166,7 +166,7 @@ def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
     cardsinfo = []
     with ThreadPoolExecutor(max_workers=8) as P:
-        futures = { P.submit( getcardinfo_fromname , card ) : card for card in cardlist }
+        futures = {P.submit(getcardinfo_fromname, card): card for card in cardlist}
         for future in futures:
             cardsinfo.append(future.result())
 
