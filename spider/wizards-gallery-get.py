@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # coding=utf-8
 
-"""Get card image in http://magic.wizards.com/$(language)/articles/archive/card-image-gallery/"""
+"""Get card image in magic.wizards.com"""
 
 import logging
 import os
@@ -10,10 +10,11 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
 
-BASEURL = 'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
+BASEURL = 'https://magic.wizards.com/en/products/{setlongname}/cards'
+#'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
 
 
-def getcardsinfo(setlongname, localcode='en'):
+def getcardsinfo(setlongname, localcode='cs'):
     """localcode:en -> english,cs -> simplified chinese,ct -> traditional chinese,jp -> Japanese"""
     try:
         cardinfo = []
