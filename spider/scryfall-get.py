@@ -55,7 +55,7 @@ def getcardlist(deckname):
                 cardnamelist.append(cardname)
             except (IndexError, AttributeError):
                 continue
-    return cardnamelist
+    return list(set(cardnamelist))
 
 
 def get_queue_cardlist(queue_type, queue_content):
