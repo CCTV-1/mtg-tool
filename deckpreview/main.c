@@ -677,7 +677,6 @@ static void drag_begin_handler( GtkWidget * widget , GdkDragContext * context , 
 
     GtkAllocation alloc;
     gtk_widget_get_allocation( widget , &alloc );
-    g_log( __func__ , G_LOG_LEVEL_MESSAGE , "alloc size:(%u,%u)" , alloc.width , alloc.height );
     cairo_surface_t * surface = cairo_image_surface_create( CAIRO_FORMAT_ARGB32 , alloc.width , alloc.height );
     cairo_t * cairo = cairo_create( surface );
     gtk_widget_draw( widget , cairo );

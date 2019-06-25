@@ -23,7 +23,6 @@ struct ConfigObject
 };
 
 extern struct ConfigObject config_object;
-struct ConfigObject config_object;
 
 void config_inital( void );
 void config_destroy( void );
