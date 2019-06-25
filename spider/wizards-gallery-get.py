@@ -10,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
 
-BASEURL = 'https://magic.wizards.com/en/products/{setlongname}/cards'
-#'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
+BASEURL = 'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
+#'https://magic.wizards.com/en/products/{setlongname}/cards'
 
 
 def getcardsinfo(setlongname, localcode='cs'):
