@@ -252,9 +252,20 @@ void DownloadManager::download_set( const QString& set_code )
 
 void DownloadManager::generator_rankingtable( QString set_code )
 {
-    const QList<QString> raritytranslation =
+    const QMap<QString,QString> raritytranslation =
     {
-        tr( "common" ), tr( "uncommon" ) , tr( "rare" ) , tr( "mythic" )
+        {
+            "common" , tr( "common" )
+        },
+        {
+            "uncommon" , tr( "uncommon" )
+        },
+        {
+            "rare" , tr( "rare" )
+        },
+        {
+            "mythic" , tr( "mythic" )
+        }
     };
     const QList<QString> columnnames =
     {
@@ -278,7 +289,7 @@ void DownloadManager::generator_rankingtable( QString set_code )
         ws.cell( 2 , i + 2 ).value( cards[i].name().toUtf8().toStdString() );
         ws.cell( 3 , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
         ws.cell( 4 , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
-        ws.cell( 5 , i + 2 ).value( cards[i].printed_rarity().toUtf8().toStdString() );
+        ws.cell( 5 , i + 2 ).value( raritytranslation[cards[i].printed_rarity()].toUtf8().toStdString() );
         ws.cell( 6 , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
         ws.cell( 7 , i + 2 ).value( 0 );
         ws.cell( 8 , i + 2 ).value( 0 );
