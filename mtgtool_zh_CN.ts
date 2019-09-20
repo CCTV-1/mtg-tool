@@ -2,6 +2,74 @@
 <!DOCTYPE TS>
 <TS version="2.1" language="zh_CN">
 <context>
+    <name>DownloadManager</name>
+    <message>
+        <location filename="download_manager.cpp" line="257"/>
+        <source>common</source>
+        <translation>普通</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="257"/>
+        <source>uncommon</source>
+        <translation>非普通</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="257"/>
+        <source>rare</source>
+        <translation>稀有</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="257"/>
+        <source>mythic</source>
+        <translation>秘稀</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="261"/>
+        <source>zh_name</source>
+        <translation>中文名</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="261"/>
+        <source>en_name</source>
+        <translation>英文名</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="261"/>
+        <source>type</source>
+        <translation>类别</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="261"/>
+        <source>text</source>
+        <translation>异能</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="262"/>
+        <source>rarity</source>
+        <translation>稀有度</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="262"/>
+        <source>pt</source>
+        <translation>攻防</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="262"/>
+        <source>sealed_ranking</source>
+        <translation>现开评分</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="262"/>
+        <source>darft_ranking</source>
+        <translation>轮抓评分</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="263"/>
+        <source>construct_ranking</source>
+        <translation>构筑评分</translation>
+    </message>
+</context>
+<context>
     <name>PreviewDialog</name>
     <message>
         <location filename="PreviewDialog.qml" line="24"/>
@@ -35,7 +103,7 @@
         <translation type="vanished">备牌</translation>
     </message>
     <message>
-        <location filename="main.qml" line="355"/>
+        <location filename="main.qml" line="380"/>
         <source>choose a deck file</source>
         <translation>选择一个套牌文件</translation>
     </message>
@@ -90,26 +158,46 @@
         <translation>预览图片高度：</translation>
     </message>
     <message>
-        <location filename="main.qml" line="426"/>
+        <location filename="main.qml" line="328"/>
+        <source>sets views button function:</source>
+        <translation>系列视图按钮功能：</translation>
+    </message>
+    <message>
+        <location filename="main.qml" line="341"/>
+        <source>download sets image</source>
+        <translation>下载系列图片</translation>
+    </message>
+    <message>
+        <location filename="main.qml" line="342"/>
+        <source>generator sets ranking table</source>
+        <translation>生成系列单卡评分表</translation>
+    </message>
+    <message>
+        <location filename="main.qml" line="451"/>
         <source>Preferences Setting</source>
         <translation>偏好设置</translation>
+    </message>
+    <message>
+        <location filename="main.qml" line="469"/>
+        <source>sets views</source>
+        <translation>系列视图</translation>
     </message>
     <message>
         <source>test downloader</source>
         <translation type="vanished">测试下载器</translation>
     </message>
     <message>
-        <location filename="main.qml" line="328"/>
+        <location filename="main.qml" line="353"/>
         <source>preview generator</source>
         <translation>预览生成器</translation>
     </message>
     <message>
-        <location filename="main.qml" line="340"/>
+        <location filename="main.qml" line="365"/>
         <source>parse clipboard</source>
         <translation>从剪切板解析</translation>
     </message>
     <message>
-        <location filename="main.qml" line="362"/>
+        <location filename="main.qml" line="387"/>
         <source>parse deck</source>
         <translation>从套牌文件解析</translation>
     </message>
@@ -118,12 +206,11 @@
         <translation type="vanished">单卡图片下载器</translation>
     </message>
     <message>
-        <location filename="main.qml" line="444"/>
         <source>sets card image downloader</source>
-        <translation>系列图片下载器</translation>
+        <translation type="vanished">系列图片下载器</translation>
     </message>
     <message>
-        <location filename="main.qml" line="454"/>
+        <location filename="main.qml" line="479"/>
         <source>enter filter role string(part or all,only support english,case sensitive)</source>
         <translation>输入用于筛选对象的字符串（部分或者全部，只支持英语，区分大小写）</translation>
     </message>
@@ -150,7 +237,7 @@
         <translation type="vanished">拖放测试</translation>
     </message>
     <message>
-        <location filename="main.qml" line="415"/>
+        <location filename="main.qml" line="440"/>
         <source>deck preview generator</source>
         <translation>套牌预览生成器</translation>
     </message>
