@@ -8,8 +8,8 @@ ApplicationWindow
 {
     id: window
     visible: true
-    width: 640
-    height: 480
+    width: 940
+    height: 720
     title: qsTr("MTG Tools")
 
     FontLoader { id: customfont; source: "qrc:/UbuntuMono-Bold.ttf" }
@@ -318,6 +318,31 @@ ApplicationWindow
                     }
                 }
             }
+            Row
+            {
+                width: parent.width
+                Text
+                {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width*2/5
+                    text: qsTr("sets views button function:")
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: customfont.name
+                    font.pixelSize: 14
+                }
+                ComboBox
+                {
+                    id: func_control
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width*3/5
+                    currentIndex: 0
+                    model:
+                    [
+                        qsTr( "download sets image" ),
+                        qsTr( "generator sets ranking table" )
+                    ]
+                }
+            }
         }
     }
 
@@ -441,7 +466,7 @@ ApplicationWindow
         initialItem:
         Page
         {
-            title: qsTr( "sets card image downloader" )
+            title: qsTr( "sets views" )
             ScrollView
             {
                 anchors.fill: parent
@@ -481,7 +506,12 @@ ApplicationWindow
                                 onClicked:
                                 {
                                     if ( checkState == Qt.Checked )
-                                        downloader.download_set( code )
+                                    {
+                                        if ( func_control.currentIndex == 0 )
+                                            downloader.download_set( code )
+                                        else
+                                            downloader.generator_rankingtable( code )
+                                    }
                                 }
                                 anchors.verticalCenter: parent.verticalCenter
                             }

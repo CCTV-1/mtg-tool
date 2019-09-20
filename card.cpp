@@ -11,11 +11,17 @@ Card::Card():
     ;
 }
 
-Card::Card( QString id , QString code , QString name ):
+Card::Card( QString id , QString code , QString name , QString print_name , QString type,
+            QString text , QString rarity , QString pt ):
     QObject( nullptr ),
     set_id( id ),
     set_code( code.toLower() ),
-    card_name( name )
+    oracle_name( name ),
+    print_name( print_name ),
+    print_type( type ),
+    print_text( text ),
+    rarity( rarity ),
+    pt( pt )
 {
     ;
 }
@@ -24,7 +30,12 @@ Card::Card( const Card& card ):
     QObject( nullptr ),
     set_id( card.set_id ),
     set_code( card.set_code ),
-    card_name( card.card_name )
+    oracle_name( card.oracle_name ),
+    print_name( card.print_name ),
+    print_type( card.print_type ),
+    print_text( card.print_text ),
+    rarity( card.rarity ),
+    pt( card.pt )
 {
     ;
 }
@@ -33,7 +44,12 @@ Card::Card( Card&& card ) noexcept( true ):
     QObject( nullptr ),
     set_id( std::move( card.set_id ) ),
     set_code( std::move( card.set_code ) ),
-    card_name( std::move( card.card_name ) )
+    oracle_name( std::move( card.oracle_name ) ),
+    print_name( std::move( card.print_name ) ),
+    print_type( std::move( card.print_type ) ),
+    print_text( std::move( card.print_text ) ),
+    rarity( std::move( card.rarity ) ),
+    pt( std::move( card.pt ) )
 {
     ;
 }
@@ -44,7 +60,12 @@ Card& Card::operator=( const Card& card )
         return *this;
     this->set_id = card.set_id;
     this->set_code = card.set_code;
-    this->card_name = card.card_name;
+    this->oracle_name = card.oracle_name;
+    this->print_name = card.print_name;
+    this->print_type = card.print_type;
+    this->print_text = card.print_text;
+    this->rarity = card.rarity;
+    this->pt = card.pt;
     return *this;
 }
 
@@ -54,18 +75,18 @@ Card& Card::operator=(Card &&card) noexcept( true )
         return *this;
     this->set_id = std::move( card.set_id );
     this->set_code = std::move( card.set_code );
-    this->card_name = std::move( card.card_name );
+    this->oracle_name = std::move( card.oracle_name );
     return *this;
 }
 
 bool Card::operator<( const Card& other ) const
 {
-    return ( this->card_name < other.card_name );
+    return ( this->oracle_name < other.oracle_name );
 }
 
 bool Card::operator==( const Card& other ) const
 {
-    return ( this->card_name == other.card_name );
+    return ( this->oracle_name == other.oracle_name );
 }
 
 bool Card::operator!=( const Card& other ) const
@@ -75,7 +96,7 @@ bool Card::operator!=( const Card& other ) const
 
 QString Card::name( void ) const
 {
-    return this->card_name;
+    return this->oracle_name;
 }
 
 QString Card::code( void ) const
@@ -83,14 +104,39 @@ QString Card::code( void ) const
     return this->set_code;
 }
 
+QString Card::printed_name( void ) const
+{
+    return this->print_name;
+}
+
+QString Card::printed_type( void ) const
+{
+    return this->print_type;
+}
+
+QString Card::printed_text( void ) const
+{
+    return this->print_text;
+}
+
+QString Card::printed_rarity( void ) const
+{
+    return this->rarity;
+}
+
+QString Card::printed_pt( void ) const
+{
+    return this->pt;
+}
+
 QString Card::to_qstring( void ) const
 {
-    return QString( "{ set code:'%1', set id:'%2,' card name:'%3' }" ).arg( this->set_code ).arg( this->set_id ).arg( this->card_name );
+    return QString( "{ set code:'%1', set id:'%2,' card name:'%3' }" ).arg( this->set_code ).arg( this->set_id ).arg( this->oracle_name );
 }
 
 QUrl Card::local_uri( void ) const
 {
-    QString image_name = this->card_name;
+    QString image_name = this->oracle_name;
     ToolSetting settings;
     int format = settings.get_image_name_format();
     if ( format == int( ImageNameFormat::FormatEnum::FORGE ) )
@@ -121,7 +167,7 @@ QUrl Card::local_url( void ) const
 
 QUrl Card::scryfall_url( void ) const
 {
-    if ( this->card_name == QString() )
+    if ( this->oracle_name == QString() )
     {
         return QUrl();
     }
@@ -133,7 +179,7 @@ QUrl Card::scryfall_url( void ) const
     QString resoulution_string = QString( QMetaEnum::fromType<ImageStyles::StylesEnum>().valueToKey( resoulution_value ) );
     if ( this->set_code.isEmpty() )
     {
-        return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&format=image&version=%2" ).arg( this->card_name ).arg( resoulution_string ) );
+        return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&format=image&version=%2" ).arg( this->oracle_name ).arg( resoulution_string ) );
     }
     if ( this->set_id != std::numeric_limits<decltype( this->set_id )>::max() )
     {
@@ -143,7 +189,7 @@ QUrl Card::scryfall_url( void ) const
         else
             return QUrl( QString( "https://api.scryfall.com/cards/%1/%2/%3?format=image&version=%4" ).arg( this->set_code ).arg( this->set_id ).arg( lang_code ).arg( resoulution_string ) );
     }
-    return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&set=%2&format=image&version=%3" ).arg( this->card_name ).arg( this->set_code ).arg( resoulution_string ) );
+    return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&set=%2&format=image&version=%3" ).arg( this->oracle_name ).arg( this->set_code ).arg( resoulution_string ) );
 }
 
 bool Card::exists_localfile( void ) const

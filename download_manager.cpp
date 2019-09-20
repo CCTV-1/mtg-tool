@@ -6,14 +6,20 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaEnum>
 #include <QVector>
 
+#include <xlnt/xlnt.hpp>
+
 #include "card.h"
+#include "enums.h"
+#include "tool_settings.h"
 #include "download_manager.h"
 
-static bool update_cardlist_cache( const QString& set_code )
+static bool update_cardlist_cache( const QString& set_code , Languages::LaunguageEnum lang )
 {
-    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s=%1" ).arg( set_code ) );
+    QString lang_code = QString( QMetaEnum::fromType<Languages::LaunguageEnum>().valueToKey( int( lang ) ) );
+    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s=%1+lang:%2" ).arg( set_code ).arg( lang_code ) );
     QString cache_name = QString( "%1.json" ).arg( set_code );
     QFile cache_file( cache_name );
     if ( cache_file.exists() )
@@ -82,9 +88,15 @@ static bool update_cardlist_cache( const QString& set_code )
             QJsonObject scryfall_card = scryfall_cards[i].toObject();
             //struct see SetList::SetList comment
             QJsonObject cardlist_cache;
-            cardlist_cache["name"] = scryfall_card["name"];
+            cardlist_cache["oracle_name"] = scryfall_card["name"];
+            cardlist_cache["print_name"] = scryfall_card["printed_name"];
             cardlist_cache["set"] = scryfall_card["set"];
             cardlist_cache["id"] = scryfall_card["collector_number"];
+            cardlist_cache["print_type"] = scryfall_card["printed_type_line"];
+            cardlist_cache["print_text"] = scryfall_card["printed_text"];
+            cardlist_cache["rarity"] = scryfall_card["rarity"];
+            QString PT = QString( "%1/%2" ).arg( scryfall_card["power"].toString() ).arg( scryfall_card["toughness"].toString() );
+            cardlist_cache["pt"] = PT;
             cards_cache.append( cardlist_cache );
         }
         reply->deleteLater();
@@ -102,14 +114,14 @@ static bool update_cardlist_cache( const QString& set_code )
     return true;
 }
 
-static QVector<Card> get_cardlist( const QString& set_code )
+static QVector<Card> get_cardlist( const QString& set_code , Languages::LaunguageEnum lang )
 {
     QVector<Card> cards;
     QString cache_name = QString( "%1.json" ).arg( set_code );
     QFile cache_file( cache_name );
     if ( cache_file.exists() == false )
     {
-        if ( update_cardlist_cache( set_code ) == false )
+        if ( update_cardlist_cache( set_code , lang ) == false )
         {
             qWarning() << QString( "can not get the set:'%1' card list information." ).arg( set_code );
             return cards;
@@ -123,7 +135,7 @@ static QVector<Card> get_cardlist( const QString& set_code )
         qDebug() << QString( "cache file last updated %1 days ago" ).arg( last_update.daysTo( now_date ) );
         if ( last_update.daysTo( now_date ) >= 1 )
         {
-            if ( update_cardlist_cache( set_code ) == false )
+            if ( update_cardlist_cache( set_code , lang ) == false )
             {
                 qWarning() << QString( "can not get card list information." );
                 return cards;
@@ -180,10 +192,15 @@ static QVector<Card> get_cardlist( const QString& set_code )
     {
         QJsonObject cache_card = set_array[i].toObject();
         //serialization set object
+        QString oracle_name = cache_card["oracle_name"].toString();
+        QString print_name = cache_card["print_name"].toString();
         QString code = cache_card["set"].toString();
-        QString name = cache_card["name"].toString();
         QString id = cache_card["id"].toString();
-        cards.append({ id , code , name });
+        QString print_type = cache_card["print_type"].toString();
+        QString print_text = cache_card["print_text"].toString();
+        QString rarity = cache_card["rarity"].toString();
+        QString pt = cache_card["pt"].toString();
+        cards.append({ id , code , oracle_name , print_name , print_type , print_text , rarity , pt });
     }
     return cards;
 }
@@ -223,12 +240,51 @@ void DownloadManager::download_card(QUrl local_url, QUrl network_url)
 
 void DownloadManager::download_set( const QString& set_code )
 {
-    QVector<Card> cards = get_cardlist( set_code );
+    ToolSetting setting;
+    Languages::LaunguageEnum lang = static_cast<Languages::LaunguageEnum>( setting.get_image_lanuage() );
+    QVector<Card> cards = get_cardlist( set_code , lang );
     for ( auto& card : cards )
     {
         //if local image exist,download_card return immediately,so don't check
         this->download_card( card.local_url() , card.scryfall_url() );
     }
+}
+
+void DownloadManager::generator_rankingtable( QString set_code )
+{
+    const QList<QString> raritytranslation =
+    {
+        tr( "common" ), tr( "uncommon" ) , tr( "rare" ) , tr( "mythic" )
+    };
+    const QList<QString> columnnames =
+    {
+        tr( "zh_name" ) , tr( "en_name" ) , tr( "type" ) , tr( "text" ),
+        tr( "rarity" ) , tr( "pt" ) , tr( "sealed_ranking" ) , tr( "darft_ranking" ),
+        tr( "construct_ranking" )
+    };
+    xlnt::workbook wb;
+    xlnt::worksheet ws = wb.active_sheet();
+    ws.title("ranking");
+    ToolSetting setting;
+    Languages::LaunguageEnum lang = static_cast<Languages::LaunguageEnum>( setting.get_image_lanuage() );
+    QVector<Card> cards = get_cardlist( set_code , lang );
+    for ( int i = 0 ; i < columnnames.size() ; i++ )
+    {
+        ws.cell( 1 + i , 1 ).value( columnnames[ i ].toUtf8().toStdString() );
+    }
+    for ( int i = 0 ; i < cards.size() ; i++ )
+    {
+        ws.cell( 1 , i + 2 ).value( cards[i].printed_name().toUtf8().toStdString() );
+        ws.cell( 2 , i + 2 ).value( cards[i].name().toUtf8().toStdString() );
+        ws.cell( 3 , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
+        ws.cell( 4 , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
+        ws.cell( 5 , i + 2 ).value( cards[i].printed_rarity().toUtf8().toStdString() );
+        ws.cell( 6 , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
+        ws.cell( 7 , i + 2 ).value( 0 );
+        ws.cell( 8 , i + 2 ).value( 0 );
+        ws.cell( 9 , i + 2 ).value( 0 );
+    }
+    wb.save( QString( "%1.xlsx" ).arg(set_code).toUtf8().toStdString() );
 }
 
 int DownloadManager::request_count()
@@ -246,7 +302,6 @@ void DownloadManager::finished( QNetworkReply * reply )
     }
     else
     {
-
         //todo:
         //forge some set need multiple card image name to $(name).1.full.jpg $(name).2.full.jpg...
         //xmage some set need multiple card image name to $(name).$(set_id).full.jpg ...

@@ -12,7 +12,8 @@ class Card : public QObject
     Q_PROPERTY(QString code READ code CONSTANT)
 public:
     Card();
-    Card( QString id , QString code , QString name );
+    Card( QString id , QString code , QString name , QString print_name = "" , QString print_type = "",
+          QString print_text = "" , QString rarity = "" , QString pt = "" );
     Card( const Card& card );
     Card( Card&& card ) noexcept( true );
 
@@ -24,6 +25,11 @@ public:
 
     QString name( void ) const;
     QString code( void ) const;
+    QString printed_name( void ) const;
+    QString printed_type( void ) const;
+    QString printed_text( void ) const;
+    QString printed_rarity( void ) const;
+    QString printed_pt( void ) const;
     Q_INVOKABLE QUrl local_uri( void ) const;
     Q_INVOKABLE QUrl local_url( void ) const;
     Q_INVOKABLE QUrl scryfall_url( void ) const;
@@ -33,7 +39,12 @@ public:
 private:
     QString set_id;
     QString set_code;
-    QString card_name;
+    QString oracle_name;
+    QString print_name;
+    QString print_type;
+    QString print_text;
+    QString rarity;
+    QString pt;
 };
 Q_DECLARE_METATYPE(Card)
 
