@@ -97,15 +97,7 @@ static bool update_cardlist_cache( const QString& set_code , Languages::Launguag
             {
                 cardlist_cache["print_name"] = "";
             }
-            if ( scryfall_card.contains( "mana_cost" ) )
-            {
-                cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
-            }
-            else
-            {
-                //no exist mana cost,in mtg have mana cost == 0 card
-                cardlist_cache["mana_cost"] = -1;
-            }
+            cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
             cardlist_cache["set"] = scryfall_card["set"];
             cardlist_cache["id"] = scryfall_card["collector_number"];
             if ( scryfall_card.contains( "printed_type_line" ) )
