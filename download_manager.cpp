@@ -97,7 +97,15 @@ static bool update_cardlist_cache( const QString& set_code , Languages::Launguag
             {
                 cardlist_cache["print_name"] = "";
             }
-            cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
+            if ( scryfall_card.contains( "mana_cost" ) )
+            {
+                cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
+            }
+            else
+            {
+                //no exist mana cost,in mtg have mana cost == 0 card
+                cardlist_cache["mana_cost"] = -1;
+            }
             cardlist_cache["set"] = scryfall_card["set"];
             cardlist_cache["id"] = scryfall_card["collector_number"];
             if ( scryfall_card.contains( "printed_type_line" ) )
@@ -283,7 +291,7 @@ void DownloadManager::download_set( const QString& set_code )
     }
 }
 
-void DownloadManager::generator_rankingtable( QString set_code )
+void DownloadManager::generator_ratingtable( QString set_code )
 {
     const QMap<QString,QString> raritytranslation =
     {
@@ -302,13 +310,13 @@ void DownloadManager::generator_rankingtable( QString set_code )
     };
     const QList<QString> columnnames =
     {
-        tr( "zh_name" ) , tr( "en_name" ) , tr( "type" ) , tr( "text" ),
-        tr( "rarity" ) , tr( "pt" ) , tr( "sealed_ranking" ) , tr( "darft_ranking" ),
-        tr( "construct_ranking" )
+        tr( "set_id" ) , tr( "zh_name" ) , tr( "en_name" ) , tr( "type" ) ,
+        tr( "text" ) , tr( "rarity" ) , tr( "pt" ) , tr( "sealed_rating" ) ,
+        tr( "darft_rating" ) , tr( "construct_rating" )
     };
     xlnt::workbook wb;
     xlnt::worksheet ws = wb.active_sheet();
-    ws.title("ranking");
+    ws.title("rating");
     ToolSetting setting;
     Languages::LaunguageEnum lang = static_cast<Languages::LaunguageEnum>( setting.get_image_lanuage() );
     QVector<Card> cards = get_cardlist( set_code , lang );
@@ -318,15 +326,16 @@ void DownloadManager::generator_rankingtable( QString set_code )
     }
     for ( int i = 0 ; i < cards.size() ; i++ )
     {
-        ws.cell( 1 , i + 2 ).value( cards[i].printed_name().toUtf8().toStdString() );
-        ws.cell( 2 , i + 2 ).value( cards[i].name().toUtf8().toStdString() );
-        ws.cell( 3 , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
-        ws.cell( 4 , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
-        ws.cell( 5 , i + 2 ).value( raritytranslation[cards[i].printed_rarity()].toUtf8().toStdString() );
-        ws.cell( 6 , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
-        ws.cell( 7 , i + 2 ).value( 0 );
-        ws.cell( 8 , i + 2 ).value( 0 );
-        ws.cell( 9 , i + 2 ).value( 0 );
+        ws.cell( 1  , i + 2 ).value( cards[i].id().toUtf8().toStdString() );
+        ws.cell( 2  , i + 2 ).value( cards[i].printed_name().toUtf8().toStdString() );
+        ws.cell( 3  , i + 2 ).value( cards[i].name().toUtf8().toStdString() );
+        ws.cell( 4  , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
+        ws.cell( 5  , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
+        ws.cell( 6  , i + 2 ).value( raritytranslation[cards[i].printed_rarity()].toUtf8().toStdString() );
+        ws.cell( 7  , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
+        ws.cell( 8  , i + 2 ).value( 0 );
+        ws.cell( 9  , i + 2 ).value( 0 );
+        ws.cell( 10 , i + 2 ).value( 0 );
     }
     wb.save( QString( "%1.xlsx" ).arg(set_code).toUtf8().toStdString() );
 }

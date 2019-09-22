@@ -4,69 +4,86 @@
 <context>
     <name>DownloadManager</name>
     <message>
-        <location filename="download_manager.cpp" line="257"/>
+        <location filename="download_manager.cpp" line="299"/>
         <source>common</source>
         <translation>普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="257"/>
+        <location filename="download_manager.cpp" line="302"/>
         <source>uncommon</source>
         <translation>非普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="257"/>
+        <location filename="download_manager.cpp" line="305"/>
         <source>rare</source>
         <translation>稀有</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="257"/>
+        <location filename="download_manager.cpp" line="308"/>
         <source>mythic</source>
         <translation>秘稀</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="261"/>
+        <location filename="download_manager.cpp" line="313"/>
         <source>zh_name</source>
         <translation>中文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="261"/>
+        <location filename="download_manager.cpp" line="313"/>
         <source>en_name</source>
         <translation>英文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="261"/>
+        <location filename="download_manager.cpp" line="313"/>
         <source>type</source>
         <translation>类别</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="261"/>
+        <location filename="download_manager.cpp" line="313"/>
+        <source>set_id</source>
+        <translation>编号</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="314"/>
         <source>text</source>
         <translation>异能</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="262"/>
+        <location filename="download_manager.cpp" line="314"/>
         <source>rarity</source>
         <translation>稀有度</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="262"/>
+        <location filename="download_manager.cpp" line="314"/>
         <source>pt</source>
         <translation>攻防</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="262"/>
-        <source>sealed_ranking</source>
+        <location filename="download_manager.cpp" line="314"/>
+        <source>sealed_rating</source>
         <translation>现开评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="262"/>
-        <source>darft_ranking</source>
+        <location filename="download_manager.cpp" line="315"/>
+        <source>darft_rating</source>
         <translation>轮抓评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="263"/>
-        <source>construct_ranking</source>
+        <location filename="download_manager.cpp" line="315"/>
+        <source>construct_rating</source>
         <translation>构筑评分</translation>
+    </message>
+    <message>
+        <source>sealed_ranking</source>
+        <translation type="vanished">现开评分</translation>
+    </message>
+    <message>
+        <source>darft_ranking</source>
+        <translation type="vanished">轮抓评分</translation>
+    </message>
+    <message>
+        <source>construct_ranking</source>
+        <translation type="vanished">构筑评分</translation>
     </message>
 </context>
 <context>
@@ -169,7 +186,8 @@
     </message>
     <message>
         <location filename="main.qml" line="342"/>
-        <source>generator sets ranking table</source>
+        <source>generator sets rating table</source>
+        <oldsource>generator sets ranking table</oldsource>
         <translation>生成系列单卡评分表</translation>
     </message>
     <message>

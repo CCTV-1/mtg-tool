@@ -339,7 +339,7 @@ ApplicationWindow
                     model:
                     [
                         qsTr( "download sets image" ),
-                        qsTr( "generator sets ranking table" )
+                        qsTr( "generator sets rating table" )
                     ]
                 }
             }
@@ -510,7 +510,7 @@ ApplicationWindow
                                         if ( func_control.currentIndex == 0 )
                                             downloader.download_set( code )
                                         else
-                                            downloader.generator_rankingtable( code )
+                                            downloader.generator_ratingtable( code )
                                     }
                                 }
                                 anchors.verticalCenter: parent.verticalCenter

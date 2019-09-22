@@ -23,6 +23,7 @@ public:
     bool operator==( const Card& other ) const;
     bool operator!=( const Card& other ) const;
 
+    QString id( void ) const;
     QString name( void ) const;
     QString code( void ) const;
     QString printed_name( void ) const;

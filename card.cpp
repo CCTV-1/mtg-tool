@@ -94,6 +94,11 @@ bool Card::operator!=( const Card& other ) const
     return !( this->operator==( other ) );
 }
 
+QString Card::id( void ) const
+{
+    return this->set_id;
+}
+
 QString Card::name( void ) const
 {
     return this->oracle_name;

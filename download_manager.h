@@ -16,7 +16,7 @@ public:
 
     Q_INVOKABLE void download_card( QUrl local_url , QUrl network_url );
     Q_INVOKABLE void download_set( const QString& set_code );
-    Q_INVOKABLE void generator_rankingtable( QString set_code );
+    Q_INVOKABLE void generator_ratingtable( QString set_code );
 
     int request_count( void );
 public slots:
