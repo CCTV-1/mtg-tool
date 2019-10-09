@@ -88,15 +88,96 @@ static bool update_cardlist_cache( const QString& set_code , Languages::Launguag
             QJsonObject scryfall_card = scryfall_cards[i].toObject();
             //struct see SetList::SetList comment
             QJsonObject cardlist_cache;
-            cardlist_cache["oracle_name"] = scryfall_card["name"];
-            if ( scryfall_card.contains( "printed_name" ) )
+            if ( scryfall_card.contains( "card_faces" ) )
             {
-                cardlist_cache["print_name"] = scryfall_card["printed_name"];
+                //double face card info
+                QJsonArray faces = scryfall_card["card_faces"].toArray();
+                int face_size = faces.size();
+                QString print_name;
+                QString print_text;
+                QString card_pt;
+                for ( int i = 0 ; i < face_size ; i++ )
+                {
+                    QJsonObject face = faces[i].toObject();
+
+                    if ( face.contains( "printed_name" ) )
+                    {
+                        print_name += face["printed_name"].toString();
+                    }
+                    else
+                    {
+                        print_name += face["name"].toString();
+                    }
+                    if ( i + 1 < face_size )
+                    {
+                        print_name += " // ";
+                    }
+
+                    if ( face.contains( "printed_text" ) )
+                    {
+                        print_text += face["printed_text"].toString();
+                    }
+                    else if ( face.contains( "oracle_text" ) )
+                    {
+                        print_text = face["oracle_text"].toString();
+                    }
+                    if ( ( i + 1 < face_size ) && ( !print_text.isEmpty() ) )
+                    {
+                        print_text += "\n\n\n\n";
+                    }
+
+                    if ( face.contains( "power" ) )
+                    {
+                        card_pt += QString( "%1/%2" ).arg( face["power"].toString() ).arg( face["toughness"].toString() );
+                    }
+                    if ( ( i + 1 < face_size ) && ( !card_pt.isEmpty() ) )
+                    {
+                        card_pt += "\n\n";
+                    }
+                }
+
+                cardlist_cache["print_name"] = print_name;
+                cardlist_cache["print_text"] = print_text;
+                cardlist_cache["pt"] = card_pt;
             }
             else
             {
-                cardlist_cache["print_name"] = "";
+                //single face card info
+                if ( scryfall_card.contains( "printed_name" ) )
+                {
+                    cardlist_cache["print_name"] = scryfall_card["printed_name"];
+                }
+                else
+                {
+                    cardlist_cache["print_name"] = "";
+                }
+
+                if ( scryfall_card.contains( "printed_text" ) )
+                {
+                    cardlist_cache["print_text"] = scryfall_card["printed_text"];
+                }
+                else if ( scryfall_card.contains( "oracle_text" ) )
+                {
+                    cardlist_cache["print_text"] = scryfall_card["oracle_text"];
+                }
+                else
+                {
+                    cardlist_cache["print_text"] = "";
+                }
+
+                if ( scryfall_card.contains( "power" ) )
+                {
+                    QString PT = QString( "%1/%2" ).arg( scryfall_card["power"].toString() ).arg( scryfall_card["toughness"].toString() );
+                    cardlist_cache["pt"] = PT;
+                }
+                else
+                {
+                    cardlist_cache["pt"] = "";
+                }
             }
+            //all card common info
+            cardlist_cache["oracle_name"] = scryfall_card["name"];
+
             if ( scryfall_card.contains( "mana_cost" ) )
             {
                 cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
@@ -106,6 +187,7 @@ static bool update_cardlist_cache( const QString& set_code , Languages::Launguag
                 //no exist mana cost,in mtg have mana cost == 0 card
                 cardlist_cache["mana_cost"] = -1;
             }
+
             cardlist_cache["set"] = scryfall_card["set"];
             cardlist_cache["id"] = scryfall_card["collector_number"];
             if ( scryfall_card.contains( "printed_type_line" ) )
@@ -116,28 +198,9 @@ static bool update_cardlist_cache( const QString& set_code , Languages::Launguag
             {
                 cardlist_cache["print_type"] = scryfall_card["type_line"];
             }
-            if ( scryfall_card.contains( "printed_text" ) )
-            {
-                cardlist_cache["print_text"] = scryfall_card["printed_text"];
-            }
-            else if ( scryfall_card.contains( "oracle_text" ) )
-            {
-                cardlist_cache["print_text"] = scryfall_card["oracle_text"];
-            }
-            else
-            {
-                cardlist_cache["print_text"] = "";
-            }
+
             cardlist_cache["rarity"] = scryfall_card["rarity"];
-            if ( scryfall_card.contains( "power" ) )
-            {
-                QString PT = QString( "%1/%2" ).arg( scryfall_card["power"].toString() ).arg( scryfall_card["toughness"].toString() );
-                cardlist_cache["pt"] = PT;
-            }
-            else
-            {
-                cardlist_cache["pt"] = "";
-            }
+
             cards_cache.append( cardlist_cache );
         }
         reply->deleteLater();
