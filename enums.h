@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include <QObject>
+#include <QStringList>
 
 enum class DeckType:std::uint8_t
 {
@@ -14,23 +15,26 @@ enum class DeckType:std::uint8_t
     UNKNOWN
 };
 
-class ImageNameFormat
+class ImageNameFormatEnums
 {
     Q_GADGET
 public:
-    enum class FormatEnum:std::uint8_t
+    enum class EnumContent:std::uint8_t
     {
         FORGE,
         XMAGE
     };
-    Q_ENUM( FormatEnum );
+    Q_ENUM( EnumContent );
+
+    QStringList get_translation( void );
+    QStringList get_oracle( void );
 };
 
-class ImageStyles
+class ImageStylesEnums
 {
     Q_GADGET
 public:
-    enum class StylesEnum:std::uint8_t
+    enum class EnumContent:std::uint8_t
     {
         small,
         normal,
@@ -39,14 +43,17 @@ public:
         art_crop,
         border_crop
     };
-    Q_ENUM( StylesEnum );
+    Q_ENUM( EnumContent );
+
+    QStringList get_translation( void );
+    QStringList get_oracle( void );
 };
 
-class Languages
+class LanguageEnums
 {
     Q_GADGET
 public:
-    enum class LaunguageEnum:std::uint8_t
+    enum class EnumContent:std::uint8_t
     {
         //English
         en,
@@ -72,7 +79,10 @@ public:
         zht
         //other language card too little
     };
-    Q_ENUM( LaunguageEnum )
+    Q_ENUM( EnumContent )
+
+    QStringList get_translation( void );
+    QStringList get_oracle( void );
 };
 
 class SetType

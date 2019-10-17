@@ -28,10 +28,10 @@ int main( int argc , char * argv[] )
     app.installTranslator( &translator_zh );
 
     SetsModel sets;
-    EnumModel<Languages::LaunguageEnum> lang_model;
-    EnumModel<ImageStyles::StylesEnum> image_styles_model;
-    EnumModel<ImageNameFormat::FormatEnum> nameformat_model;
-    EnumModel<SetsModel::SetsRoles> role_model;
+    EnumModel<LanguageEnums> lang_model;
+    EnumModel<ImageStylesEnums> image_styles_model;
+    EnumModel<ImageNameFormatEnums> nameformat_model;
+    EnumModel<SetsModel> role_model;
     SetsFilter filter;
     filter.setSourceModel( &sets );
     filter.setFilterRole( settings.get_filter_role() );

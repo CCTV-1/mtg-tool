@@ -144,11 +144,11 @@ QUrl Card::local_uri( void ) const
     QString image_name = this->oracle_name;
     ToolSetting settings;
     int format = settings.get_image_name_format();
-    if ( format == int( ImageNameFormat::FormatEnum::FORGE ) )
+    if ( format == int( ImageNameFormatEnums::EnumContent::FORGE ) )
     {
         image_name.replace( " // " , "" );
     }
-    else if ( format == int( ImageNameFormat::FormatEnum::XMAGE ) )
+    else if ( format == int( ImageNameFormatEnums::EnumContent::XMAGE ) )
     {
         image_name.replace( "//" , "-" );
     }
@@ -178,10 +178,10 @@ QUrl Card::scryfall_url( void ) const
     }
     ToolSetting settings;
     int lang_value = settings.get_image_lanuage();
-    QString lang_code = QString( QMetaEnum::fromType<Languages::LaunguageEnum>().valueToKey( lang_value ) );
+    QString lang_code = QString( QMetaEnum::fromType<LanguageEnums::EnumContent>().valueToKey( lang_value ) );
 
     int resoulution_value = settings.get_image_resolution();
-    QString resoulution_string = QString( QMetaEnum::fromType<ImageStyles::StylesEnum>().valueToKey( resoulution_value ) );
+    QString resoulution_string = QString( QMetaEnum::fromType<ImageStylesEnums::EnumContent>().valueToKey( resoulution_value ) );
     if ( this->set_code.isEmpty() )
     {
         return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&format=image&version=%2" ).arg( this->oracle_name ).arg( resoulution_string ) );

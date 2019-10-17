@@ -1,6 +1,8 @@
 #ifndef ENUM_MODEL_H
 #define ENUM_MODEL_H
 
+#include <type_traits>
+
 #include <QObject>
 #include <QMetaEnum>
 #include <QStringList>
@@ -22,44 +24,39 @@ public:
 
     QStringList enums( void )
     {
-        return this->enum_strings;
+        return this->translation_strings;
     }
 
-    QStringList enum_strings;
+    QStringList translation_strings;
 };
 
 template<class ENUM_T>
 class EnumModel : public EnumModelBase
 {
+    static_assert(std::is_class<ENUM_T>::value);
+    static_assert(std::is_default_constructible<ENUM_T>::value);
+    static_assert(std::is_enum<typename ENUM_T::EnumContent>::value);
+    static_assert(std::is_member_function_pointer<decltype(&ENUM_T::get_translation)>::value);
+
 public:
     EnumModel()
     {
-        int enum_count = QMetaEnum::fromType<ENUM_T>().keyCount();
-
-        for ( int i = 0 ; ( enum_count > 0 ) && ( i >= 0 ) ; i++ )
-        {
-            const char * key = QMetaEnum::fromType<ENUM_T>().valueToKey( i );
-            if ( key == nullptr )
-            {
-                continue;
-            }
-            enum_count--;
-            this->enum_strings.append( QString( key ) );
-        }
+        this->translation_strings = ENUM_T().get_translation();
+        this->oracle_strings = ENUM_T().get_oracle();
     }
 
     int enumvalue_to_index( int enumvalue ) override
     {
-        const char * key = QMetaEnum::fromType<ENUM_T>().valueToKey( enumvalue );
+        const char * key = QMetaEnum::fromType<typename ENUM_T::EnumContent>().valueToKey( enumvalue );
         if ( key == nullptr )
         {
             return -1;
         }
         QString enum_name( key );
-        int enum_size = this->enum_strings.count();
+        int enum_size = this->oracle_strings.count();
         for ( int i = 0 ; i < enum_size ; i++ )
         {
-            if ( enum_name == this->enum_strings[ i ] )
+            if ( enum_name == this->oracle_strings[ i ] )
             {
                 return i;
             }
@@ -69,10 +66,13 @@ public:
 
     int index_to_enumvalue( int index ) override
     {
-        QString role_name = this->enum_strings[ index ];
+        QString role_name = this->oracle_strings[ index ];
         const char * key = role_name.toLocal8Bit().data();
-        return QMetaEnum::fromType<ENUM_T>().keyToValue( key );
+        return QMetaEnum::fromType<typename ENUM_T::EnumContent>().keyToValue( key );
     }
+
+private:
+    QStringList oracle_strings;
 };
 
 #endif // ENUM_MODEL_H

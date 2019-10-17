@@ -8,6 +8,7 @@ QT += network qml quick quickcontrols2
 INCLUDEPATH += .
 
 CONFIG += link_pkgconfig
+CONFIG += c++17
 PKGCONFIG += xlnt
 
 # The following define makes your compiler warn you if you use any
@@ -34,6 +35,7 @@ SOURCES += card.cpp \
            deck.cpp \
            deck_parser.cpp \
            download_manager.cpp \
+           enums.cpp \
            main.cpp \
            sets_model.cpp \
            tool_settings.cpp

@@ -21,7 +21,7 @@ ToolSetting::~ToolSetting()
 
 int ToolSetting::get_image_lanuage( void )
 {
-    return this->value( "download_preferences/image_language" , int( Languages::LaunguageEnum::en ) ).toInt();
+    return this->value( "download_preferences/image_language" , int( LanguageEnums::EnumContent::en ) ).toInt();
 }
 
 void ToolSetting::set_image_lanuage( int enum_value )
@@ -31,7 +31,7 @@ void ToolSetting::set_image_lanuage( int enum_value )
 
 int ToolSetting::get_image_name_format( void )
 {
-    return this->value( "download_preferences/name_format" , int( ImageNameFormat::FormatEnum::FORGE ) ).toInt();
+    return this->value( "download_preferences/name_format" , int( ImageNameFormatEnums::EnumContent::FORGE ) ).toInt();
 }
 
 void ToolSetting::set_image_name_format( int enum_value )
@@ -41,7 +41,7 @@ void ToolSetting::set_image_name_format( int enum_value )
 
 int ToolSetting::get_image_resolution( void )
 {
-    return this->value( "download_preferences/image_resolution" , int( ImageStyles::StylesEnum::large ) ).toInt();
+    return this->value( "download_preferences/image_resolution" , int( ImageStylesEnums::EnumContent::large ) ).toInt();
 }
 
 void ToolSetting::set_image_resolution( int enum_value )

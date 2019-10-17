@@ -214,6 +214,10 @@ QVariant SetsModel::data( const QModelIndex& index, int role ) const
     {
         return info.code();
     }
+    else if ( role == SetType )
+    {
+        return info.type();
+    }
     else if ( role == SetCount )
     {
         return info.count();
@@ -231,8 +235,38 @@ QHash<int, QByteArray> SetsModel::roleNames() const
     QHash<int, QByteArray> roles;
     roles[SetName] = "name";
     roles[SetCode] = "code";
+    roles[SetType] = "type";
     roles[SetCount] = "count";
     return roles;
+}
+
+QStringList SetsModel::get_translation()
+{
+    return QStringList({
+        tr("SetName"),
+        tr("SetCode"),
+        tr("SetType"),
+        tr("SetCount")
+    });
+}
+
+QStringList SetsModel::get_oracle( void )
+{
+    QStringList oracles;
+    int enum_count = QMetaEnum::fromType<SetsModel::EnumContent>().keyCount();
+
+    for ( int i = 0 ; ( enum_count > 0 ) && ( i >= 0 ) ; i++ )
+    {
+        const char * key = QMetaEnum::fromType<SetsModel::EnumContent>().valueToKey( i );
+        if ( key == nullptr )
+        {
+            continue;
+        }
+        enum_count--;
+        oracles.append( QString( key ) );
+    }
+
+    return oracles;
 }
 
 SetsFilter::SetsFilter()
