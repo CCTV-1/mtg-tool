@@ -488,57 +488,82 @@ ApplicationWindow
                     {
                         model: sets_model
                         delegate:
-                        Row
+                        Rectangle
                         {
-                            width: parent.width
-                            Downloader
+                            width: childrenRect.width
+                            height: childrenRect.height
+                            MouseArea
                             {
-                                id: downloader
-                                onRequest_count_changed:
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                //onClicked:
+                                //{
+                                    //console.log("clicked "+code)
+                                //}
+                                onEntered:
                                 {
-                                    card_count.color = "blue"
-                                    card_count.text = request_count;
+                                    parent.color = "#DDEEFF"
+                                }
+                                onExited:
+                                {
+                                    parent.color = "#FFFFFF"
                                 }
                             }
 
-                            CheckBox
+                            Row
                             {
-                                onClicked:
+                                id: set_row
+                                width: stackView.width
+                                Downloader
                                 {
-                                    if ( checkState == Qt.Checked )
+                                    id: downloader
+                                    onRequest_count_changed:
                                     {
-                                        if ( func_control.currentIndex == 0 )
-                                            downloader.download_set( code )
-                                        else
-                                            downloader.generator_ratingtable( code )
+                                        card_count.color = "#FF0000"
+                                        card_count.text = request_count;
                                     }
                                 }
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text
-                            {
-                                text: name
-                                horizontalAlignment: Text.AlignHCenter
-                                font.family: customfont.name
-                                width: parent.width*0.5
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text
-                            {
-                                text: code
-                                horizontalAlignment: Text.AlignHCenter
-                                font.family: customfont.name
-                                width: parent.width*0.2
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Text
-                            {
-                                id: card_count
-                                text: count
-                                horizontalAlignment: Text.AlignHCenter
-                                font.family: customfont.name
-                                width: parent.width*0.2
-                                anchors.verticalCenter: parent.verticalCenter
+                                CheckBox
+                                {
+                                    //text: func_control.currentText
+                                    //width: parent.width*0.1
+                                    onClicked:
+                                    {
+                                        if ( checkState == Qt.Checked )
+                                        {
+                                            if ( func_control.currentIndex == 0 )
+                                                downloader.download_set( code )
+                                            else
+                                                downloader.generate_ratingtable( code )
+                                        }
+                                    }
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text
+                                {
+                                    text: name
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.family: customfont.name
+                                    width: parent.width*0.5
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text
+                                {
+                                    text: code + "(" + type + ")"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.family: customfont.name
+                                    width: parent.width*0.2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text
+                                {
+                                    id: card_count
+                                    text: count
+                                    horizontalAlignment: Text.AlignHCenter
+                                    font.family: customfont.name
+                                    width: parent.width*0.2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
                     }
