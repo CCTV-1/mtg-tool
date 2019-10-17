@@ -4,72 +4,72 @@
 <context>
     <name>DownloadManager</name>
     <message>
-        <location filename="download_manager.cpp" line="299"/>
+        <location filename="download_manager.cpp" line="363"/>
         <source>common</source>
         <translation>普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="302"/>
+        <location filename="download_manager.cpp" line="366"/>
         <source>uncommon</source>
         <translation>非普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="305"/>
+        <location filename="download_manager.cpp" line="369"/>
         <source>rare</source>
         <translation>稀有</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="308"/>
+        <location filename="download_manager.cpp" line="372"/>
         <source>mythic</source>
         <translation>秘稀</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="313"/>
+        <location filename="download_manager.cpp" line="377"/>
         <source>zh_name</source>
         <translation>中文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="313"/>
+        <location filename="download_manager.cpp" line="377"/>
         <source>en_name</source>
         <translation>英文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="313"/>
+        <location filename="download_manager.cpp" line="377"/>
         <source>type</source>
         <translation>类别</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="313"/>
+        <location filename="download_manager.cpp" line="377"/>
         <source>set_id</source>
         <translation>编号</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="314"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>text</source>
         <translation>异能</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="314"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>rarity</source>
         <translation>稀有度</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="314"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>pt</source>
         <translation>攻防</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="314"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>sealed_rating</source>
         <translation>现开评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="315"/>
+        <location filename="download_manager.cpp" line="379"/>
         <source>darft_rating</source>
         <translation>轮抓评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="315"/>
+        <location filename="download_manager.cpp" line="379"/>
         <source>construct_rating</source>
         <translation>构筑评分</translation>
     </message>
@@ -102,6 +102,118 @@
         <location filename="PreviewDialog.qml" line="181"/>
         <source>Sideboard</source>
         <translation>备牌</translation>
+    </message>
+</context>
+<context>
+    <name>QObject</name>
+    <message>
+        <location filename="enums.cpp" line="42"/>
+        <source>a transparent, rounded full card PNG</source>
+        <translation>透明的的圆角PNG卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="43"/>
+        <source>a full card image with the rounded corners and the majority of the border cropped off</source>
+        <translation>带有圆角和大部分边框的裁剪卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="44"/>
+        <source>a rectangular crop of the card’s art only</source>
+        <oldsource>a rectangular crop of the card’s art only.</oldsource>
+        <translation>用于看画的卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="45"/>
+        <source>a large full card image</source>
+        <translation>大尺寸的完整卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="46"/>
+        <source>a medium-sized full card image</source>
+        <translation>中等尺寸的完整卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="47"/>
+        <source>a small full card image</source>
+        <translation>小尺寸的完整卡图</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="59"/>
+        <source>English</source>
+        <translation>英语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="60"/>
+        <source>Spanish</source>
+        <translation>西班牙语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="61"/>
+        <source>French</source>
+        <translation>法语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="62"/>
+        <source>German</source>
+        <translation>德语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="63"/>
+        <source>Italian</source>
+        <translation>意大利语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="64"/>
+        <source>Portuguese</source>
+        <translation>葡萄牙语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="65"/>
+        <source>Japanese</source>
+        <translation>日语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="66"/>
+        <source>Korean</source>
+        <translation>韩语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="67"/>
+        <source>Russian</source>
+        <translation>俄语</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="68"/>
+        <source>Simplified Chinese</source>
+        <translation>简体中文</translation>
+    </message>
+    <message>
+        <location filename="enums.cpp" line="69"/>
+        <source>Traditional Chinese</source>
+        <translation>繁体中文</translation>
+    </message>
+</context>
+<context>
+    <name>SetsModel</name>
+    <message>
+        <location filename="sets_model.cpp" line="246"/>
+        <source>SetName</source>
+        <translation>系列名</translation>
+    </message>
+    <message>
+        <location filename="sets_model.cpp" line="247"/>
+        <source>SetCode</source>
+        <translation>系列代码</translation>
+    </message>
+    <message>
+        <location filename="sets_model.cpp" line="248"/>
+        <source>SetType</source>
+        <translation>系列类型</translation>
+    </message>
+    <message>
+        <location filename="sets_model.cpp" line="249"/>
+        <source>SetCount</source>
+        <translation>系列牌张数</translation>
     </message>
 </context>
 <context>
@@ -182,13 +294,13 @@
     <message>
         <location filename="main.qml" line="341"/>
         <source>download sets image</source>
-        <translation>下载系列图片</translation>
+        <translation>下载卡图</translation>
     </message>
     <message>
         <location filename="main.qml" line="342"/>
         <source>generator sets rating table</source>
         <oldsource>generator sets ranking table</oldsource>
-        <translation>生成系列单卡评分表</translation>
+        <translation>生成评分表</translation>
     </message>
     <message>
         <location filename="main.qml" line="451"/>
