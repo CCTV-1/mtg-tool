@@ -227,6 +227,8 @@ def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format
         except (AttributeError, TypeError, KeyError):
             logging.info(
                 "The card:'%s' information obtained is wrong\n", cardname)
+        except Exception as e:
+            logging.info("card:'%s',download failure.exception:'%s'", cardname, str(e))
 
 
 def main():
