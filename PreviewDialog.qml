@@ -10,6 +10,9 @@ Dialogs.Dialog
     property int dialog_width: Screen.width
     property int dialog_height: Screen.height
 
+    property var commander_image_list:
+    [
+    ]
     property var main_image_list:
     [
     ]
@@ -34,6 +37,123 @@ Dialogs.Dialog
         anchors.fill: parent
         Text
         {
+            id: commander_label
+            states:
+            [
+                State
+                {
+                    when: commander_image_list.length === 0
+                    PropertyChanges
+                    {
+                        target: commander_label
+                        visible: false
+                    }
+                }
+            ]
+            anchors.top: parent.top
+            width: parent.width
+            font.family: customfont.name
+            font.pointSize: 14
+            text: qsTr("commander")
+            horizontalAlignment: Text.AlignHCenter
+            verticalAlignment: Text.AlignVCenter
+        }
+        Grid
+        {
+            id: commander_view
+            states:
+            [
+                State
+                {
+                    when: commander_image_list.length === 0
+                    PropertyChanges
+                    {
+                        target: commander_view
+                        visible: false
+                    }
+                }
+            ]
+            columns: preview_dialog.width/image_width
+            anchors.top: commander_label.bottom
+            Repeater
+            {
+                id: commander_images
+                model:
+                ListModel
+                {
+                    id: commander_url_list
+                    Component.onCompleted:
+                    {
+                        for ( var index = 0 ; index < commander_image_list.length ; index++ )
+                        {
+                            commander_url_list.append( { "url" : commander_image_list[index] } )
+                        }
+                    }
+                }
+                delegate:
+                DropArea
+                {
+                    width: preview_dialog.image_width
+                    height: preview_dialog.image_height
+                    keys: "commander"
+
+                    onEntered:
+                    {
+                        commander_images.model.move( drag.source.visualIndex , commander_icon.visualIndex , 1 )
+                    }
+                    property int visualIndex: index
+                    Binding { target: commander_icon; property: "visualIndex"; value: visualIndex }
+
+                    Rectangle
+                    {
+                        id: commander_icon
+                        property int visualIndex: 0
+                        width: preview_dialog.image_width
+                        height: preview_dialog.image_height
+                        anchors
+                        {
+                            horizontalCenter: parent.horizontalCenter;
+                            verticalCenter: parent.verticalCenter
+                        }
+
+                        Image
+                        {
+                            sourceSize.width: preview_dialog.image_width
+                            sourceSize.height: preview_dialog.image_height
+                            source: modelData
+                        }
+
+                        DragHandler
+                        {
+                            id: commander_dragHandler
+                        }
+
+                        Drag.keys: "commander"
+                        Drag.active: commander_dragHandler.active
+                        Drag.source: commander_icon
+                        Drag.hotSpot.x: preview_dialog.image_width/2
+                        Drag.hotSpot.y: preview_dialog.image_height/2
+
+                        states:
+                        [
+                            State
+                            {
+                                when: commander_icon.Drag.active
+                                AnchorChanges
+                                {
+                                    target: commander_icon
+                                    anchors.horizontalCenter: undefined
+                                    anchors.verticalCenter: undefined
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        Text
+        {
             id: main_label
             states:
             [
@@ -47,7 +167,7 @@ Dialogs.Dialog
                     }
                 }
             ]
-            anchors.top: parent.top
+            anchors.top: commander_view.bottom
             width: parent.width
             font.family: customfont.name
             font.pointSize: 14
@@ -70,16 +190,6 @@ Dialogs.Dialog
                     }
                 }
             ]
-//            move:
-//            Transition
-//            {
-//                SmoothedAnimation
-//                {
-//                    properties: "x,y"
-//                    easing.type: Easing.Linear
-//                    duration: 1000
-//                }
-//            }
             columns: preview_dialog.width/image_width
             anchors.top: main_label.bottom
             Repeater
@@ -197,16 +307,6 @@ Dialogs.Dialog
                     }
                 }
             ]
-//            move:
-//            Transition
-//            {
-//                SmoothedAnimation
-//                {
-//                    properties: "x,y"
-//                    easing.type: Easing.Linear
-//                    duration: 1000
-//                }
-//            }
 
             columns: preview_dialog.width/image_width
             anchors.top: sideboard_label.bottom
@@ -288,6 +388,6 @@ Dialogs.Dialog
             }
         }
         width: preview_dialog.width
-        contentHeight: main_label.height + sideboard_label.height + main_view.height + sideboard_view.height
+        contentHeight: commander_label.height + main_label.height + sideboard_label.height + commander_view.height + main_view.height + sideboard_view.height
     }
 }

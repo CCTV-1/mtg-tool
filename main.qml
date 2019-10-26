@@ -20,34 +20,49 @@ ApplicationWindow
     {
         if ( deck === null )
             return
+        var commander_cards = deck.commander_list()
         var main_cards = deck.main_list()
         var side_cards = deck.side_list()
 
-        var main_source_urls = []
-        for ( var i in main_cards )
+        var commander_source_urls = []
+        for ( let i in commander_cards )
         {
-            if ( main_cards[i].exists_localfile() )
+            if ( commander_cards[i].exists_localfile() )
             {
-                main_source_urls.push( main_cards[i].local_uri().toString() )
+                commander_source_urls.push( commander_cards[i].local_uri().toString() )
             }
             else
             {
-                deck_downloader.download_card( main_cards[i].local_url() , main_cards[i].scryfall_url() )
-                main_source_urls.push( main_cards[i].scryfall_url().toString() )
+                deck_downloader.download_card( commander_cards[i].local_url() , commander_cards[i].scryfall_url() )
+                commander_source_urls.push( commander_cards[i].scryfall_url().toString() )
             }
-
         }
-        var side_source_urls = []
-        for ( var j in side_cards )
+
+        var main_source_urls = []
+        for ( let j in main_cards )
         {
-            if ( side_cards[j].exists_localfile() )
+            if ( main_cards[j].exists_localfile() )
             {
-                side_source_urls.push( side_cards[j].local_uri().toString() )
+                main_source_urls.push( main_cards[j].local_uri().toString() )
             }
             else
             {
-                deck_downloader.download_card( side_cards[j].local_url() , side_cards[j].scryfall_url() )
-                side_source_urls.push( side_cards[j].scryfall_url().toString() )
+                deck_downloader.download_card( main_cards[j].local_url() , main_cards[j].scryfall_url() )
+                main_source_urls.push( main_cards[j].scryfall_url().toString() )
+            }
+        }
+
+        var side_source_urls = []
+        for ( let k in side_cards )
+        {
+            if ( side_cards[k].exists_localfile() )
+            {
+                side_source_urls.push( side_cards[k].local_uri().toString() )
+            }
+            else
+            {
+                deck_downloader.download_card( side_cards[k].local_url() , side_cards[k].scryfall_url() )
+                side_source_urls.push( side_cards[k].scryfall_url().toString() )
             }
         }
 
@@ -63,6 +78,7 @@ ApplicationWindow
         {
             image_width: image_width_box.value,
             image_height: image_height_box.value,
+            commander_image_list : commander_source_urls,
             main_image_list : main_source_urls,
             sideboard_image_list : side_source_urls
         })
