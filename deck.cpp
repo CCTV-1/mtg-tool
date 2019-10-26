@@ -108,7 +108,15 @@ Deck::Deck( const QStringList& lines )
                     }
                     ( *list_prt )[ Card( set_id , set_code , card_name ) ] += mtga_deck_reg.cap(1).toInt();
                 }
-                else if ( line == QString( "" ) )
+                else if ( line == QString( "Commander" ) )
+                {
+                    list_prt = &( this->commander_cards );
+                }
+                else if ( line == QString( "Deck" ) )
+                {
+                    list_prt = &( this->main_cards );
+                }
+                else if ( line == QString( "Sideboard" ) )
                 {
                     list_prt = &( this->sideboard_cards );
                 }
@@ -175,6 +183,18 @@ QList<QObject *> Deck::card_list( void )
     {
         cards.append( new Card( card ) );
     }
+    return cards;
+}
+
+QList<QObject *> Deck::commander_list( void )
+{
+    QList<QObject *> cards;
+    for ( auto card : this->commander_cards.keys() )
+    {
+        for ( int i = 0 ; i < this->commander_cards.value( card ) ; i++ )
+            cards.append( new Card( card ) );
+    }
+
     return cards;
 }
 

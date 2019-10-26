@@ -26,12 +26,14 @@ public:
 
     //unique card list
     Q_INVOKABLE QList<QObject *> card_list( void );
+    Q_INVOKABLE QList<QObject *> commander_list( void );
     Q_INVOKABLE QList<QObject *> main_list( void );
     Q_INVOKABLE QList<QObject *> side_list( void );
 
     static DeckType inference_type( const QStringList& lines );
 private:
     DeckType type;
+    QMap<Card,std::uint16_t> commander_cards;
     QMap<Card,std::uint16_t> main_cards;
     QMap<Card,std::uint16_t> sideboard_cards;
 };
