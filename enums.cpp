@@ -39,12 +39,12 @@ QStringList ImageNameFormatEnums::get_oracle( void )
 QStringList ImageStylesEnums::get_translation()
 {
     return QStringList({
-        QObject::tr( "a transparent, rounded full card PNG" ),
-        QObject::tr( "a full card image with the rounded corners and the majority of the border cropped off" ),
-        QObject::tr( "a rectangular crop of the card’s art only" ),
-        QObject::tr( "a large full card image" ),
-        QObject::tr( "a medium-sized full card image" ),
         QObject::tr( "a small full card image" ),
+        QObject::tr( "a medium-sized full card image" ),
+        QObject::tr( "a large full card image" ),
+        QObject::tr( "a transparent, rounded full card PNG" ),
+        QObject::tr( "a rectangular crop of the card’s art only" ),
+        QObject::tr( "a full card image with the rounded corners and the majority of the border cropped off" ),
     });
 }
 
