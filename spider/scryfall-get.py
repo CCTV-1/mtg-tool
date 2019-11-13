@@ -3,30 +3,13 @@
 
 """get card image in https://scryfall.com"""
 
-import getopt
+import argparse
 import logging
-import math
 import os
 import re
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
-
-
-def helps():
-    """get help information"""
-    print(
-        '--getsetlist get scryfall.com supported setlist and each set shortname\n'
-        '--getsetcards=[set shortname] get set cards list\n'
-        '--getcardinfo=[cardname] get card info(usage english name is best)\n'
-        '--downloadformat=[format name] download format all card image\n'
-        '--downloadset=[set shortname] download set all card image\n'
-        '--downloadcube=[cube name] download cube all card image\n'
-        '--downloaddeck=[deckname] download deck content all card image\n'
-        '--downloadcard=[cardname] download card image\
-,but not support download reprint card history image'
-    )
 
 
 def getsetlist():
@@ -71,7 +54,7 @@ def get_queue_cardlist(queue_type, queue_content):
             cardsinfo.append(cardinfo)
         has_more = info_content['has_more']
 
-        while has_more != False:
+        while has_more:
             resp = requests.get(
                 info_content.get('next_page'), timeout=13)
             info_content = resp.json()
@@ -103,25 +86,6 @@ def getcubecards(setshortname, lang='en'):
     return get_queue_cardlist("cube", setshortname)
 
 
-def getcardinfo_fromid(cardobj):
-    try:
-        resp = requests.get(
-            # serie_code,serie_id,cardlang
-            'https://api.scryfall.com/cards/{0}/{1}/{2}'.format(cardobj[0], cardobj[1], cardobj[2]), timeout=13)
-        if resp.status_code != 200:
-            return None
-        cardinfo = resp.json()
-        return cardinfo
-    except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
-        logging.info("Get Card: '%s':'%s' info time out",
-                     cardobj[0], cardobj[1])
-    except (AttributeError, TypeError, KeyError):
-        logging.info("Get Card:'%s':'%s' Info Failure\n",
-                     cardobj[0], cardobj[1])
-    except (IndexError):
-        logging.info("cardobj:'%s' content format faliure\n", str(cardobj))
-
-
 def getcardinfo_fromname(cardname):
     try:
         resp = requests.get(
@@ -141,7 +105,7 @@ def donwload_cardlist(dir_name, cardlist):
         os.mkdir('./' + dir_name)
     os.chdir('./' + dir_name)
     with ThreadPoolExecutor(max_workers=8) as P:
-        futures = {P.submit(downloadcard, cardobj): cardobj for cardobj in cardlist}
+        futures = {P.submit(downloadcard, cardobj)                   : cardobj for cardobj in cardlist}
         for future in futures:
             future.result()
     os.chdir('../')
@@ -166,7 +130,7 @@ def downloaddeck(deckname, lang='en'):
     cardlist = getcardlist(deckname)
     cardsinfo = []
     with ThreadPoolExecutor(max_workers=8) as P:
-        futures = {P.submit(getcardinfo_fromname, card): card for card in cardlist}
+        futures = {P.submit(getcardinfo_fromname, card)                   : card for card in cardlist}
         for future in futures:
             cardsinfo.append(future.result())
 
@@ -175,7 +139,10 @@ def downloaddeck(deckname, lang='en'):
 
 def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format='xmage'):
     download_descptions = []
-
+    if rename_flags:
+        open_flags = 'xb'
+    else:
+        open_flags = 'wb'
     try:
         download_descptions.append(
             (cardobj['name'], cardobj['image_uris'][resolution]))
@@ -185,10 +152,6 @@ def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format
                 (card_face['name'], card_face['image_uris'][resolution]))
 
     for download_descption in download_descptions:
-        if rename_flags == True:
-            open_flags = 'xb'
-        else:
-            open_flags = 'wb'
         retry_flag = 8
 
         try:
@@ -228,92 +191,55 @@ def downloadcard(cardobj, rename_flags=True, resolution='large', filename_format
             logging.info(
                 "The card:'%s' information obtained is wrong\n", cardname)
         except Exception as e:
-            logging.info("card:'%s',download failure.exception:'%s'", cardname, str(e))
+            logging.info(
+                "card:'%s',download failure.exception:'%s'", cardname, str(e))
 
 
 def main():
     logging.basicConfig(filename='GetImage.log',
                         filemode='w', level=logging.INFO)
-    try:
-        options, args = getopt.getopt(sys.argv[1:], '', longopts=[
-            'help', 'getsetlist', 'getsetcards=', 'getcardinfo=', 'downloadformat=', 'downloadcube=', 'downloadset=', 'downloaddeck=', 'downloadcard='])
-        args = args  # wipe off unused warning
-        for name, value in options:
-            if name == '--help':
-                helps()
-                continue
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--getallset", action="store_true", help="get scryfall.com supported setlist and each set shortname")
+    group.add_argument("--downloadformat", metavar=("format name"), nargs=1, choices=["standard", "pioneer", "modern", "legacy", "vintage"],
+                       help="download choice format all card image")
+    group.add_argument("--downloadset", metavar=("set name"), nargs='+',
+                       help="download set all card image")
+    group.add_argument("--downloadcube", metavar=("cube name"), nargs='+',
+                       help="download cube all card image")
+    group.add_argument(
+        "--downloaddeck", metavar=("deck name"), nargs='+', help="download deck content all card image")
+    group.add_argument("--downloadcard", metavar=("card name"), nargs='+',
+                       help="download card image,but not support download reprint card history image")
+    args = parser.parse_args()
 
-            if name == '--getsetlist':
-                setlist = getsetlist()
-                print('support set is:\n')
-                for setobj in setlist:
-                    print("{0}({1})".format(setobj['name'], setobj['code']))
-                continue
+    if args.getallset:
+        setlist = getsetlist()
+        print('support set is:\n')
+        for setobj in setlist:
+            print("{0}({1})".format(setobj['name'], setobj['code']))
 
-            if name == '--getsetcards':
-                setshortname = value  # 'akh
-                cardsinfo = getsetcards(setshortname)
-                for cardobj in cardsinfo:
-                    try:
-                        print("{0}\t{1}".format(
-                            cardobj['name'], cardobj['mana_cost']))
-                    except KeyError:
-                        for face in cardobj['card_faces']:
-                            print("{0}\t{1}".format(
-                                face['name'], face['mana_cost']))
-                continue
+    if args.downloadformat:
+        for formatname in args.downloadformat:
+            downloadformat(formatname)
 
-            if name == '--getcardinfo':
-                cardinfo = getcardinfo_fromname(value)
-                try:
-                    print("{0}:\'{1}\'".format('card name', cardinfo['name']))
-                    print("{0}:\'{1}\'".format(
-                        'mana cost', cardinfo['mana_cost']))
-                    print("{0}:\'{1}\'".format(
-                        'card type', cardinfo['type_line']))
-                    print("{0}:\n\'{1}\'".format(
-                        'card text', cardinfo['oracle_text']))
-                except KeyError:
-                    for face in cardinfo['card_faces']:
-                        print("{0}:\'{1}\'".format('card name', face['name']))
-                        print("{0}:\'{1}\'".format(
-                            'mana cost', face['mana_cost']))
-                        print("{0}:\'{1}\'".format(
-                            'card type', face['type_line']))
-                        print("{0}:\n\'{1}\'".format(
-                            'card text', face['oracle_text']))
-                continue
+    if args.downloadset:
+        for setname in args.downloadset:
+            downloadset(setname)
 
-            if name == '--downloadformat':
-                formatname = value
-                downloadformat(formatname)
-                continue
+    if args.downloadcube:
+        for cubename in args.downloadcube:
+            downloadcube(cubename)
 
-            if name == '--downloadset':
-                setshortname = value
-                downloadset(setshortname)
-                continue
+    if args.downloaddeck:
+        for deckname in args.downloaddeck:
+            downloaddeck(deckname)
 
-            if name == '--downloadcube':
-                setshortname = value
-                downloadcube(setshortname)
-                continue
-
-            if name == '--downloaddeck':
-                deckname = value
-                downloaddeck(deckname)
-                continue
-
-            if name == '--downloadcard':
-                cardname = value
-                cardinfo = getcardinfo_fromname(cardname)
-                downloadcard(cardinfo, False)
-                continue
-
-    except getopt.GetoptError:
-        helps()
-    except (AttributeError, TypeError, KeyError):
-        print('get series or card information format failure')
+    if args.downloadcard:
+        for cardname in args.downloadcard:
+            cardinfo = getcardinfo_fromname(cardname)
+            downloadcard(cardinfo, False)
 
 
 if __name__ == '__main__':
