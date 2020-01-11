@@ -76,6 +76,11 @@ Card& Card::operator=(Card &&card) noexcept( true )
     this->set_id = std::move( card.set_id );
     this->set_code = std::move( card.set_code );
     this->oracle_name = std::move( card.oracle_name );
+    this->print_name = std::move( card.print_name );
+    this->print_type = std::move( card.print_type );
+    this->print_text = std::move( card.print_text );
+    this->rarity = std::move( card.rarity );
+    this->pt = std::move( card.pt );
     return *this;
 }
 
