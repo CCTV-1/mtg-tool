@@ -121,7 +121,7 @@ def get_cards(setcode: str, lang=Languages.EN):
                         elif 'oracle_text' in cardface:
                             card_text += cardface['oracle_text']
                         cardface = cardinfo['card_faces'][1]
-                        if card_text is not "":
+                        if card_text != "":
                             card_text += '\n\n\n\n'
                         if 'printed_text' in cardface:
                             card_text += cardface['printed_text']
