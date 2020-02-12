@@ -62,3 +62,6 @@ dkms.conf
 
 # Build Object
 build/
+
+# VSCode config
+.vscode/
