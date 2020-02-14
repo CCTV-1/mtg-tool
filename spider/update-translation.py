@@ -80,12 +80,20 @@ def get_iyingditranslations():
 
         i = ename.find('(')
         if i != -1:
-            ename = ename[:i-1]
+            if ename[i-1] == ' ':
+                # "Supply (Supply/Demand)" to "Supply"
+                ename = ename[:i-1]
+            else:
+                # "Forest(Theros)" to "Forest"
+                ename = ename[:i]
 
         if cname != "":
             i = cname.find('(')
             if i != -1:
-                cname = cname[:i-1]
+                if cname[i-1] == ' ':
+                    cname = cname[:i-1]
+                else:
+                    cname = cname[:i]
 
         if rule != "":
             rule = rule.replace('\r\n\r\n', '\\n')
@@ -235,13 +243,13 @@ def get_oracle():
             }
             with cardfile.open("r", encoding='utf8') as f:
                 for line in f.readlines():
-                    if 'Name:' in line:
+                    if line[0:5] == 'Name:':
                         line = line.strip('\n')
                         oracleinfo['name'].append(line.replace('Name:', ''))
-                    elif 'Types:' in line:
+                    elif line[0:6] == 'Types:':
                         line = line.strip('\n')
                         oracleinfo['type'].append(line.replace('Types:', ''))
-                    elif 'Oracle:' in line:
+                    elif line[0:7] == 'Oracle:':
                         oracleinfo['oracle'].append(
                             line.replace('Oracle:', ''))
             for index in range(oracleinfo['name'].__len__()):
@@ -254,10 +262,9 @@ def get_oracle():
                     oracle_text = oracleinfo['oracle'][index]
                 except IndexError:
                     oracle_text = ''
-                if oracle_text[-1:] != '\n':
-                    oracle_text += '\n'
-                oracle[name] = ('|{0}|{1}|{2}'.format(
-                    name, type, oracle_text))
+                if oracle_text[-1:] == '\n':
+                    oracle_text = oracle_text[1:-1]
+                oracle[name] = TSInfo(name, type, oracle_text)
             return oracle
 
         translations = {}
@@ -267,7 +274,7 @@ def get_oracle():
             sorted(translations.items()))
         with out_path.open('w', encoding='utf-8', newline='\n') as oracle_file:
             for key, value in translations.items():
-                oracle_file.write('{0}{1}'.format(key, value))
+                oracle_file.write('{0}{1}\n'.format(key, value))
         return translations
 
     reg_pattern = re.compile(r"([^|]*)\|([^|]*)\|([^|]*)\|([^|^\n]*)")
@@ -288,126 +295,12 @@ def get_oracle():
 
 
 def pre_translation(translation: collections.OrderedDict):
-    tsrule = {
-        'Plainswalk': '平原行者',
-        'plainswalk': '平原行者',
-        'Islandwalk': '海岛行者',
-        'islandwalk': '海岛行者',
-        'Mountainwalk': '山脉行者',
-        'mountainwalk': '山脉行者',
-        'Forestwalk': '树林行者',
-        'forestwalk': '树林行者',
-        'Swampwalk': '沼泽行者',
-        'swampwalk': '沼泽行者',
-        'First strike': '先攻',
-        'Flying': '飞行',
-        'shroud': '帷幕',
-        'This permanent can\'t be the target of spells or abilities.': '此永久物不能成为咒语或异能的目标',
-        'It can\'t be the target of spells or abilities.': '其不能成为咒语或异能的目标',
-        'Activate this ability only any time you could cast a sorcery': '只能在你可以释放法术的时机起动此异能',
-        'vigilance': '警戒',
-        'Vigilance': '警戒',
-        'Enchant creature': '结附于生物',
-        'Enchant land': '结附于地',
-        'Threshold': '门槛',
-        'If seven or more cards are in your graveyard': '如果你坟墓场中有七张或者更多的牌',
-        'Activate this ability only if seven or more cards are in your graveyard': '只能在你的坟墓场中有七张或更多的牌时起动',
-        ' as long as seven or more cards are in your graveyard.': '只要在你的坟墓场中有七张或更多的牌。',
-        'Fading': '消退',
-        ', remove a fade counter from it. If you can\'t, sacrifice it.': '从其上移去一个消退指示物。若你无法如此作，则牺牲该永久物',
-        'At the beginning of your upkeep': '在你的维持开始时',
-        'At the beginning of each player\'s upkeep': '在每位牌手的维持开始时',
-        ' enters the battlefield,': '进入战场，',
-        'Draw a card.': '抓一张。',
-        'draw a card.': '抓一张。',
-        'Protection from artifacts': '反神器保护',
-        'protection from artifacts': '反神器保护',
-        'protection from blue': '反蓝保护',
-        'Protection from blue': '反蓝保护',
-        'protection from red': '反红保护',
-        'Protection from red': '反红保护',
-        'protection from white': '反白保护',
-        'Protection from white': '反白保护',
-        'protection from black': '反黑保护',
-        'Protection from black': '反黑保护',
-        'protection from green': '反绿保护',
-        'Protection from green': '反绿保护',
-        'Protection from creatures': '反生物保护',
-        'Trample': '践踏',
-        'haste': '敏捷',
-        'Haste': '敏捷',
-        'You may cast this face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.': '你可牌面朝下地使用此牌并支付{3}，将其当成2/2生物。 可随时支付其变身费用使其翻回正面。',
-        'Morph': '变身',
-        'Kicker': '增幅',
-        'Flashback': '返照',
-        'You may cast this card from your graveyard for its flashback cost. Then exile it.': '你可以从你的坟墓场施放此牌，并支付其返照费用，然后将它放逐。',
-        'Flash': '闪现',
-        'counter target spell.': '反击目标咒语。',
-        'Cycling ': '循环',
-        'Discard this card: ': '弃掉此牌：',
-        'This creature can\'t be blocked except by creatures with horsemanship.': '此生物不能被不具有马术的生物阻挡',
-        'Horsemanship': '马术',
-        'horsemanship': '马术',
-        'Defender': '守军',
-        'This creature can\'t attack.': '此生物不能攻击',
-        'Choose one —': '选择一项',
-        'Regenerate ': '重生',
-        'Discard a card:': '弃一张牌：',
-        'Echo ': '返响',
-        ', if this came under your control since the beginning of your last upkeep, sacrifice it unless you pay its echo cost.': '，如果其是从你最近一个维持开始操控的，则除非你支付其返响费用，否则牺牲之。',
-        'It can\'t be regenerated.': '其不能重生。',
-        'Sacrifice a land': '牺牲一个地',
-        'Rampage': '狂暴',
-        'rampage': '狂暴',
-        'Whenever this creature becomes blocked,': '当此生物被阻挡，',
-        ' gets +1/+1 until end of turn.': '获得+1/+1直到回合结束。',
-        'Tap target creature.': '横置目标生物。',
-        'All creatures have ': '所有生物具有',
-        'All creatures get ': '所有生物获得',
-        'Cumulative Upkeep': '累积维持',
-        'Cumulative upkeep': '累积维持',
-        'Deathtouch': '死触',
-        'Double strike ': '连击',
-        'This creature deals both first-strike and regular combat damage.': '该生物造成先攻和常规战斗伤害。',
-        'Hexproof ': '辟邪',
-        'This creature can\'t be the target of spells or abilities your opponents control.': '此生物不能成为你对手所操控的咒语或异能的目标',
-        'Lifelink': '系命',
-        'reach': '延势',
-        'Reach': '延势',
-        'This creature can block creatures with flying.': '此生物可以阻挡飞行生物',
-        'Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding ' +
-        'a player controls are blocking or being blocked by a creature, that player divides that creature\'s combat damage, not its controller' +
-        ', among any of the creatures it\'s being blocked by or is blocking.': '一个或数个具有结合异能的攻击生物，以及至多一个不具结合异能的攻击生物可以结合成为一个团队进行攻击。' +
-        '如果团队中任意一个攻击生物被一个生物所阻挡，则该阻挡生物也同时阻挡了该攻击生物所在团队中的所有其他生物。如果由你控制的任意具有结合' +
-        '异能的生物正在阻挡某生物或者被某生物阻挡则由你对该生物造成的伤害进行分配而不是其操控者。',
-        'Any creatures with banding, and up to one without, can attack in a band. Bands are blocked as a group. If any creatures with banding ' +
-        'you control are blocking or being blocked by a creature, you divide that creature\'s combat damage, not its controller, among any of ' +
-        'the creatures it\'s being blocked by or is blocking.': '一个或数个具有结合异能的攻击生物，以及至多一个不具结合异能的攻击生物可以结合成为一个团队进行攻击。' +
-        '如果团队中任意一个攻击生物被一个生物所阻挡，则该阻挡生物也同时阻挡了该攻击生物所在团队中的所有其他生物。如果由你控制的任意具有结合' +
-        '异能的生物正在阻挡某生物或者被某生物阻挡则由你对该生物造成的伤害进行分配而不是其操控者。',
-        'Banding ': '结合',
-        'banding': '结合',
-        'All Sliver creatures have': '所有裂片妖具有',
-        'Amplify': '增强',
-        'Enchanted creature has ': '所结附的生物具有',
-        'Sacrifice a creature:': '牺牲一个生物',
-        'Until end of turn': '直到回合结束',
-        'until end of turn': '直到回合结束',
-        'Destroy target land': '消灭目标地',
-        'destroy target land': '消灭目标地',
-        'Sacrifice ': '牺牲',
-        'sacrifice ': '牺牲',
-        'Exile ': '放逐',
-        'Storm ': '风暴',
-        'When you cast this spell, copy it for each spell cast before it this turn. You may choose new targets for the copies.': '当你施放此咒语时，本回合于此咒语之前每施放过一个咒语，便复制该咒语一次。若此咒语需要目标，你可以为任意复制品选择新的目标。',
-        'Target creature can\'t be blocked this turn.': '目标生物本回合不能进行阻挡。',
-        ' can\'t be blocked.': '不能被阻挡。',
-        'you may pay ': '你可以支付',
-        'Target creature gains first strike ': '目标生物获得先攻',
-        'Draw a card at the beginning of the next turn\'s upkeep.': '在下个回合的维持开始时抓一张。',
-        'Pay 1 life': '支付一点生命',
-        'When ': '当'
-    }
+    rule_path = pathlib.Path("{0}/translation_rules.json".format(CACHEDIR))
+    if not rule_path.exists():
+        return None
+    tsrule = {}
+    with rule_path.open('r', encoding='utf8') as rulefile:
+        tsrule = json.load(rulefile)
     for key, value in translation.items():
         # oracle card name to translation card name
         value.text = value.text.replace(key, value.name)
