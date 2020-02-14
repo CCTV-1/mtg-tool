@@ -25,9 +25,6 @@ class TSInfo:
 
 def get_iyingditranslations():
     def get_setlist():
-        if not pathlib.Path(CACHEDIR).is_dir():
-            pathlib.Path(CACHEDIR).unlink()
-            pathlib.Path(CACHEDIR).mkdir()
         cachename = "{0}/setlist.json".format(CACHEDIR)
         if pathlib.Path(cachename).is_file():
             with open(cachename, mode='r', encoding='utf8') as setlist:
@@ -40,9 +37,6 @@ def get_iyingditranslations():
         return resp.json()['list']
 
     def get_setinfo(setid: int, setcode: str):
-        if not pathlib.Path(CACHEDIR).is_dir():
-            pathlib.Path(CACHEDIR).unlink()
-            pathlib.Path(CACHEDIR).mkdir()
         cachename = "{0}/{1}.json".format(CACHEDIR, setcode)
         if pathlib.Path(cachename).is_file():
             with open(cachename, mode='r', encoding='utf8') as cachefile:
@@ -181,7 +175,7 @@ def get_forgetranslations():
     translations_path = pathlib.Path(
         "{0}/languages/cardnames-zh-CN.txt".format(FORGE_RES_PATH))
     if not translations_path.is_file():
-        return None
+        raise FileNotFoundError("Forge card translations not found")
 
     reg_pattern = re.compile(r"([^|]*)\|([^|]*)\|([^|]*)\|([^|^\n]*)")
     translations = {}
@@ -225,7 +219,7 @@ def get_oracle():
             oracle_dir = pathlib.Path(
                 "{0}/cardsfolder/".format(FORGE_RES_PATH))
             if not oracle_dir.is_dir():
-                return None
+                raise FileNotFoundError("Forge cardsfolder not found")
             for carddir in oracle_dir.iterdir():
                 if carddir.is_dir():
                     for card in carddir.iterdir():
@@ -275,10 +269,6 @@ def get_oracle():
             for key, value in translations.items():
                 oracle_file.write('{0}{1}'.format(key, value))
         return translations
-
-    if not pathlib.Path(OUTDIR).is_dir():
-        pathlib.Path(OUTDIR).unlink()
-        pathlib.Path(OUTDIR).mkdir()
 
     reg_pattern = re.compile(r"([^|]*)\|([^|]*)\|([^|]*)\|([^|^\n]*)")
     translations = {}
@@ -426,9 +416,6 @@ def pre_translation(translation: collections.OrderedDict):
 
 
 def translation_tofile(translation: collections.OrderedDict, filename: str):
-    if not pathlib.Path(OUTDIR).is_dir():
-        pathlib.Path(OUTDIR).unlink()
-        pathlib.Path(OUTDIR).mkdir()
     with open("{0}/{1}".format(OUTDIR, filename),
               mode="w", encoding='utf8') as tsfile:
         for key, value in translation.items():
@@ -436,6 +423,21 @@ def translation_tofile(translation: collections.OrderedDict, filename: str):
 
 
 if __name__ == "__main__":
+    out_dir = pathlib.Path(OUTDIR)
+    if not out_dir.is_dir():
+        if out_dir.exists():
+            pathlib.Path(OUTDIR).unlink()
+        pathlib.Path(OUTDIR).mkdir()
+
+    cache_dir = pathlib.Path(OUTDIR)
+    if not cache_dir.is_dir():
+        if cache_dir.exists():
+            cache_dir.unlink()
+        cache_dir.mkdir()
+
+    if not pathlib.Path(FORGE_RES_PATH).is_dir():
+        raise FileNotFoundError("Forge resources directory not found")
+
     iyingdi_translation = get_iyingditranslations()
     forge_translation = get_forgetranslations()
     oracletranslation = get_oracle()
