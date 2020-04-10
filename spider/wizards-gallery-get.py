@@ -72,33 +72,36 @@ def downloadimage(cardname, cardurl, filename_format='forge'):
     basecardname = cardname
     # a set base land number max value
     flag = 8
+    while flag:
+        flag -= 1
+        try:
+            # x mode in python3.3+
+            imagefile = open(cardname + '.full.jpg', 'xb')
+            logging.info("Download card:%s success", cardname)
+            break
+        except FileNotFoundError:
+            if filename_format == 'forge':
+                cardname = cardname.replace(' // ', '')
+            elif filename_format == 'xmage':
+                cardname = cardname.replace('//', '-')
+            else:
+                pass
+            logging.info("cookiescard:%s rename to:%s\n",
+                         basecardname, cardname)
+        except FileExistsError:
+            # rename base land
+            renamecount += 1
+            cardname = '{0}{1}'.format(basecardname, renamecount)
+
     try:
         imageobject = requests.get(cardurl, timeout=13)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info(
             "Download Card %s request timeout stop downloading!\n", cardname)
+        return None
     try:
         if 'image' in imageobject.headers['Content-Type']:
-            while flag:
-                flag -= 1
-                try:
-                    # x mode in python3.3+
-                    open(cardname + '.full.jpg', 'xb').write(imageobject.content)
-                    logging.info("Download card:%s success", cardname)
-                    break
-                except FileNotFoundError:
-                    if filename_format == 'forge':
-                        cardname = cardname.replace(' // ', '')
-                    elif filename_format == 'xmage':
-                        cardname = cardname.replace('//', '-')
-                    else:
-                        pass
-                    logging.info("cookiescard:%s rename to:%s\n",
-                                 basecardname, cardname)
-                except FileExistsError:
-                    # rename base land
-                    renamecount += 1
-                    cardname = '{0}{1}'.format(basecardname, renamecount)
+            imagefile.write(imageobject.content)
         else:
             logging.info("Request type not is image,the card is:%s", cardname)
     except (AttributeError, TypeError, KeyError):
