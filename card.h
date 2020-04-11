@@ -12,7 +12,7 @@ class Card : public QObject
     Q_PROPERTY(QString code READ code CONSTANT)
 public:
     Card();
-    Card( QString id , QString code , QString name , QString print_name = "" , QString print_type = "",
+    Card( QString id , QString code , QString name , QString mana_cost = "" , QString print_name = "" , QString print_type = "",
           QString print_text = "" , QString rarity = "" , QString pt = "" );
     Card( const Card& card );
     Card( Card&& card ) noexcept( true );
@@ -27,6 +27,7 @@ public:
     QString name( void ) const;
     QString code( void ) const;
     QString printed_name( void ) const;
+    QString mana_cost( void ) const;
     QString printed_type( void ) const;
     QString printed_text( void ) const;
     QString printed_rarity( void ) const;
@@ -41,6 +42,7 @@ private:
     QString set_id;
     QString set_code;
     QString oracle_name;
+    QString cmc;
     QString print_name;
     QString print_type;
     QString print_text;

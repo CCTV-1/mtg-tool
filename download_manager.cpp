@@ -299,13 +299,14 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         //serialization set object
         QString oracle_name = cache_card["oracle_name"].toString();
         QString print_name = cache_card["print_name"].toString();
+        QString mana_cost = cache_card["mana_cost"].toString();
         QString code = cache_card["set"].toString();
         QString id = cache_card["id"].toString();
         QString print_type = cache_card["print_type"].toString();
         QString print_text = cache_card["print_text"].toString();
         QString rarity = cache_card["rarity"].toString();
         QString pt = cache_card["pt"].toString();
-        cards.append({ id , code , oracle_name , print_name , print_type , print_text , rarity , pt });
+        cards.append(Card(id , code , oracle_name , mana_cost , print_name , print_type , print_text , rarity , pt));
     }
     return cards;
 }
@@ -374,7 +375,7 @@ void DownloadManager::generate_ratingtable( QString set_code )
     };
     const QList<QString> columnnames =
     {
-        tr( "set_id" ) , tr( "zh_name" ) , tr( "en_name" ) , tr( "type" ) ,
+        tr( "set_id" ) , tr( "zh_name" ) , tr( "en_name" ) , tr( "mana_cost" ) , tr( "type" ) ,
         tr( "text" ) , tr( "rarity" ) , tr( "pt" ) , tr( "sealed_rating" ) ,
         tr( "darft_rating" ) , tr( "construct_rating" )
     };
@@ -393,13 +394,14 @@ void DownloadManager::generate_ratingtable( QString set_code )
         ws.cell( 1  , i + 2 ).value( cards[i].id().toUtf8().toStdString() );
         ws.cell( 2  , i + 2 ).value( cards[i].printed_name().toUtf8().toStdString() );
         ws.cell( 3  , i + 2 ).value( cards[i].name().toUtf8().toStdString() );
-        ws.cell( 4  , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
-        ws.cell( 5  , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
-        ws.cell( 6  , i + 2 ).value( raritytranslation[cards[i].printed_rarity()].toUtf8().toStdString() );
-        ws.cell( 7  , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
-        ws.cell( 8  , i + 2 ).value( 0 );
+        ws.cell( 4  , i + 2 ).value( cards[i].mana_cost().toUtf8().toStdString() );
+        ws.cell( 5  , i + 2 ).value( cards[i].printed_type().toUtf8().toStdString() );
+        ws.cell( 6  , i + 2 ).value( cards[i].printed_text().toUtf8().toStdString() );
+        ws.cell( 7  , i + 2 ).value( raritytranslation[cards[i].printed_rarity()].toUtf8().toStdString() );
+        ws.cell( 8  , i + 2 ).value( cards[i].printed_pt().toUtf8().toStdString() );
         ws.cell( 9  , i + 2 ).value( 0 );
         ws.cell( 10 , i + 2 ).value( 0 );
+        ws.cell( 11 , i + 2 ).value( 0 );
     }
     QUrl xlsx_url( QString( "%1.xlsx" ).arg(set_code) );
     wb.save( xlsx_url.toString().toUtf8().toStdString() );

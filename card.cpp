@@ -11,12 +11,13 @@ Card::Card():
     ;
 }
 
-Card::Card( QString id , QString code , QString name , QString print_name , QString type,
+Card::Card( QString id , QString code , QString name , QString mana_cost , QString print_name , QString type,
             QString text , QString rarity , QString pt ):
     QObject( nullptr ),
     set_id( id ),
     set_code( code.toLower() ),
     oracle_name( name ),
+    cmc( mana_cost ),
     print_name( print_name ),
     print_type( type ),
     print_text( text ),
@@ -31,6 +32,7 @@ Card::Card( const Card& card ):
     set_id( card.set_id ),
     set_code( card.set_code ),
     oracle_name( card.oracle_name ),
+    cmc( card.cmc ),
     print_name( card.print_name ),
     print_type( card.print_type ),
     print_text( card.print_text ),
@@ -45,6 +47,7 @@ Card::Card( Card&& card ) noexcept( true ):
     set_id( std::move( card.set_id ) ),
     set_code( std::move( card.set_code ) ),
     oracle_name( std::move( card.oracle_name ) ),
+    cmc( std::move( card.cmc ) ),
     print_name( std::move( card.print_name ) ),
     print_type( std::move( card.print_type ) ),
     print_text( std::move( card.print_text ) ),
@@ -61,6 +64,7 @@ Card& Card::operator=( const Card& card )
     this->set_id = card.set_id;
     this->set_code = card.set_code;
     this->oracle_name = card.oracle_name;
+    this->cmc = card.cmc;
     this->print_name = card.print_name;
     this->print_type = card.print_type;
     this->print_text = card.print_text;
@@ -76,6 +80,7 @@ Card& Card::operator=(Card &&card) noexcept( true )
     this->set_id = std::move( card.set_id );
     this->set_code = std::move( card.set_code );
     this->oracle_name = std::move( card.oracle_name );
+    this->cmc = std::move( card.cmc );
     this->print_name = std::move( card.print_name );
     this->print_type = std::move( card.print_type );
     this->print_text = std::move( card.print_text );
@@ -107,6 +112,11 @@ QString Card::id( void ) const
 QString Card::name( void ) const
 {
     return this->oracle_name;
+}
+
+QString Card::mana_cost( void ) const
+{
+    return this->cmc;
 }
 
 QString Card::code( void ) const
