@@ -4,72 +4,77 @@
 <context>
     <name>DownloadManager</name>
     <message>
-        <location filename="download_manager.cpp" line="365"/>
+        <location filename="download_manager.cpp" line="364"/>
         <source>common</source>
         <translation>普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="368"/>
+        <location filename="download_manager.cpp" line="367"/>
         <source>uncommon</source>
         <translation>非普通</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="371"/>
+        <location filename="download_manager.cpp" line="370"/>
         <source>rare</source>
         <translation>稀有</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="374"/>
+        <location filename="download_manager.cpp" line="373"/>
         <source>mythic</source>
         <translation>秘稀</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="379"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>zh_name</source>
         <translation>中文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="379"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>en_name</source>
         <translation>英文名</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="379"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>type</source>
         <translation>类别</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="379"/>
+        <location filename="download_manager.cpp" line="378"/>
         <source>set_id</source>
         <translation>编号</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="380"/>
+        <location filename="download_manager.cpp" line="378"/>
+        <source>mana_cost</source>
+        <translation>法术力费用</translation>
+    </message>
+    <message>
+        <location filename="download_manager.cpp" line="379"/>
         <source>text</source>
         <translation>异能</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="380"/>
+        <location filename="download_manager.cpp" line="379"/>
         <source>rarity</source>
         <translation>稀有度</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="380"/>
+        <location filename="download_manager.cpp" line="379"/>
         <source>pt</source>
         <translation>攻防</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="380"/>
+        <location filename="download_manager.cpp" line="379"/>
         <source>sealed_rating</source>
         <translation>现开评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="381"/>
+        <location filename="download_manager.cpp" line="380"/>
         <source>darft_rating</source>
         <translation>轮抓评分</translation>
     </message>
     <message>
-        <location filename="download_manager.cpp" line="381"/>
+        <location filename="download_manager.cpp" line="380"/>
         <source>construct_rating</source>
         <translation>构筑评分</translation>
     </message>
