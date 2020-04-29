@@ -116,7 +116,7 @@ Deck::Deck( const QStringList& lines )
                 {
                     list_prt = &( this->main_cards );
                 }
-                else if ( line == QString( "Sideboard" ) )
+                else if ( ( line == QString( "Sideboard" ) ) || ( line == QString( "Companion" ) ) )
                 {
                     list_prt = &( this->sideboard_cards );
                 }
