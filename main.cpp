@@ -37,8 +37,8 @@ int main( int argc , char * argv[] )
     filter.setFilterRole( settings.get_filter_role() );
 
     QQmlApplicationEngine engine;
-    qmlRegisterInterface<Card>("Card");
-    qmlRegisterInterface<Deck>("Deck");
+    qmlRegisterAnonymousType<Card>("Card", 1);
+    qmlRegisterAnonymousType<Deck>("Deck", 1);
     qmlRegisterType<DownloadManager>( "com.mtgtool.utility" , 1 , 0 , "Downloader" );
     qmlRegisterType<DeckParser>( "com.mtgtool.utility" , 1 , 0 , "DeckParser" );
     engine.rootContext()->setContextProperty( "tool_settings", &settings );
