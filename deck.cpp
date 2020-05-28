@@ -94,6 +94,7 @@ Deck::Deck( const QStringList& lines )
         }
         case DeckType::MTGA:
         {
+            decltype (this->main_cards) discard_cards;
             for ( auto line : lines )
             {
                 if ( mtga_deck_reg.indexIn( line , 0 ) != -1 )
@@ -116,9 +117,13 @@ Deck::Deck( const QStringList& lines )
                 {
                     list_prt = &( this->main_cards );
                 }
-                else if ( ( line == QString( "Sideboard" ) ) || ( line == QString( "Companion" ) ) )
+                else if ( line == QString( "Sideboard" ) )
                 {
                     list_prt = &( this->sideboard_cards );
+                }
+                if ( line == QString( "Companion" ) )
+                {
+                    list_prt = &discard_cards;
                 }
             }
             break;
