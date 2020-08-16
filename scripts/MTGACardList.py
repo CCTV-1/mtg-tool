@@ -1,6 +1,9 @@
+import collections
+import enum
+import functools
 import json
 import pathlib
-import enum
+import typing
 
 MTGA_INSTALL_DIR = r'C:/Program Files/Wizards of the Coast/MTGA'
 
@@ -15,6 +18,37 @@ class Languages(enum.Enum):
     BR = 'pt-BR'
     RU = 'ru-RU'
     KR = 'ko-KR'
+
+
+class CardRarity(enum.Enum):
+    LAND = 1
+    COMMON = 2
+    UNCOMMON = 3
+    RARE = 4
+    MYTHICRARE = 5
+
+    def __str__(self):
+        if self.value == CardRarity.LAND.value:
+            return 'L'
+        elif self.value == CardRarity.COMMON.value:
+            return 'C'
+        elif self.value == CardRarity.UNCOMMON.value:
+            return 'U'
+        elif self.value == CardRarity.RARE.value:
+            return 'R'
+        elif self.value == CardRarity.MYTHICRARE.value:
+            return 'M'
+        else:
+            return 'L'
+
+
+class Card:
+    def __init__(self, rarity_value: int, oracle_text: str):
+        self.name: str = oracle_text
+        self.rarity: CardRarity = CardRarity(rarity_value)
+
+    def __str__(self):
+        return "{0} {1}".format(self.rarity, self.name)
 
 
 def get_cardinfos(data_paths: tuple, lang=Languages.EN) -> dict:
@@ -35,6 +69,40 @@ def get_cardinfos(data_paths: tuple, lang=Languages.EN) -> dict:
                 translations[translation['id']] = translation['text']
         return translations
 
+    def cmp_seriesid(id1: tuple, id2: tuple):
+        """
+            the `tuple` -> (card_collector_id: str,card_name: str)
+        """
+        def general_cmp(obj1: typing.Union[int, str], obj2: typing.Union[int, str]):
+            """
+                basic cmp function
+            """
+            if obj1 > obj2:
+                return 1
+            elif obj1 < obj2:
+                return -1
+            else:
+                return 0
+
+        if id1[0].isdigit():
+            if id2[0].isdigit():
+                value = general_cmp(int(id1[0]), int(id2[0]))
+                if value != 0:
+                    return value
+                else:
+                    return general_cmp(id1[1], id2[1])
+            else:
+                return -1
+        else:
+            if id2[0].isdigit():
+                return 1
+            else:
+                value = general_cmp(id1[0], id2[0])
+                if value != 0:
+                    return value
+                else:
+                    return general_cmp(id1[1], id2[1])
+
     translations = get_translations(data_paths[0], lang)
     if not data_paths[1].is_file():
         raise FileNotFoundError('can not found mtga card info file')
@@ -42,22 +110,32 @@ def get_cardinfos(data_paths: tuple, lang=Languages.EN) -> dict:
     with open(data_paths[1], mode='r', encoding='utf8') as data_file:
         datas = json.load(data_file)
     cardsinfo = {}
+
     for data in datas:
         if data['isToken'] == True:
             continue
         if data['isPrimaryCard'] != True:
             continue
-        cardname = translations[data['titleId']]
         series = data['set']
+
+        cardrarity = data['rarity']
+        cardname = translations[data['titleId']]
+
+        card = Card(cardrarity, cardname)
         if cardsinfo.get(series, None) != None:
             if cardsinfo[series].get(data['collectorNumber'], None) != None:
-                if '///' in cardsinfo[series][data['collectorNumber']]:
+                if '///' in cardsinfo[series][data['collectorNumber']].name:
                     continue
-            cardsinfo[series][data['collectorNumber']] = cardname
+            cardsinfo[series][data['collectorNumber']] = card
         else:
             cardsinfo[series] = {
-                data['collectorNumber']: cardname}
-    return cardsinfo
+                data['collectorNumber']: card}
+
+    sorted_cards = {}
+    for series_id, series_cards in cardsinfo.items():
+        sorted_cards[series_id] = collections.OrderedDict(
+            sorted(series_cards.items(), key=functools.cmp_to_key(cmp_seriesid)))
+    return sorted_cards
 
 
 def print_cardlist(cardlist: dict):
@@ -65,7 +143,7 @@ def print_cardlist(cardlist: dict):
     for series, seriesinfo in cardlist.items():
         print("{0}".format(series))
         for cardid, cardname in seriesinfo.items():
-            print("\t{0}\t{1}".format(cardid, cardname))
+            print("\t{0} {1}".format(cardid, cardname))
 
 
 def get_newdata_path() -> tuple:
