@@ -2,6 +2,7 @@ import collections
 import json
 import pathlib
 import re
+import time
 
 import requests
 
@@ -142,6 +143,8 @@ def get_iyingditranslations():
         setpriority = id
 
         setinfo = get_setinfo(id, abbr)
+        # avoid banned
+        time.sleep(1)
         for card in setinfo:
             translatepriority = 0
             enames = []
