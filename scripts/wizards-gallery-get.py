@@ -33,7 +33,7 @@ def getcardsinfo(setlongname, localcode='cs'):
                 webname = cardurl.split('/')[-1]
                 # http://***/en_***.png to http://***/localcode_***.png
                 cardurl = cardurl.replace(
-                    webname, webname.replace(webname[0:2], localcode))
+                    webname, webname.replace(webname[0:2], localcode, 1), 1)
                 # fullwidth to halfwidth
                 cardname = cardname.replace('’', '\'')
                 # Kongming, “Sleeping Dragon” -> Kongming, Sleeping Dragon
