@@ -200,6 +200,8 @@ def get_forgetranslations():
             cname = cname.replace('“', '"')
             cname = cname.replace('”', '"')
             # ignore invalid translation
+            if not cname:
+                continue
             if ename == cname:
                 continue
             if ename[0].islower():
