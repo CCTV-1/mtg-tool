@@ -345,7 +345,6 @@ if __name__ == "__main__":
         if not forge_translation.__contains__(key):
             translation_patch[key] = value
 
-    new_translations = {**forge_translation, **translation_patch}
     for key, value in oracletranslation.items():
         if not new_translations.__contains__(key):
             translation_patch[key] = value
