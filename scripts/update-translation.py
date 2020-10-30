@@ -156,8 +156,19 @@ def get_iyingditranslations():
             if ' // ' in card['ename']:
                 # double face card
                 enames = card['ename'].split(' // ')
+                enames.append(card['ename'])
                 cnames = card['cname'].split('//')
-                rules = card['rule'].split('//')
+                cnames.append(card['cname'])
+                if '//' in card['rule']:
+                    rules = card['rule'].split('//')
+                    rules.append(card['rule'].replace('//', '\\n\\n'))
+                elif '\n融咒 （你可以从手牌中单独施放此牌任一边或一同施放两边。）\n' in card['rule']:
+                    rules = card['rule'].split('\n融咒 （你可以从手牌中单独施放此牌任一边或一同施放两边。）\n')
+                    rules.append(card['rule'].replace('\n融咒 （你可以从手牌中单独施放此牌任一边或一同施放两边。）\n', '\\n\\n'))
+                elif '。/' in card['rule']:
+                    card['rule'] = card['rule'].replace('。/', '。//')
+                    rules = card['rule'].split('//')
+                    rules.append(card['rule'].replace('//', '\\n\\n'))
                 maintype = card['mainType']
                 subtype = card['subType']
             else:
