@@ -69,6 +69,8 @@ def get_iyingditranslations():
             cards = resp.json()['data']['cards']
             for card in cards:
                 info.append(card)
+        # avoid banned
+        time.sleep(1)
         with open(cachename, mode='w', encoding='utf8') as cachefile:
             json.dump(info, cachefile, ensure_ascii=False)
         return info
@@ -143,8 +145,6 @@ def get_iyingditranslations():
         setpriority = id
 
         setinfo = get_setinfo(id, abbr)
-        # avoid banned
-        time.sleep(1)
         for card in setinfo:
             translatepriority = 0
             enames = []
