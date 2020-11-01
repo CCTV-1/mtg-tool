@@ -4,9 +4,10 @@
 #include "card.h"
 #include "enums.h"
 #include "tool_settings.h"
+#include "utils.h"
 
 Card::Card():
-    Card( QString() , QString() , QString() )
+    Card( QString() , QString() , QString() , QString() )
 {
     ;
 }
@@ -173,7 +174,7 @@ QUrl Card::local_uri( void ) const
         local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
     else
     {
-        local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( this->set_code ).arg( image_name );
+        local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
     }
 
     return local_file;

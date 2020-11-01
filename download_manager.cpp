@@ -13,15 +13,16 @@
 #include <xlnt/xlnt.hpp>
 
 #include "card.h"
+#include "download_manager.h"
 #include "enums.h"
 #include "tool_settings.h"
-#include "download_manager.h"
+#include "utils.h"
 
 static bool update_cardlist_cache( const QString& set_code , LanguageEnums::EnumContent lang )
 {
     QString lang_code = QString( QMetaEnum::fromType<LanguageEnums::EnumContent>().valueToKey( int( lang ) ) );
     QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s=%1+lang:%2" ).arg( set_code ).arg( lang_code ) );
-    QString cache_name = QString( "%1.json" ).arg( set_code );
+    QString cache_name = QString( "%1.json" ).arg( setcode2legalname(set_code) );
     QFile cache_file( cache_name );
     if ( cache_file.exists() )
     {
@@ -222,7 +223,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
 static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::EnumContent lang )
 {
     QVector<Card> cards;
-    QString cache_name = QString( "%1.json" ).arg( set_code );
+    QString cache_name = QString( "%1.json" ).arg( setcode2legalname(set_code) );
     QFile cache_file( cache_name );
     if ( cache_file.exists() == false )
     {
