@@ -42,20 +42,20 @@ class Card:
 def write_xlsx(setcode: str, cards: list):
     wb = Workbook()
     sheet = wb.create_sheet("rating", 0)
-    for column in range(0, columnnames.__len__()):
-        sheet.cell(1, column + 1, columnnames[column])
-    for number in range(0, cards.__len__()):
-        sheet.cell(number + 2, 1, cards[number].set_id)
-        sheet.cell(number + 2, 2, cards[number].zh_name)
-        sheet.cell(number + 2, 3, cards[number].en_name)
-        sheet.cell(number + 2, 4, cards[number].manacost)
-        sheet.cell(number + 2, 5, cards[number].type_name)
-        sheet.cell(number + 2, 6, cards[number].text)
-        sheet.cell(number + 2, 7, cards[number].rarity)
-        sheet.cell(number + 2, 8, cards[number].pt)
-        sheet.cell(number + 2, 9, cards[number].sealed_rating)
-        sheet.cell(number + 2, 10, cards[number].darft_rating)
-        sheet.cell(number + 2, 11, cards[number].construct_rating)
+    for column in range(1, columnnames.__len__()):
+        sheet.cell(1, column, columnnames[column])
+    for number in range(2, cards.__len__()):
+        sheet.cell(number, 1, cards[number].set_id)
+        sheet.cell(number, 2, cards[number].zh_name)
+        sheet.cell(number, 3, cards[number].en_name)
+        sheet.cell(number, 4, cards[number].manacost)
+        sheet.cell(number, 5, cards[number].type_name)
+        sheet.cell(number, 6, cards[number].text)
+        sheet.cell(number, 7, cards[number].rarity)
+        sheet.cell(number, 8, cards[number].pt)
+        sheet.cell(number, 9, cards[number].sealed_rating)
+        sheet.cell(number, 10, cards[number].darft_rating)
+        sheet.cell(number, 11, cards[number].construct_rating)
 
     wb.save('{0}.xlsx'.format(setcode))
 
