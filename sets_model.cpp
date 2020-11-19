@@ -120,7 +120,7 @@ QList<SetInfo> get_set_list( void )
         QFileInfo cache_info( cache_name );
         QDateTime last_update = cache_info.lastModified();
         QDateTime now_date = QDateTime::currentDateTime();
-        qDebug() << QString( "cache file last updated %1 days ago" ).arg( last_update.daysTo( now_date ) );
+        qInfo() << QString( "setlist cache file last updated %1 days ago" ).arg( last_update.daysTo( now_date ) );
         if ( last_update.daysTo( now_date ) >= 1 )
         {
             if ( update_setlist_cache() == false )

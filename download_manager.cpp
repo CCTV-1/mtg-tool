@@ -238,7 +238,7 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         QFileInfo cache_info( cache_name );
         QDateTime last_update = cache_info.lastModified();
         QDateTime now_date = QDateTime::currentDateTime();
-        qDebug() << QString( "cache file last updated %1 days ago" ).arg( last_update.daysTo( now_date ) );
+        qInfo() << QString( "'%1' cache file last updated %2 days ago" ).arg( set_code ).arg( last_update.daysTo( now_date ) );
         if ( last_update.daysTo( now_date ) >= 1 )
         {
             if ( update_cardlist_cache( set_code , lang ) == false )

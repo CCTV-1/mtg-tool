@@ -13,8 +13,62 @@
 #include "sets_model.h"
 #include "tool_settings.h"
 
+void message_handler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    QFile log_file( "tool.log" );
+    if ( log_file.size() > 1024*1024*4 )
+    {
+        log_file.remove();
+    }
+
+    if (!log_file.open( QIODevice::Append | QIODevice::Text ))
+    {
+        qFatal( "open log file failure" );
+    }
+    QTextStream out_stream( &log_file );
+
+    QDateTime current_time = QDateTime::currentDateTime();
+    QString time_str = current_time.toLocalTime().toString( "yyyy-MM-dd hh.mm.ss" );
+    QByteArray localMsg = msg.toLocal8Bit();
+    const char * file = context.file ? context.file : "";
+    const char * function = context.function ? context.function : "";
+    const char * type_str = "";
+    switch( type )
+    {
+        case QtDebugMsg:
+        {
+            type_str = "Debug";
+            break;
+        }
+        case QtInfoMsg:
+        {
+            type_str = "Info";
+            break;
+        }
+        case QtWarningMsg:
+        {
+            type_str = "Warning";
+            break;
+        }
+        case QtCriticalMsg:
+        {
+            type_str = "Critical";
+            break;
+        }
+        case QtFatalMsg:
+        {
+            type_str = "Fatal";
+            break;
+        }
+    }
+    out_stream << QString( "%1 %2: %3 (%4:%5, %6)\n" ).arg(time_str).arg(type_str).arg(localMsg.constData()).arg(file).arg(context.line).arg(function);
+    log_file.close();
+}
+
 int main( int argc , char * argv[] )
 {
+    qInstallMessageHandler( message_handler );
+
     const QUrl qml_url( "qrc:/main.qml" );
 
     QCoreApplication::setOrganizationName( "MTG Tools" );
