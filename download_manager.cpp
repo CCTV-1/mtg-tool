@@ -21,7 +21,7 @@
 static bool update_cardlist_cache( const QString& set_code , LanguageEnums::EnumContent lang )
 {
     QString lang_code = QString( QMetaEnum::fromType<LanguageEnums::EnumContent>().valueToKey( int( lang ) ) );
-    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s=%1+lang:%2" ).arg( set_code ).arg( lang_code ) );
+    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s:%1+lang:%2+unique:prints" ).arg( set_code ).arg( lang_code ) );
     QString cache_name = QString( "%1.json" ).arg( setcode2legalname(set_code) );
     QFile cache_file( cache_name );
     if ( cache_file.exists() )
@@ -40,7 +40,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
         QNetworkAccessManager manager;
         QNetworkRequest request = QNetworkRequest( api_url );
         //Scryfall provides a REST-like API
-        request.setAttribute( QNetworkRequest::FollowRedirectsAttribute , true );
+        request.setAttribute( QNetworkRequest::RedirectPolicyAttribute , true );
         QEventLoop loop;
         QNetworkReply * reply = manager.get( request );
         QObject::connect( &manager , &QNetworkAccessManager::finished , &loop , &QEventLoop::quit );
@@ -307,7 +307,17 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         QString print_text = cache_card["print_text"].toString();
         QString rarity = cache_card["rarity"].toString();
         QString pt = cache_card["pt"].toString();
-        cards.append(Card(id , code , oracle_name , mana_cost , print_name , print_type , print_text , rarity , pt));
+        Card new_card(id , code , oracle_name , mana_cost , print_name , print_type , print_text , rarity , pt);
+        int start_pos = 0;
+        int art_ver = 0;
+        while ( ( start_pos = cards.indexOf( new_card , start_pos ) ) != -1 )
+        {
+            art_ver++;
+            cards[start_pos].set_version(art_ver);
+            start_pos++;
+        }
+        new_card.set_version(art_ver);
+        cards.append( std::move(new_card) );
     }
     return cards;
 }
@@ -339,7 +349,7 @@ void DownloadManager::download_card(QUrl local_url, QUrl network_url)
 
     QNetworkRequest request = QNetworkRequest( network_url );
     //Scryfall provides a REST-like API
-    request.setAttribute( QNetworkRequest::FollowRedirectsAttribute , true );
+    request.setAttribute( QNetworkRequest::RedirectPolicyAttribute , true );
     QNetworkReply * reply = this->manager.get( request );
     this->localurl_map[ local_url ] = reply;
     emit request_count_changed( this->localurl_map.count() );

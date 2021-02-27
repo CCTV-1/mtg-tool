@@ -13,7 +13,7 @@ class Card : public QObject
 public:
     Card();
     Card( QString id , QString code , QString name , QString mana_cost = "" , QString print_name = "" , QString print_type = "",
-          QString print_text = "" , QString rarity = "" , QString pt = "" );
+          QString print_text = "" , QString rarity = "" , QString pt = "" , int version = 0 );
     Card( const Card& card );
     Card( Card&& card ) noexcept( true );
 
@@ -22,6 +22,9 @@ public:
     bool operator<( const Card& other ) const;
     bool operator==( const Card& other ) const;
     bool operator!=( const Card& other ) const;
+
+    int get_veriosn( void ) const;
+    void set_version( int version );
 
     QString id( void ) const;
     QString name( void ) const;
@@ -48,6 +51,8 @@ private:
     QString print_text;
     QString rarity;
     QString pt;
+    //if version == 0, no different art version in the same set,else version is art version.
+    int version;
 };
 Q_DECLARE_METATYPE(Card)
 

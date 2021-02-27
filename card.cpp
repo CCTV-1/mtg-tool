@@ -13,7 +13,7 @@ Card::Card():
 }
 
 Card::Card( QString id , QString code , QString name , QString mana_cost , QString print_name , QString type,
-            QString text , QString rarity , QString pt ):
+            QString text , QString rarity , QString pt , int version ):
     QObject( nullptr ),
     set_id( id ),
     set_code( code.toLower() ),
@@ -23,7 +23,8 @@ Card::Card( QString id , QString code , QString name , QString mana_cost , QStri
     print_type( type ),
     print_text( text ),
     rarity( rarity ),
-    pt( pt )
+    pt( pt ),
+    version(version)
 {
     ;
 }
@@ -38,7 +39,8 @@ Card::Card( const Card& card ):
     print_type( card.print_type ),
     print_text( card.print_text ),
     rarity( card.rarity ),
-    pt( card.pt )
+    pt( card.pt ),
+    version( card.version )
 {
     ;
 }
@@ -53,7 +55,8 @@ Card::Card( Card&& card ) noexcept( true ):
     print_type( std::move( card.print_type ) ),
     print_text( std::move( card.print_text ) ),
     rarity( std::move( card.rarity ) ),
-    pt( std::move( card.pt ) )
+    pt( std::move( card.pt ) ),
+    version( std::move( card.version ) )
 {
     ;
 }
@@ -71,6 +74,7 @@ Card& Card::operator=( const Card& card )
     this->print_text = card.print_text;
     this->rarity = card.rarity;
     this->pt = card.pt;
+    this->version = card.version;
     return *this;
 }
 
@@ -87,6 +91,7 @@ Card& Card::operator=(Card &&card) noexcept( true )
     this->print_text = std::move( card.print_text );
     this->rarity = std::move( card.rarity );
     this->pt = std::move( card.pt );
+    this->version = std::move( card.version );
     return *this;
 }
 
@@ -103,6 +108,16 @@ bool Card::operator==( const Card& other ) const
 bool Card::operator!=( const Card& other ) const
 {
     return !( this->operator==( other ) );
+}
+
+int Card::get_veriosn( void ) const
+{
+    return this->version;
+}
+
+void Card::set_version( int version )
+{
+    this->version = version;
 }
 
 QString Card::id( void ) const
@@ -160,21 +175,58 @@ QUrl Card::local_uri( void ) const
     QString image_name = this->oracle_name;
     ToolSetting settings;
     int format = settings.get_image_name_format();
+    QString download_dir = settings.get_cache_directory().toString();
+    QUrl local_file;
     if ( format == int( ImageNameFormatEnums::EnumContent::FORGE ) )
     {
         image_name.replace( " // " , "" );
+        if ( this->set_code == QString() )
+        {
+            if ( this->version == 0 )
+            {
+                local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
+            }
+            else
+            {
+                local_file = QString( "%1/%2%3.full.jpg" ).arg( download_dir ).arg( image_name ).arg( this->version );
+            }
+        }
+        else
+        {
+            if ( this->version == 0 )
+            {
+                local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
+            }
+            else
+            {
+                local_file = QString( "%1/%2/%3%4.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) )
+                    .arg( image_name ).arg( this->version );
+            }
+        }
     }
     else if ( format == int( ImageNameFormatEnums::EnumContent::XMAGE ) )
     {
         image_name.replace( "//" , "-" );
+        if ( this->version == 0 )
+        {
+            local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
+        }
+        else
+        {
+            local_file = QString( "%1/%2.%3.full.jpg" ).arg( download_dir ).arg( image_name ).arg( this->set_id );
+        }
     }
-    QString download_dir = settings.get_cache_directory().toString();
-    QUrl local_file;
-    if ( this->set_code == QString() )
-        local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
     else
     {
-        local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
+        if ( this->version == 0 )
+        {
+            local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
+        }
+        else
+        {
+            local_file = QString( "%1/%2/%3.%4.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) )
+                .arg( image_name ).arg( this->set_id );
+        }
     }
 
     return local_file;

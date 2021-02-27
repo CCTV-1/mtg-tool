@@ -24,7 +24,7 @@ bool update_setlist_cache( void )
         QNetworkAccessManager manager;
         QNetworkRequest request = QNetworkRequest( sets_uri );
         //Scryfall provides a REST-like API
-        request.setAttribute( QNetworkRequest::FollowRedirectsAttribute , true );
+        request.setAttribute( QNetworkRequest::RedirectPolicyAttribute , true );
         QEventLoop loop;
         QNetworkReply * reply = manager.get( request );
         QObject::connect( &manager , &QNetworkAccessManager::finished , &loop , &QEventLoop::quit );
