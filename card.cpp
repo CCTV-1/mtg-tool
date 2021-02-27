@@ -1,3 +1,4 @@
+#include <QDebug>
 #include <QFileInfo>
 #include <QMetaEnum>
 
@@ -212,28 +213,34 @@ QUrl Card::local_uri( void ) const
     else if ( format == int( ImageNameFormatEnums::EnumContent::XMAGE ) )
     {
         image_name.replace( "//" , "-" );
-        if ( this->version == 0 )
+        if ( this->set_code == QString() )
         {
-            local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
+            if ( this->version == 0 )
+            {
+                local_file = QString( "%1/%2.full.jpg" ).arg( download_dir ).arg( image_name );
+            }
+            else
+            {
+                local_file = QString( "%1/%2.%3.full.jpg" ).arg( download_dir ).arg( image_name ).arg( this->set_id );
+            }
         }
         else
         {
-            local_file = QString( "%1/%2.%3.full.jpg" ).arg( download_dir ).arg( image_name ).arg( this->set_id );
+            if ( this->version == 0 )
+            {
+                local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
+            }
+            else
+            {
+                local_file = QString( "%1/%2/%3.%4.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) )
+                    .arg( image_name ).arg( this->set_id );
+            }
         }
     }
     else
     {
-        if ( this->version == 0 )
-        {
-            local_file = QString( "%1/%2/%3.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) ).arg( image_name );
-        }
-        else
-        {
-            local_file = QString( "%1/%2/%3.%4.full.jpg" ).arg( download_dir ).arg( setcode2legalname( this->set_code ) )
-                .arg( image_name ).arg( this->set_id );
-        }
+        qWarning() << "unknown image format!";
     }
-
     return local_file;
 }
 
