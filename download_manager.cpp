@@ -402,7 +402,11 @@ load_json:
             art_ver++;
             start_pos++;
         }
-        new_card.set_version(art_ver);
+        // when exist diff art
+        if ( art_ver != 1 )
+        {
+            new_card.set_version(art_ver);
+        }
         cards.append( std::move(new_card) );
     }
     return cards;
