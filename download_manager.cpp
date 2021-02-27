@@ -90,57 +90,121 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
             QJsonObject scryfall_card = scryfall_cards[i].toObject();
             //struct see SetList::SetList comment
             QJsonObject cardlist_cache;
+
+            //all card common info
+            cardlist_cache["oracle_name"] = scryfall_card["name"];
+            cardlist_cache["set"] = scryfall_card["set"];
+            cardlist_cache["id"] = scryfall_card["collector_number"];
+            if ( scryfall_card.contains( "printed_type_line" ) )
+            {
+                cardlist_cache["print_type"] = scryfall_card["printed_type_line"];
+            }
+            else
+            {
+                cardlist_cache["print_type"] = scryfall_card["type_line"];
+            }
+            cardlist_cache["rarity"] = scryfall_card["rarity"];
+
             if ( scryfall_card.contains( "card_faces" ) )
             {
-                //double face card info
                 QJsonArray faces = scryfall_card["card_faces"].toArray();
                 int face_size = faces.size();
-                QString print_name;
-                QString print_text;
-                QString card_pt;
-                for ( int i = 0 ; i < face_size ; i++ )
+                //non-double face card(e.g:single face split card)
+                if ( scryfall_card.contains("image_uris") )
                 {
-                    QJsonObject face = faces[i].toObject();
+                    QString print_name;
+                    QString print_text;
+                    QString card_pt;
+                    QString mana_cost;
+                    for ( int i = 0 ; i < face_size ; i++ )
+                    {
+                        QJsonObject face = faces[i].toObject();
 
-                    if ( face.contains( "printed_name" ) )
-                    {
-                        print_name += face["printed_name"].toString();
-                    }
-                    else
-                    {
-                        print_name += face["name"].toString();
-                    }
-                    if ( i + 1 < face_size )
-                    {
-                        print_name += " // ";
+                        if ( face.contains( "printed_name" ) )
+                        {
+                            print_name += face["printed_name"].toString();
+                        }
+                        else
+                        {
+                            print_name += face["name"].toString();
+                        }
+                        if ( i + 1 < face_size )
+                        {
+                            print_name += " // ";
+                        }
+
+                        if ( face.contains( "printed_text" ) )
+                        {
+                            print_text += face["printed_text"].toString();
+                        }
+                        else if ( face.contains( "oracle_text" ) )
+                        {
+                            print_text = face["oracle_text"].toString();
+                        }
+                        if ( ( i + 1 < face_size ) && ( !print_text.isEmpty() ) )
+                        {
+                            print_text += "\n\n\n\n";
+                        }
+
+                        if ( face.contains( "power" ) )
+                        {
+                            card_pt += QString( "%1/%2" ).arg( face["power"].toString() ).arg( face["toughness"].toString() );
+                        }
+                        if ( ( i + 1 < face_size ) && ( !card_pt.isEmpty() ) )
+                        {
+                            card_pt += "\n\n";
+                        }
+
+                        mana_cost += face["mana_cost"].toString();
+                        if ( i + 1 < face_size )
+                        {
+                            mana_cost += " // ";
+                        }
                     }
 
-                    if ( face.contains( "printed_text" ) )
-                    {
-                        print_text += face["printed_text"].toString();
-                    }
-                    else if ( face.contains( "oracle_text" ) )
-                    {
-                        print_text = face["oracle_text"].toString();
-                    }
-                    if ( ( i + 1 < face_size ) && ( !print_text.isEmpty() ) )
-                    {
-                        print_text += "\n\n\n\n";
-                    }
-
-                    if ( face.contains( "power" ) )
-                    {
-                        card_pt += QString( "%1/%2" ).arg( face["power"].toString() ).arg( face["toughness"].toString() );
-                    }
-                    if ( ( i + 1 < face_size ) && ( !card_pt.isEmpty() ) )
-                    {
-                        card_pt += "\n\n";
-                    }
+                    cardlist_cache["print_name"] = print_name;
+                    cardlist_cache["print_text"] = print_text;
+                    cardlist_cache["pt"] = card_pt;
+                    cardlist_cache["mana_cost"] = mana_cost;
+                    cardlist_cache["uris"] = scryfall_card["image_uris"];
                 }
-
-                cardlist_cache["print_name"] = print_name;
-                cardlist_cache["print_text"] = print_text;
-                cardlist_cache["pt"] = card_pt;
+                //double face card
+                else
+                {
+                    for ( int i = 0 ; i < face_size ; i++ )
+                    {
+                        QJsonObject face = faces[i].toObject();
+                        cardlist_cache["oracle_name"] = face["name"];
+                        if ( face.contains( "printed_name" ) )
+                        {
+                            cardlist_cache["print_name"] = face["printed_name"];
+                        }
+                        else
+                        {
+                            cardlist_cache["print_name"] = face["name"];
+                        }
+                        if ( face.contains( "printed_text" ) )
+                        {
+                            cardlist_cache["print_text"] = face["printed_text"];
+                        }
+                        else if ( face.contains( "oracle_text" ) )
+                        {
+                           cardlist_cache["print_text"] = face["oracle_text"];
+                        }
+                        if ( face.contains( "power" ) )
+                        {
+                            cardlist_cache["pt"] = QString( "%1/%2" ).arg( face["power"].toString() ).arg( face["toughness"].toString() );
+                        }
+                        else
+                        {
+                            cardlist_cache["pt"] = "";
+                        }
+                        cardlist_cache["mana_cost"] = face["mana_cost"];
+                        cardlist_cache["uris"] = face["image_uris"];
+                        cards_cache.append( cardlist_cache );
+                    }
+                    continue;
+                }
             }
             else
             {
@@ -176,32 +240,9 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
                 {
                     cardlist_cache["pt"] = "";
                 }
-            }
-            //all card common info
-            cardlist_cache["oracle_name"] = scryfall_card["name"];
-
-            if ( scryfall_card.contains( "mana_cost" ) )
-            {
+                cardlist_cache["uris"] = scryfall_card["image_uris"];
                 cardlist_cache["mana_cost"] = scryfall_card["mana_cost"];
             }
-            else
-            {
-                //no exist mana cost,in mtg have mana cost == 0 card
-                cardlist_cache["mana_cost"] = -1;
-            }
-
-            cardlist_cache["set"] = scryfall_card["set"];
-            cardlist_cache["id"] = scryfall_card["collector_number"];
-            if ( scryfall_card.contains( "printed_type_line" ) )
-            {
-                cardlist_cache["print_type"] = scryfall_card["printed_type_line"];
-            }
-            else
-            {
-                cardlist_cache["print_type"] = scryfall_card["type_line"];
-            }
-
-            cardlist_cache["rarity"] = scryfall_card["rarity"];
 
             cards_cache.append( cardlist_cache );
         }
@@ -213,6 +254,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
         api_url = scryfall_object["next_page"].toString();
     }while ( true );
 
+    cache_content["lang"] = lang_code;
     cache_content["cardlist"] = cards_cache;
     QJsonDocument cache_doc( cache_content );
     cache_file.write( cache_doc.toJson() );
@@ -248,6 +290,7 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
             }
         }
     }
+load_json:
     if ( cache_file.open( QIODevice::ReadOnly | QIODevice::Text ) == false )
     {
         qWarning() << QString( "can not open card list cache,set code:'%1',cache file:'%2'" ).arg( set_code ).arg( cache_name );
@@ -270,11 +313,22 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
     }
     //cache json:
     //{
+    //  "lang" : "en",
     //  "setlist":[
     //      {
     //          "name": string,card full name
     //          "code": string,set code
     //          "id":string This card’s collector number. Note that collector numbers can contain non-numeric characters, such as letters or ★.
+    //          "image_uris":
+    //           {
+    //              "small":"https://c1.scryfall.com/file/scryfall-cards/small/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.jpg?1612316166",
+    //              "normal":"https://c1.scryfall.com/file/scryfall-cards/normal/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.jpg?1612316166",
+    //              "large":"https://c1.scryfall.com/file/scryfall-cards/large/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.jpg?1612316166",
+    //              "png":"https://c1.scryfall.com/file/scryfall-cards/png/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.png?1612316166",
+    //              "art_crop":"https://c1.scryfall.com/file/scryfall-cards/art_crop/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.jpg?1612316166",
+    //              "border_crop":"https://c1.scryfall.com/file/scryfall-cards/border_crop/back/5/d/5d131784-c1a3-463e-a37b-b720af67ab62.jpg?1612316166"
+    //          }
+    //          ...
     //      },
     //      ...
     //  ]
@@ -285,6 +339,16 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         cache_file.remove();
         qWarning() << QString( "card list cache format failure,set code:'%1',cache file:'%2'" ).arg( set_code ).arg( cache_name );
         return cards;
+    }
+    QString lang_code = QString( QMetaEnum::fromType<LanguageEnums::EnumContent>().valueToKey( int( lang ) ) );
+    if (cache_object["lang"].toString() != lang_code)
+    {
+        if ( update_cardlist_cache( set_code , lang ) == false )
+        {
+            qWarning() << QString( "can not get card list information." );
+            return cards;
+        }
+        goto load_json;
     }
     QJsonValue list_node = cache_object["cardlist"];
     if ( list_node.isArray() == false )
@@ -307,13 +371,35 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         QString print_text = cache_card["print_text"].toString();
         QString rarity = cache_card["rarity"].toString();
         QString pt = cache_card["pt"].toString();
-        Card new_card(id , code , oracle_name , mana_cost , print_name , print_type , print_text , rarity , pt);
+        QJsonObject uris_obj = cache_card["uris"].toObject();
+        QMap<QString,QString> scryfall_uris = {
+            {
+                "small" , uris_obj["small"].toString()
+            },
+            {
+                "normal" , uris_obj["normal"].toString()
+            },
+            {
+                "large" , uris_obj["large"].toString()
+            },
+            {
+                "png" , uris_obj["png"].toString()
+            },
+            {
+                "art_crop" , uris_obj["art_crop"].toString()
+            },
+            {
+                "border_crop" , uris_obj["border_crop"].toString()
+            }
+        };
+
+        Card new_card(id , code , oracle_name , mana_cost , print_name , print_type , print_text , rarity , pt , scryfall_uris , 0 );
         int start_pos = 0;
-        int art_ver = 0;
+        int art_ver = 1;
         while ( ( start_pos = cards.indexOf( new_card , start_pos ) ) != -1 )
         {
-            art_ver++;
             cards[start_pos].set_version(art_ver);
+            art_ver++;
             start_pos++;
         }
         new_card.set_version(art_ver);

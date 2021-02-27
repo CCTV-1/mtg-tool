@@ -13,7 +13,7 @@ Card::Card():
 }
 
 Card::Card( QString id , QString code , QString name , QString mana_cost , QString print_name , QString type,
-            QString text , QString rarity , QString pt , int version ):
+            QString text , QString rarity , QString pt , const QMap<QString,QString>& uris, int version ):
     QObject( nullptr ),
     set_id( id ),
     set_code( code.toLower() ),
@@ -24,7 +24,8 @@ Card::Card( QString id , QString code , QString name , QString mana_cost , QStri
     print_text( text ),
     rarity( rarity ),
     pt( pt ),
-    version(version)
+    scryfall_uris( uris ),
+    version( version )
 {
     ;
 }
@@ -40,6 +41,7 @@ Card::Card( const Card& card ):
     print_text( card.print_text ),
     rarity( card.rarity ),
     pt( card.pt ),
+    scryfall_uris( card.scryfall_uris ),
     version( card.version )
 {
     ;
@@ -56,6 +58,7 @@ Card::Card( Card&& card ) noexcept( true ):
     print_text( std::move( card.print_text ) ),
     rarity( std::move( card.rarity ) ),
     pt( std::move( card.pt ) ),
+    scryfall_uris( std::move( card.scryfall_uris ) ),
     version( std::move( card.version ) )
 {
     ;
@@ -74,6 +77,7 @@ Card& Card::operator=( const Card& card )
     this->print_text = card.print_text;
     this->rarity = card.rarity;
     this->pt = card.pt;
+    this->scryfall_uris = card.scryfall_uris;
     this->version = card.version;
     return *this;
 }
@@ -91,6 +95,7 @@ Card& Card::operator=(Card &&card) noexcept( true )
     this->print_text = std::move( card.print_text );
     this->rarity = std::move( card.rarity );
     this->pt = std::move( card.pt );
+    this->scryfall_uris = std::move( card.scryfall_uris );
     this->version = std::move( card.version );
     return *this;
 }
@@ -250,6 +255,10 @@ QUrl Card::scryfall_url( void ) const
 
     int resoulution_value = settings.get_image_resolution();
     QString resoulution_string = QString( QMetaEnum::fromType<ImageStylesEnums::EnumContent>().valueToKey( resoulution_value ) );
+    if ( this->scryfall_uris.contains(resoulution_string.toLower()) )
+    {
+        return this->scryfall_uris[resoulution_string.toLower()];
+    }
     if ( this->set_code.isEmpty() )
     {
         return QUrl( QString( "https://api.scryfall.com/cards/named?exact=%1&format=image&version=%2" ).arg( this->oracle_name ).arg( resoulution_string ) );

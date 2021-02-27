@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QString>
 #include <QUrl>
+#include <QMap>
 
 class Card : public QObject
 {
@@ -13,7 +14,7 @@ class Card : public QObject
 public:
     Card();
     Card( QString id , QString code , QString name , QString mana_cost = "" , QString print_name = "" , QString print_type = "",
-          QString print_text = "" , QString rarity = "" , QString pt = "" , int version = 0 );
+          QString print_text = "" , QString rarity = "" , QString pt = "" , const QMap<QString, QString>& uris = {} , int version = 0 );
     Card( const Card& card );
     Card( Card&& card ) noexcept( true );
 
@@ -51,6 +52,7 @@ private:
     QString print_text;
     QString rarity;
     QString pt;
+    QMap<QString,QString> scryfall_uris;
     //if version == 0, no different art version in the same set,else version is art version.
     int version;
 };
