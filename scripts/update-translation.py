@@ -78,6 +78,9 @@ def get_iyingditranslations():
     def parse_cardinfo(ename: str, cname: str, maintype: str, subtype: str, rule: str) -> tuple:
         ename = ename.strip('\n')
         ename = ename.strip('\r\n\xa0')
+        while ename.endswith(' '):
+            ename = ename[:-1]
+        #ename.removesuffix(' ')
         if ename[0].islower():
             ename = ename[0].swapcase() + ename[1:]
 
@@ -115,6 +118,10 @@ def get_iyingditranslations():
             rule = rule.replace('）', ')')
             rule = rule.replace('「', '"')
             rule = rule.replace('」', '"')
+            #d20 text 1-9 | ... to 1-9:...
+            # forge translations like flow:
+            # english name|translated name|translated type|translated content
+            rule = rule.replace(' | ', '：')
             rule = rule.replace(ename, cname)
 
         translatepriority = 0
@@ -181,6 +188,8 @@ def get_iyingditranslations():
             index = min(enames.__len__(),
                         cnames.__len__(), rules.__len__())
             for i in range(index):
+                if not enames[i]:
+                    continue
                 translatepriority, key, value = parse_cardinfo(
                     enames[i], cnames[i], maintype, subtype, rules[i])
                 priority = translatebasepriority*translatepriority + setpriority
