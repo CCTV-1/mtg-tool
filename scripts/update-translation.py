@@ -121,7 +121,7 @@ def get_iyingditranslations():
             #d20 text 1-9 | ... to 1-9:...
             # forge translations like flow:
             # english name|translated name|translated type|translated content
-            rule = rule.replace(' | ', '：')
+            rule = rule.replace(' | ', '｜')
             rule = rule.replace(ename, cname)
 
         translatepriority = 0
