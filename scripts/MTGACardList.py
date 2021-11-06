@@ -21,6 +21,7 @@ class Languages(enum.Enum):
 
 
 class CardRarity(enum.Enum):
+    NONE = 0
     LAND = 1
     COMMON = 2
     UNCOMMON = 3
@@ -112,13 +113,13 @@ def get_cardinfos(data_paths: tuple, lang=Languages.EN) -> dict:
     cardsinfo = {}
 
     for data in datas:
-        if data['isToken'] == True:
+        if data.get('isToken',False) == True:
             continue
-        if data['isPrimaryCard'] != True:
+        if data.get('isSecondaryCard',True) != True:
             continue
         series = data['set']
 
-        cardrarity = data['rarity']
+        cardrarity = data.get('rarity',0)
         cardname = translations[data['titleId']]
 
         card = Card(cardrarity, cardname)
