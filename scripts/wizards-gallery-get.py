@@ -94,7 +94,7 @@ def downloadimage(cardname, cardurl, filename_format='forge'):
             cardname = '{0}{1}'.format(basecardname, renamecount)
 
     try:
-        imageobject = requests.get(cardurl, timeout=13)
+        imageobject = requests.get(cardurl, timeout=60)
     except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectTimeout):
         logging.info(
             "Download Card %s request timeout stop downloading!\n", cardname)
@@ -104,8 +104,8 @@ def downloadimage(cardname, cardurl, filename_format='forge'):
             imagefile.write(imageobject.content)
         else:
             logging.info("Request type not is image,the card is:%s", cardname)
-    except (AttributeError, TypeError, KeyError):
-        logging.info("Card:%s info not error\n", cardname)
+    except (AttributeError, TypeError, KeyError) as e:
+        logging.info("Card:%s info error,error message:%s\n", cardname, e.__str__())
 
 
 def main():
