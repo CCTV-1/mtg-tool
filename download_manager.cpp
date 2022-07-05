@@ -21,7 +21,7 @@
 static bool update_cardlist_cache( const QString& set_code , LanguageEnums::EnumContent lang )
 {
     QString lang_code = QString( QMetaEnum::fromType<LanguageEnums::EnumContent>().valueToKey( int( lang ) ) );
-    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s:%1+lang:%2+include:extras" ).arg( set_code ).arg( lang_code ) );
+    QUrl api_url = QUrl( QString( "https://api.scryfall.com/cards/search?q=s:%1+lang:%2+include:extras+unique:prints" ).arg( set_code ).arg( lang_code ) );
     QString cache_name = QString( "%1.json" ).arg( setcode2legalname(set_code) );
     QFile cache_file( cache_name );
     if ( cache_file.exists() )
