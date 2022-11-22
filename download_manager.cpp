@@ -189,7 +189,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
                         }
                         else if ( face.contains( "oracle_text" ) )
                         {
-                           cardlist_cache["print_text"] = face["oracle_text"];
+                            cardlist_cache["oracle_text"] = face["oracle_text"];
                         }
                         if ( face.contains( "power" ) )
                         {
@@ -224,7 +224,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
                 }
                 else if ( scryfall_card.contains( "oracle_text" ) )
                 {
-                    cardlist_cache["print_text"] = scryfall_card["oracle_text"];
+                    cardlist_cache["oracle_text"] = scryfall_card["oracle_text"];
                 }
                 else
                 {
