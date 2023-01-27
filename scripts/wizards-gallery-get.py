@@ -10,11 +10,12 @@ from concurrent.futures import ThreadPoolExecutor
 import requests
 from bs4 import BeautifulSoup
 
-BASEURL = 'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
+BASEURL = 'https://magic.wizards.com/en/news/card-image-gallery/{setlongname}'
+#'http://magic.wizards.com/en/articles/archive/card-image-gallery/{setlongname}'
 #'https://magic.wizards.com/en/products/{setlongname}/cards'
 
 
-def getcardsinfo(setlongname, localcode='cs'):
+def getcardsinfo(setlongname, localcode='en'):
     """localcode:en -> english,cs -> simplified chinese,ct -> traditional chinese,jp -> Japanese"""
     try:
         cardinfo = []
