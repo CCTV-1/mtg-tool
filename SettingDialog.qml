@@ -218,7 +218,7 @@ Dialog {
                 width: parent.width*3/5
                 editable: true
                 from: 1
-                to: Screen.width
+                to: 99999
                 value: tool_settings.get_data_update_delay()
                 font.family: customfont.name
                 onValueModified:
