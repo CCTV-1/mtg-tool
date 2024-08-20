@@ -22,8 +22,11 @@ public:
 public slots:
     void finished( QNetworkReply * reply );
 signals:
+    void request_download_set( QString set_code );
     void download_end( void );
     void request_count_changed( int now_count );
+private slots:
+    void do_download_set( const QString& set_code );
 private:
     QNetworkAccessManager manager;
     QMap<QUrl,QNetworkReply *> localurl_map;

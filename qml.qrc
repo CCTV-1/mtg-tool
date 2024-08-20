@@ -5,5 +5,13 @@
         <file>UbuntuMono-Bold.ttf</file>
         <file>mtgtool_zh_CN.qm</file>
         <file>PreviewDialog.qml</file>
+        <file>SettingDialog.qml</file>
+        <file>DeckPreview.qml</file>
+        <file>DownloadButton.qml</file>
+        <file>SettingButton.qml</file>
+        <file>download.svg</file>
+        <file>setting.svg</file>
+        <file>StatusCard.qml</file>
+        <file>ConfirmDialog.qml</file>
     </qresource>
 </RCC>

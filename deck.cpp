@@ -71,7 +71,7 @@ Deck::Deck( const QStringList& lines )
 {
     this->type = this->inference_type( lines );
 
-    decltype( this->main_cards )* list_prt = &( this->main_cards );
+    decltype( this->main_cards )* list_ptr = &( this->main_cards );
     switch ( this->type )
     {
         case DeckType::XMAGE:
@@ -82,12 +82,12 @@ Deck::Deck( const QStringList& lines )
                 {
                     if ( xmage_deck_reg.cap(1).isEmpty() == false )
                     {
-                        list_prt = &( this->sideboard_cards );
+                        list_ptr = &( this->sideboard_cards );
                     }
                     QString set_id = xmage_deck_reg.cap(4);
                     QString set_code = xmage_deck_reg.cap(3);
                     QString card_name = xmage_deck_reg.cap(5);
-                    ( *list_prt )[ Card( set_id , set_code , card_name ) ] += xmage_deck_reg.cap(2).toInt();
+                    ( *list_ptr )[ Card( set_id , set_code , card_name ) ] += xmage_deck_reg.cap(2).toInt();
                 }
             }
             break;
@@ -107,23 +107,23 @@ Deck::Deck( const QStringList& lines )
                     {
                         set_code = "DOM";
                     }
-                    ( *list_prt )[ Card( set_id , set_code , card_name ) ] += mtga_deck_reg.cap(1).toInt();
+                    ( *list_ptr )[ Card( set_id , set_code , card_name ) ] += mtga_deck_reg.cap(1).toInt();
                 }
                 else if ( line == QString( "Commander" ) )
                 {
-                    list_prt = &( this->commander_cards );
+                    list_ptr = &( this->commander_cards );
                 }
                 else if ( line == QString( "Deck" ) )
                 {
-                    list_prt = &( this->main_cards );
+                    list_ptr = &( this->main_cards );
                 }
                 else if ( line == QString( "Sideboard" ) )
                 {
-                    list_prt = &( this->sideboard_cards );
+                    list_ptr = &( this->sideboard_cards );
                 }
                 if ( line == QString( "Companion" ) )
                 {
-                    list_prt = &discard_cards;
+                    list_ptr = &discard_cards;
                 }
             }
             break;
@@ -137,11 +137,11 @@ Deck::Deck( const QStringList& lines )
                     QString set_id = QString();
                     QString set_code = forge_deck_reg.cap(3);
                     QString card_name = forge_deck_reg.cap(2);
-                    ( *list_prt )[ Card( set_id , set_code , card_name ) ] += forge_deck_reg.cap(1).toInt();
+                    ( *list_ptr )[ Card( set_id , set_code , card_name ) ] += forge_deck_reg.cap(1).toInt();
                 }
                 else if ( line.toLower().contains( "sideboard" ) )
                 {
-                    list_prt = &( this->sideboard_cards );
+                    list_ptr = &( this->sideboard_cards );
                 }
             }
             break;
@@ -155,11 +155,11 @@ Deck::Deck( const QStringList& lines )
                     QString set_id = QString();
                     QString set_code = QString();
                     QString card_name = goldfish_deck_reg.cap(2);
-                    ( *list_prt )[ Card( set_id , set_code , card_name ) ] += goldfish_deck_reg.cap(1).toInt();
+                    ( *list_ptr )[ Card( set_id , set_code , card_name ) ] += goldfish_deck_reg.cap(1).toInt();
                 }
                 else if ( line == QString( "" ) )
                 {
-                    list_prt = &( this->sideboard_cards );
+                    list_ptr = &( this->sideboard_cards );
                 }
             }
             break;

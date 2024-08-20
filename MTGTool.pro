@@ -30,7 +30,8 @@ HEADERS += card.h \
            enum_model.h \
            enums.h \
            sets_model.h \
-           tool_settings.h
+           tool_settings.h \
+           utils.h
 SOURCES += card.cpp \
            deck.cpp \
            deck_parser.cpp \

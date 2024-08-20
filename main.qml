@@ -10,581 +10,167 @@ ApplicationWindow
     visible: true
     width: 940
     height: 720
+    //@disable-check M16
     title: qsTr("MTG Tools")
 
     FontLoader { id: customfont; source: "qrc:/UbuntuMono-Bold.ttf" }
 
-    Downloader { id: deck_downloader }
-
-    function open_preview_dialog( deck )
-    {
-        if ( deck === null )
-            return
-        var commander_cards = deck.commander_list()
-        var main_cards = deck.main_list()
-        var side_cards = deck.side_list()
-
-        var commander_source_urls = []
-        for ( let i in commander_cards )
-        {
-            if ( commander_cards[i].exists_localfile() )
-            {
-                commander_source_urls.push( commander_cards[i].local_uri().toString() )
-            }
-            else
-            {
-                deck_downloader.download_card( commander_cards[i].local_url() , commander_cards[i].scryfall_url() )
-                commander_source_urls.push( commander_cards[i].scryfall_url().toString() )
-            }
-        }
-
-        var main_source_urls = []
-        for ( let j in main_cards )
-        {
-            if ( main_cards[j].exists_localfile() )
-            {
-                main_source_urls.push( main_cards[j].local_uri().toString() )
-            }
-            else
-            {
-                deck_downloader.download_card( main_cards[j].local_url() , main_cards[j].scryfall_url() )
-                main_source_urls.push( main_cards[j].scryfall_url().toString() )
-            }
-        }
-
-        var side_source_urls = []
-        for ( let k in side_cards )
-        {
-            if ( side_cards[k].exists_localfile() )
-            {
-                side_source_urls.push( side_cards[k].local_uri().toString() )
-            }
-            else
-            {
-                deck_downloader.download_card( side_cards[k].local_url() , side_cards[k].scryfall_url() )
-                side_source_urls.push( side_cards[k].scryfall_url().toString() )
-            }
-        }
-
-        var dialog_component = Qt.createComponent( "PreviewDialog.qml" )
-        if ( dialog_component.status !== Component.Ready )
-        {
-            if ( dialog_component.status === Component.Error )
-                console.debug( "Error:" + dialog_component.errorString() );
-            return ;
-        }
-
-        var preview_dialog = dialog_component.createObject( window ,
-        {
-            image_width: image_width_box.value,
-            image_height: image_height_box.value,
-            commander_image_list : commander_source_urls,
-            main_image_list : main_source_urls,
-            sideboard_image_list : side_source_urls
-        })
-
-        preview_dialog.open()
-    }
-
-    Page
-    {
-        id: setting_page
-        visible: false
-        title: qsTr("Download Preferences")
-
-        Grid
-        {
-            anchors.fill: parent
-            columns: 1
-            rowSpacing: 10
-
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("filter role:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                ComboBox
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    model: role_model.enums
-                    width: parent.width*3/5
-                    currentIndex: role_model.enumvalue_to_index( tool_settings.get_filter_role() )
-                    font.family: customfont.name
-                    onActivated:
-                    {
-                        var enumvalue = role_model.index_to_enumvalue( currentIndex );
-                        sets_model.set_fileter_role( enumvalue )
-                        tool_settings.set_filter_role( enumvalue )
-                    }
-
-                    delegate: ItemDelegate
-                    {
-                        text: modelData
-                        width:parent.width
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        font.family: customfont.name
-                    }
-                }
-            }
-
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("image language:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                ComboBox
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    model: lang_model.enums
-                    width: parent.width*3/5
-                    currentIndex:
-                    lang_model.enumvalue_to_index( tool_settings.get_image_lanuage() )
-                    font.family: customfont.name
-                    onActivated:
-                    {
-                        var enum_value = lang_model.index_to_enumvalue( currentIndex )
-                        tool_settings.set_image_lanuage( enum_value )
-                    }
-
-                    delegate: ItemDelegate
-                    {
-                        text: modelData
-                        width:parent.width
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        font.family: customfont.name
-                    }
-                }
-            }
-
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("image styles:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                ComboBox
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    model: image_styles_model.enums
-                    width: parent.width*3/5
-                    currentIndex:
-                    image_styles_model.enumvalue_to_index( tool_settings.get_image_resolution() )
-                    font.family: customfont.name
-                    onActivated:
-                    {
-                        var enum_value = image_styles_model.index_to_enumvalue( currentIndex )
-                        tool_settings.set_image_resolution( enum_value )
-                    }
-
-                    delegate: ItemDelegate
-                    {
-                        text: modelData
-                        width: parent.width
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        font.family: customfont.name
-                    }
-                }
-            }
-
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("image name format:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                ComboBox
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    model: nameformat_model.enums
-                    width: parent.width*3/5
-                    currentIndex:
-                    nameformat_model.enumvalue_to_index( tool_settings.get_image_name_format() )
-                    font.family: customfont.name
-                    onActivated:
-                    {
-                        var enum_value = nameformat_model.index_to_enumvalue( currentIndex )
-                        tool_settings.set_image_name_format( enum_value )
-                    }
-
-                    delegate: ItemDelegate
-                    {
-                        text: modelData
-                        width: parent.width
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        font.family: customfont.name
-                    }
-                }
-            }
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("image cache directory:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                Button
-                {
-                    id: select_dir_button
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*3/5
-                    text: tool_settings.get_cache_directory()
-                    font.family: customfont.name
-                    Dialogs.FileDialog
-                    {
-                        id: download_dir_chooser
-                        title: qsTr( "choose download image cache directory" )
-                        selectFolder: true
-                        selectMultiple: false
-                        onAccepted:
-                        {
-                            select_dir_button.text = download_dir_chooser.fileUrl
-                            tool_settings.set_cache_directory( download_dir_chooser.fileUrl )
-                        }
-                    }
-                    onClicked:
-                    {
-                        download_dir_chooser.open()
-                    }
-                }
-            }
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("preivew image width:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                SpinBox
-                {
-                    id: image_width_box
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*3/5
-                    editable: true
-                    from: 1
-                    to: Screen.width
-                    value: tool_settings.get_image_width()
-                    font.family: customfont.name
-                    onValueModified:
-                    {
-                        tool_settings.set_image_width( value )
-                    }
-                }
-            }
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("preivew image height:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                SpinBox
-                {
-                    id: image_height_box
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*3/5
-                    editable: true
-                    from: 1
-                    to: Screen.height
-                    value: tool_settings.get_image_height()
-                    font.family: customfont.name
-                    onValueModified:
-                    {
-                        tool_settings.set_image_height( value )
-                    }
-                }
-            }
-            Row
-            {
-                width: parent.width
-                Text
-                {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*2/5
-                    text: qsTr("sets views button function:")
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: customfont.name
-                    font.pixelSize: 14
-                }
-                ComboBox
-                {
-                    id: func_control
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width*3/5
-                    currentIndex: 0
-                    model:
-                    [
-                        qsTr( "download sets image" ),
-                        qsTr( "generator sets rating table" )
-                    ]
-                }
-            }
-        }
-    }
-
-    Page
-    {
-        id: deckpreview_generator
-        visible: false
-        title: qsTr( "preview generator" )
-        DeckParser
-        {
-            id: parser
-        }
-        Grid
-        {
-            anchors.fill: parent
-            columns: 1
-            rowSpacing: 10
-            Button
-            {
-                text: qsTr("parse clipboard")
-                font.capitalization: Font.MixedCase
-                width: parent.width
-                font.family: customfont.name
-                onClicked:
-                {
-                    var deck = parser.parse_clipboard()
-                    open_preview_dialog( deck )
-                }
-            }
-            Button
-            {
-                Dialogs.FileDialog
-                {
-                    id: target_file
-                    title: qsTr("choose a deck file")
-                    onAccepted:
-                    {
-                        var deck = parser.parse_file( target_file.fileUrl )
-                        open_preview_dialog( deck )
-                    }
-                }
-                text: qsTr( "parse deck" )
-                font.capitalization: Font.MixedCase
-                width: window.width
-                font.family: customfont.name
-                onClicked:
-                {
-                    target_file.open()
-                }
-            }
-        }
-    }
-
     header: ToolBar
     {
+        id: toolBar
         contentHeight: toolButton.implicitHeight
 
-        ToolButton
+        SettingButton
         {
             id: toolButton
-            text: stackView.depth > 1 ? "\u25C0" : "\u2630"
             font.pixelSize: Qt.application.font.pixelSize * 1.6
             onClicked:
             {
-                if ( stackView.depth > 1 )
+                var dialog_component = Qt.createComponent( "qrc:/SettingDialog.qml" )
+                if ( dialog_component.status !== Component.Ready )
                 {
-                    stackView.pop()
+                    if ( dialog_component.status === Component.Error )
+                        console.debug( "Error:" + dialog_component.errorString() );
+                    return ;
                 }
-                else
-                {
-                    drawer.open()
-                }
+
+                var preview_dialog = dialog_component.createObject( window , {
+                    dialogWidth:window.width,
+                    dialogHeight:window.height
+                })
+
+                preview_dialog.open()
             }
         }
 
-        Label
+        TextField
         {
-            text: stackView.currentItem.title
-            anchors.centerIn: parent
-        }
-    }
-
-    Drawer
-    {
-        id: drawer
-        width: window.width * 0.4
-        height: window.height
-
-        Column
-        {
-            anchors.fill: parent
-
-            ItemDelegate
+            id:search_field
+            width: parent.width - toolButton.width - 8
+            anchors.right: parent.right
+            placeholderText: qsTr("enter filter role string(part or all,only support english,case sensitive)")
+            font.family: customfont.name
+            font.pixelSize: 20
+            anchors.rightMargin: 8
+            onTextChanged:
             {
-                text: qsTr("deck preview generator")
-                width: parent.width
-                onClicked:
-                {
-                    stackView.push( deckpreview_generator )
-                    drawer.close()
-                }
-            }
-
-            ItemDelegate
-            {
-                text: qsTr("Preferences Setting")
-                width: parent.width
-                onClicked:
-                {
-                    stackView.push( setting_page )
-                    drawer.close()
-                }
+                sets_model.setFilterFixedString( text )
             }
         }
     }
 
-    StackView
+    footer: ToolBar
     {
-        id: stackView
+        Row
+        {
+            id:statu_layout
+        }
+    }
+
+    ListView
+    {
         anchors.fill: parent
-        initialItem:
-        Page
+        model: sets_model
+        delegate:
+        Rectangle
         {
-            title: qsTr( "sets views" )
-            ScrollView
+            width: childrenRect.width
+            height: childrenRect.height
+            color: "#FFFFFF"
+            border.width: 1
+            border.color: "#000000"
+            MouseArea
             {
                 anchors.fill: parent
-                Grid
+                hoverEnabled: true
+                onEntered:
                 {
-                    columns: 1
-                    TextField
-                    {
-                        width: stackView.width
-                        placeholderText: qsTr("enter filter role string(part or all,only support english,case sensitive)")
-                        font.family: customfont.name
-                        font.pixelSize: 20
-                        onTextChanged:
-                        {
-                            sets_model.setFilterFixedString( text )
-                        }
-                    }
-                    Repeater
-                    {
-                        model: sets_model
-                        delegate:
-                        Rectangle
-                        {
-                            width: childrenRect.width
-                            height: childrenRect.height
-                            MouseArea
-                            {
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                //onClicked:
-                                //{
-                                    //console.log("clicked "+code)
-                                //}
-                                onEntered:
-                                {
-                                    parent.color = "#DDEEFF"
-                                }
-                                onExited:
-                                {
-                                    parent.color = "#FFFFFF"
-                                }
-                            }
-
-                            Row
-                            {
-                                id: set_row
-                                width: stackView.width
-                                Downloader
-                                {
-                                    id: downloader
-                                    onRequest_count_changed:
-                                    {
-                                        card_count.color = "#FF0000"
-                                        card_count.text = request_count;
-                                    }
-                                }
-                                CheckBox
-                                {
-                                    //text: func_control.currentText
-                                    //width: parent.width*0.1
-                                    onClicked:
-                                    {
-                                        if ( checkState == Qt.Checked )
-                                        {
-                                            if ( func_control.currentIndex == 0 )
-                                                downloader.download_set( code )
-                                            else
-                                                downloader.generate_ratingtable( code )
-                                        }
-                                    }
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text
-                                {
-                                    text: name
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.family: customfont.name
-                                    width: parent.width*0.5
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text
-                                {
-                                    text: code + "(" + type + ")"
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.family: customfont.name
-                                    width: parent.width*0.2
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                                Text
-                                {
-                                    id: card_count
-                                    text: count
-                                    horizontalAlignment: Text.AlignHCenter
-                                    font.family: customfont.name
-                                    width: parent.width*0.2
-                                    anchors.verticalCenter: parent.verticalCenter
-                                }
-                            }
-                        }
-                    }
+                    parent.color = "#DDEEFF"
+                }
+                onExited:
+                {
+                    parent.color = "#FFFFFF"
                 }
             }
+
+            Row
+            {
+                id: set_row
+                width: window.width
+                rightPadding: 4
+                leftPadding: 4
+                DownloadButton
+                {
+                    onClicked:
+                    {
+                        var card_component = Qt.createComponent( "qrc:/StatusCard.qml" )
+                        if ( card_component.status !== Component.Ready )
+                        {
+                            if ( card_component.status === Component.Error )
+                                console.debug( "Error:" + card_component.errorString() );
+                            return ;
+                        }
+                        var status_card = card_component.createObject(statu_layout, {
+                            setCode:code,
+                            height:statu_layout.parent.height
+                        })
+                        if (status_card === null)
+                        {
+                            console.log("Error: creating StatusCard object");
+                        }
+                    }
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text
+                {
+                    text: name
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: customfont.name
+                    width: 400
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text
+                {
+                    text: code + "(" + type + ")"
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: customfont.name
+                    width: 160
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text
+                {
+                    id: card_count
+                    text: count
+                    horizontalAlignment: Text.AlignHCenter
+                    font.family: customfont.name
+                    width: 160
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
+
+    onClosing:
+    {
+        close.accepted = false
+        if ( statu_layout.children.length !== 0 )
+        {
+            var confirm_component = Qt.createComponent( "qrc:/ConfirmDialog.qml" )
+            if ( confirm_component.status !== Component.Ready )
+            {
+                if ( confirm_component.status === Component.Error )
+                    console.debug( "Error:" + confirm_component.errorString() )
+                return
+            }
+            var confirm_dialog = confirm_component.createObject(window,{visible:true})
+            if (confirm_dialog === null)
+            {
+                console.log("Error: creating StatusCard object")
+            }
+        }
+        else
+        {
+            Qt.quit()
         }
     }
 }

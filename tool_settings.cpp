@@ -88,3 +88,13 @@ void ToolSetting::set_filter_role( int enum_value )
 {
     this->setValue( "filter_preferences/sets_role" , enum_value );
 }
+
+int ToolSetting::get_data_update_delay( void )
+{
+    return this->value( "download_preferences/data_update_delay" , 1 ).toInt();
+}
+
+void ToolSetting::set_data_update_delay( int day )
+{
+    this->setValue( "download_preferences/data_update_delay" , day );
+}

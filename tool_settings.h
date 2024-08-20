@@ -32,6 +32,9 @@ public:
 
     Q_INVOKABLE int get_filter_role( void );
     Q_INVOKABLE void set_filter_role( int enum_value );
+
+    Q_INVOKABLE int get_data_update_delay( void );
+    Q_INVOKABLE void set_data_update_delay( int day );
 private:
     QUrl default_cache_url;
 };

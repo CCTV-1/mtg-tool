@@ -189,8 +189,9 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
                         }
                         else if ( face.contains( "oracle_text" ) )
                         {
-                            cardlist_cache["oracle_text"] = face["oracle_text"];
+                           cardlist_cache["print_text"] = face["oracle_text"];
                         }
+                        else
                         if ( face.contains( "power" ) )
                         {
                             cardlist_cache["pt"] = QString( "%1/%2" ).arg( face["power"].toString() ).arg( face["toughness"].toString() );
@@ -224,7 +225,7 @@ static bool update_cardlist_cache( const QString& set_code , LanguageEnums::Enum
                 }
                 else if ( scryfall_card.contains( "oracle_text" ) )
                 {
-                    cardlist_cache["oracle_text"] = scryfall_card["oracle_text"];
+                    cardlist_cache["printed_text"] = scryfall_card["oracle_text"];
                 }
                 else
                 {
@@ -280,8 +281,9 @@ static QVector<Card> get_cardlist( const QString& set_code , LanguageEnums::Enum
         QFileInfo cache_info( cache_name );
         QDateTime last_update = cache_info.lastModified();
         QDateTime now_date = QDateTime::currentDateTime();
+        ToolSetting setting;
         qInfo() << QString( "'%1' cache file last updated %2 days ago" ).arg( set_code ).arg( last_update.daysTo( now_date ) );
-        if ( last_update.daysTo( now_date ) >= 1 )
+        if ( last_update.daysTo( now_date ) >= setting.get_data_update_delay() )
         {
             if ( update_cardlist_cache( set_code , lang ) == false )
             {
@@ -415,6 +417,7 @@ load_json:
 DownloadManager::DownloadManager()
 {
     connect( &( this->manager ) , &QNetworkAccessManager::finished , this , &DownloadManager::finished );
+    connect( this , &DownloadManager::request_download_set , &DownloadManager::do_download_set );
 }
 
 void DownloadManager::download_card(QUrl local_url, QUrl network_url)
@@ -446,6 +449,11 @@ void DownloadManager::download_card(QUrl local_url, QUrl network_url)
 }
 
 void DownloadManager::download_set( const QString& set_code )
+{
+    emit DownloadManager::request_download_set(set_code);
+}
+
+void DownloadManager::do_download_set( const QString& set_code )
 {
     ToolSetting setting;
     LanguageEnums::EnumContent lang = static_cast<LanguageEnums::EnumContent>( setting.get_image_lanuage() );
